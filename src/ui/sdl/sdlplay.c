@@ -90,6 +90,7 @@ static void audio_callback( void *param , Uint8 *data , int len )
     }
 }
 
+// SDL初期化
 static int audio_sdl_init()
 {
 
@@ -106,6 +107,7 @@ static int audio_sdl_init()
     return 0;
 }
 
+// オーディオ初期化
 static int audio_init(int freq)
 {
     SDL_AudioSpec af;
@@ -133,6 +135,7 @@ static int audio_init(int freq)
     return 0;
 }
 
+// オーディオ開放
 static void audio_free(void)
 {
     PRNDBG("Close Audio\n");
@@ -448,7 +451,7 @@ int audio_check_nlgmode(const char *file)
     if (!p)
         return 0;
     
-    if (strcasecmp(p,NLG_EXT) == 0)
+    if (strcasecmp(p, NLG_EXT) == 0)
         return 1;
     
     return 0;
@@ -688,6 +691,8 @@ int audio_main(int argc, char *argv[])
         else
             audio_loop(rate , len);
         
+        audio_file_free();
+        
         // CloseNLG_NSF();
     }
     
@@ -702,8 +707,6 @@ int audio_main(int argc, char *argv[])
 	    NEZDelete(nezctx);
 	    nezctx = NULL;
     }
-    // TerminateNSF();
-    // FreeBufferNSF();
 
     PRNDBG("done\n");
 

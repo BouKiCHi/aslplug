@@ -62,6 +62,11 @@ void SetCTC3_NLG(NLGCTX *ctx, int value);
 #define CMD_OPM2 0x02
 #define CMD_IRQ  0x80
 
+#define CMD_DEV1  0x00
+#define CMD_DEV2  0x01
+#define CMD_DEV3  0x02
+
+
 #define CMD_CTC0 0x81
 #define CMD_CTC3 0x82
 
