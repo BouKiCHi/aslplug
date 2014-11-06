@@ -175,10 +175,12 @@ static void vsync_setup(GBRDMG *THIS_)
 	kmevent_settimer(&THIS_->kme, THIS_->vsync, THIS_->isCGB ? (154 * 456 * 2) : (154 * 456));
 }
 
-static void vsync_setup2(GBRDMG *THIS_)
+/*
+ static void vsync_setup2(GBRDMG *THIS_)
 {
 	kmevent_settimer(&THIS_->kme, THIS_->vsync, 1);
 }
+ */
 
 static void timer_setup(GBRDMG *THIS_)
 {
@@ -192,6 +194,7 @@ static void timer_setup(GBRDMG *THIS_)
 	}
 }
 
+/*
 static void timer_setup2(GBRDMG *THIS_)
 {
 	if (THIS_->gb_TMC & 0x4)
@@ -203,6 +206,8 @@ static void timer_setup2(GBRDMG *THIS_)
 		kmevent_settimer(&THIS_->kme, THIS_->timer, 0);
 	}
 }
+
+ */
 
 static void timer_update_TIMA(GBRDMG *THIS_)
 {
@@ -915,13 +920,13 @@ static Uint32 load(NEZ_PLAY *pNezPlay, GBRDMG *THIS_, Uint8 *pData, Uint32 uSize
 
 		XMEMSET(THIS_->titlebuffer, 0, 0x21);
 		XMEMCPY(THIS_->titlebuffer, pData + 0x0134, 0x10);
-		songinfodata.title=THIS_->titlebuffer;
+		songinfodata.title=(char *)THIS_->titlebuffer;
 
 		XMEMSET(THIS_->artistbuffer, 0, 0x21);
-		songinfodata.artist=THIS_->artistbuffer;
+		songinfodata.artist=(char *)THIS_->artistbuffer;
 
 		XMEMSET(THIS_->copyrightbuffer, 0, 0x21);
-		songinfodata.copyright=THIS_->copyrightbuffer;
+		songinfodata.copyright=(char *)THIS_->copyrightbuffer;
 
 		sprintf(songinfodata.detail,
 "Type               : GBRF\r\n\
@@ -988,15 +993,15 @@ First TMC          : %02XH"
 
 		XMEMSET(THIS_->titlebuffer, 0, 0x21);
 		XMEMCPY(THIS_->titlebuffer, pData + 0x0010, 0x20);
-		songinfodata.title=THIS_->titlebuffer;
+		songinfodata.title=(char *)THIS_->titlebuffer;
 
 		XMEMSET(THIS_->artistbuffer, 0, 0x21);
 		XMEMCPY(THIS_->artistbuffer, pData + 0x0030, 0x20);
-		songinfodata.artist=THIS_->artistbuffer;
+		songinfodata.artist=(char *)THIS_->artistbuffer;
 
 		XMEMSET(THIS_->copyrightbuffer, 0, 0x21);
 		XMEMCPY(THIS_->copyrightbuffer, pData + 0x0050, 0x20);
-		songinfodata.copyright=THIS_->copyrightbuffer;
+		songinfodata.copyright=(char *)THIS_->copyrightbuffer;
 
 		sprintf(songinfodata.detail,
 "Type              : GBS\r\n\
@@ -1131,7 +1136,7 @@ Uint32 GBRLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
 	GBRDMG *THIS_;
-	if (pNezPlay->gbrdmg) *((char *)(0)) = 0;	/* ASSERT */
+	if (pNezPlay->gbrdmg) ASSERT(0);	/* ASSERT */
 	THIS_ = (GBRDMG *)XMALLOC(sizeof(GBRDMG));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
 	ret = load(pNezPlay, THIS_, pData, uSize);

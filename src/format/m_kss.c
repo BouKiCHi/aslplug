@@ -354,7 +354,7 @@ Uint32 memview_memread_kss(Uint32 a){
 //ここまでメモリービュアー設定
 
 //ここからダンプ設定
-static NEZ_PLAY *pNezPlayDump;
+// static NEZ_PLAY *pNezPlayDump;
 Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 	int i;
@@ -923,7 +923,7 @@ Uint32 KSSLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
 	KSSSEQ *THIS_;
-	if (pNezPlay->kssseq) *((char *)(0)) = 0;	/* ASSERT */
+	if (pNezPlay->kssseq) ASSERT(0);	/* ASSERT */
 	THIS_ = XMALLOC(sizeof(KSSSEQ));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
 	ret = load(pNezPlay, THIS_, pData, uSize);

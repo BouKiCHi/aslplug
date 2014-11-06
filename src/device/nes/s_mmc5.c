@@ -147,11 +147,13 @@ const static Uint vbl_length[32] =
 #undef V
 
 #define V(x) ((x) << CPS_BITS)
+/*
 static const Uint32 spd_limit[8] =
 {
 	V(0x3FF), V(0x555), V(0x666), V(0x71C), 
 	V(0x787), V(0x7C1), V(0x7E0), V(0x7F0),
 };
+ */
 #undef V
 
 const static Uint8 square_duty_table[4][8] = 

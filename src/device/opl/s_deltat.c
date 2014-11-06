@@ -361,13 +361,13 @@ KMIF_SOUND_DEVICE *YMDELTATPCMSoundAlloc(Uint32 ymdeltatpcm_type , Uint8 *pcmbuf
 			break;
 	}
 	sndp->kmif.ctx = sndp;
-	sndp->kmif.release = sndrelease;
-	sndp->kmif.synth = sndsynth;
-	sndp->kmif.volume = sndvolume;
-	sndp->kmif.reset = sndreset;
-	sndp->kmif.write = sndwrite;
-	sndp->kmif.read = sndread;
-	sndp->kmif.setinst = setinst;
+	sndp->kmif.release = (FUNC_RELEASE)sndrelease;
+	sndp->kmif.synth = (FUNC_SYNTH)sndsynth;
+	sndp->kmif.volume = (FUNC_VOLUME)sndvolume;
+	sndp->kmif.reset = (FUNC_RESET)sndreset;
+	sndp->kmif.write = (FUNC_WRITE)sndwrite;
+	sndp->kmif.read = (FUNC_READ)sndread;
+	sndp->kmif.setinst = (FUNC_SETINST)setinst;
 	/* RAM */
 	if(pcmbuf != NULL)
 		sndp->rambuf = pcmbuf;

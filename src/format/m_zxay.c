@@ -270,7 +270,7 @@ static void reset(NEZ_PLAY *pNezPlay)
 		size = GetWordBE(p + 2);
 		p2 = ZXAYOffset(p + 4);
 		if (load + size > 0x10000) size = 0x10000 - load;
-		if (p2 + size > THIS_->datalimit) size = THIS_->datalimit - p2;
+		if (p2 + size > THIS_->datalimit) size = (unsigned int)(THIS_->datalimit - p2);
 		XMEMCPY(&THIS_->ram[load], p2, size);
 		p += 6;
 	} while (GetWordBE(p));
@@ -434,7 +434,7 @@ Uint32 ZXAYLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
 	ZXAY *THIS_;
-	if (pNezPlay->zxay) *((char *)(0)) = 0;	/* ASSERT */
+	if (pNezPlay->zxay) ASSERT(0);	/* ASSERT */
 	THIS_ = (ZXAY *)XMALLOC(sizeof(ZXAY));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
 	ret = load(pNezPlay, THIS_, pData, uSize);

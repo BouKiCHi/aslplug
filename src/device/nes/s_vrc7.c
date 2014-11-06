@@ -126,11 +126,13 @@ static void __fastcall OPLLSoundWriteData(void *pNezPlay, Uint32 address, Uint32
 	sndp->kmif->write(sndp->kmif->ctx, 1, value);
 }
 
-static Uint32 __fastcall MSXAUDIOSoundRead(void *pNezPlay, Uint32 address)
+/*
+ static Uint32 __fastcall MSXAUDIOSoundRead(void *pNezPlay, Uint32 address)
 {
 	OPLLSOUND_INTF *sndp = ((NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf)->sndp;
 	return sndp->kmif->read(sndp->kmif->ctx, address);
 }
+ */
 
 
 static NES_WRITE_HANDLER s_vrc7_write_handler[] =

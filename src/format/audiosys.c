@@ -7,12 +7,14 @@
 
 #define SHIFT_BITS 8
 
-Int32 output2[2],filter;
+Int32 output2[2];
+Int32 audio_filter;
+
 int LowPassFilterLevel=8,lowlevel;
 
-void NESAudioFilterSet(NEZ_PLAY *pNezPlay, Uint filter)
+void NESAudioFilterSet(NEZ_PLAY *pNezPlay, Uint type)
 {
-	pNezPlay->naf_type = filter;
+	pNezPlay->naf_type = type;
 	pNezPlay->naf_prev[0] = 0x8000;
 	pNezPlay->naf_prev[1] = 0x8000;
 	output2[0] = 0x7fffffff;
@@ -65,7 +67,7 @@ void NESAudioRender(NEZ_PLAY *pNezPlay, Int16 *bufp, Uint buflen)
 						output2[ch] = ((Int32)output[ch]<<14) - 0x40000000;
 						//output2[ch] *= -1;
 					}
-					output2[ch] -= (output2[ch] - (((Int32)output[ch]<<14) - 0x40000000))/(64*filter);
+					output2[ch] -= (output2[ch] - (((Int32)output[ch]<<14) - 0x40000000))/(64*audio_filter);
 					buffer =  output[ch]/2 - output2[ch]/0x8000;
 
 					if (buffer < 0)
@@ -83,7 +85,7 @@ void NESAudioRender(NEZ_PLAY *pNezPlay, Int16 *bufp, Uint buflen)
 						{
 							Uint32 prev = pNezPlay->naf_prev[ch];
 							//output[ch] = (output[ch] + prev) >> 1;
-							output[ch] = (output[ch] * lowlevel + prev * filter) / (lowlevel+filter);
+							output[ch] = (output[ch] * lowlevel + prev * audio_filter) / (lowlevel+audio_filter);
 							pNezPlay->naf_prev[ch] = output[ch];
 						}
 						break;
@@ -98,7 +100,7 @@ void NESAudioRender(NEZ_PLAY *pNezPlay, Int16 *bufp, Uint buflen)
 						{
 							Uint32 prev = pNezPlay->naf_prev[ch];
 							//output[ch] = (output[ch] + prev) >> 1;
-							output[ch] = (output[ch] * lowlevel + prev * filter) / (lowlevel+filter);
+							output[ch] = (output[ch] * lowlevel + prev * audio_filter) / (lowlevel+audio_filter);
 							pNezPlay->naf_prev[ch] = output[ch];
 						}
 						{
@@ -193,8 +195,8 @@ void NESAudioHandlerInitialize(NEZ_PLAY *pNezPlay)
 void NESAudioFrequencySet(NEZ_PLAY *pNezPlay, Uint freq)
 {
 	pNezPlay->frequency = freq;
-	filter = freq/3000;
-	if(!filter)filter=1;
+	audio_filter = freq / 3000;
+	if(!audio_filter) audio_filter=1;
 
 	lowlevel = 33-LowPassFilterLevel;
 }

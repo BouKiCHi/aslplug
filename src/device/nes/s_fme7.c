@@ -48,11 +48,11 @@ const static NES_VOLUME_HANDLER s_psg_volume_handler[] = {
 	{ 0, }, 
 };
 
-static Uint __fastcall PSGSoundReadData(void *pNezPlay, Uint address)
+/*static Uint __fastcall PSGSoundReadData(void *pNezPlay, Uint address)
 {
 	PSGSOUND *psgs = ((NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf)->psgs;
 	return psgs->psgp->read(psgs->psgp->ctx, 0);
-}
+}*/
 
 static void __fastcall PSGSoundWrireAddr(void *pNezPlay, Uint address, Uint value)
 {

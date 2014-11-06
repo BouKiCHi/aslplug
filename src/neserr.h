@@ -9,3 +9,9 @@ typedef enum {
 } NESERR_CODE;
 
 #endif /* NESERR_H__ */
+
+#ifndef WIN32
+#include <assert.h>
+#define ASSERT(x) assert(x)
+
+#endif

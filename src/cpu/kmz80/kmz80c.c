@@ -50,7 +50,7 @@ void dox(int pc, int i, int af, int bc, int de, int hl ,int sp)
 #define DEBUG_OUTPUT(i) {}
 #endif
 
-extern Uint8 flagtable[0x200] = {
+Uint8 flagtable[0x200] = {
 /*
   0 <= i <= 0x1ff
   CF(bit0) (i > 0xff)

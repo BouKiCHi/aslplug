@@ -256,7 +256,7 @@ Uint8 *vrc6_regdata2;
 Uint8 *vrc6_regdata3;
 Uint32 (*ioview_ioread_DEV_VRC6)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
-	if(a>=0x00 && a<=0x02)return vrc6_regdata [a     ];else
+	if(a<=0x02)return vrc6_regdata [a     ];else
 	if(a>=0x10 && a<=0x12)return vrc6_regdata2[a-0x10];else
 	if(a>=0x20 && a<=0x22)return vrc6_regdata3[a-0x20];else return 0x100;
 }

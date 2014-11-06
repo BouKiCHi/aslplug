@@ -239,7 +239,7 @@ __inline static Int32 PSGSoundEnvelopeStep(PSGSOUND *sndp)
 
 __inline static Uint32 PSGSoundSquareSub(PSGSOUND *sndp, PSG_SQUARE *chp)
 {
-	Int32 volume, bit = 1;
+    Int32 volume;
 	Uint32 spd;
 	Int32 outputbuf=0,count=0;
 
@@ -299,6 +299,7 @@ __inline static Uint32 PSGSoundSquareSub(PSGSOUND *sndp, PSG_SQUARE *chp)
 	case 3:
 		return (outputbuf / count) * sndp->common.rngout / 256;
 	}
+    return 0;
 }
 
 __inline static void MSXSoundDaStep(PSGSOUND *sndp)

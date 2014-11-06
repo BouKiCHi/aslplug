@@ -290,7 +290,7 @@ static Uint32 dump_MEM_FC_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint8 *regdata_2a03;
 Uint32 (*dump_DEV_2A03)(Uint32 a,unsigned char* mem);
-const Uint8 *BASE64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const Uint8 *BASE64=(Uint8 *)"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static Uint32 dump_DEV_2A03_bf(Uint32 menu,unsigned char* mem){
 	int i,j,k,l,adr;Uint32 ac;
 	unsigned char membf[0x1000];
@@ -310,7 +310,7 @@ static Uint32 dump_DEV_2A03_bf(Uint32 menu,unsigned char* mem){
 			membf[i] = NES6502Read(pNezPlayDump, adr);
 			adr++;if(adr>0xffff)adr=0x8000;
 		}
-		k=sprintf(mem,"#WAV9 [n],%d,%d,",regdata_2a03[0x11]&0x7f,(regdata_2a03[0x10]&0x40)?1:0);
+		k=sprintf((char *)mem,"#WAV9 [n],%d,%d,",regdata_2a03[0x11]&0x7f,(regdata_2a03[0x10]&0x40)?1:0);
 		for(j=0;j<i;j+=3){
 			ac=0;l=0;
 			if(j+0<i){ac|=membf[j+0]<<16;l+=2;}
@@ -372,7 +372,7 @@ static Uint32 dump_DEV_FDS_bf(Uint32 menu,unsigned char* mem){
 		return -1;
 
 	case 9://*Wave Data to FlMML
-		j=sprintf(mem,"#WAV13 [n],");
+		j=sprintf((char *)mem,"#WAV13 [n],");
 		for(i=0;i<0x40;i++){
 			if(FDS_RealMode&0x2)k=(int)(FDSOUT(fds_regdata2[i])/1.8671876);
 			else				k=fds_regdata2[i]<<2;
@@ -611,15 +611,15 @@ static void NSFMapperSetInfo(NEZ_PLAY *pNezPlay, Uint8 *pData)
 
 	XMEMSET(titlebuffer, 0, 0x21);
 	XMEMCPY(titlebuffer, pData + 0x000e, 0x20);
-	songinfodata.title=titlebuffer;
+	songinfodata.title=(char *)titlebuffer;
 
 	XMEMSET(artistbuffer, 0, 0x21);
 	XMEMCPY(artistbuffer, pData + 0x002e, 0x20);
-	songinfodata.artist=artistbuffer;
+	songinfodata.artist=(char *)artistbuffer;
 
 	XMEMSET(copyrightbuffer, 0, 0x21);
 	XMEMCPY(copyrightbuffer, pData + 0x004e, 0x20);
-	songinfodata.copyright=copyrightbuffer;
+	songinfodata.copyright=(char *)copyrightbuffer;
 
 	sprintf(songinfodata.detail,
 "Type          : NSF\r\n\

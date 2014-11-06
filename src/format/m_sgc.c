@@ -300,7 +300,7 @@ Uint32 memview_memread_sgc(Uint32 a){
 //ここまでメモリービュアー設定
 
 //ここからダンプ設定
-static NEZ_PLAY *pNezPlayDump;
+// static NEZ_PLAY *pNezPlayDump;
 Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 	int i;
@@ -636,15 +636,15 @@ RAM Bank      (8000-BFFF): %d\r\n\
 
 	XMEMSET(titlebuffer, 0, 0x21);
 	XMEMCPY(titlebuffer, pData + 0x0040, 0x20);
-	songinfodata.title=titlebuffer;
+	songinfodata.title=(char*)titlebuffer;
 
 	XMEMSET(artistbuffer, 0, 0x21);
 	XMEMCPY(artistbuffer, pData + 0x0060, 0x20);
-	songinfodata.artist=artistbuffer;
+	songinfodata.artist=(char*)artistbuffer;
 
 	XMEMSET(copyrightbuffer, 0, 0x21);
 	XMEMCPY(copyrightbuffer, pData + 0x0080, 0x20);
-	songinfodata.copyright=copyrightbuffer;
+	songinfodata.copyright=(char*)copyrightbuffer;
 
 	//ここからダンプ設定
 	dump_MEM_MSX     = dump_MEM_MSX_bf;
@@ -793,7 +793,7 @@ Uint32 SGCLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
 	SGCSEQ *THIS_;
-	if (pNezPlay->sgcseq) *((char *)(0)) = 0;	/* ASSERT */
+	if (pNezPlay->sgcseq) ASSERT(0);	/* ASSERT */
 	THIS_ = XMALLOC(sizeof(SGCSEQ));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
 	ret = load(pNezPlay, THIS_, pData, uSize);

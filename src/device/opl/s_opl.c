@@ -233,6 +233,8 @@ static Uint8 romtone[3][16 * 19] =
 #endif
 
 const static Uint8 ksltable[4]={15,2,1,0};
+
+/*
 const static Uint8 hhouttable[8]={
 	0x34, //010
 	0x0d, //001
@@ -250,6 +252,7 @@ const static Uint8 rymouttable[4]={
 	0xc0, //11
 	0xc0, //11
 };
+ */
 
 __inline static void SetOpOff(OPL_OP *opp)
 {
@@ -264,11 +267,12 @@ __inline static void SetOpOff(OPL_OP *opp)
 }
 #else
 #define CalcFbbuf2(x,y) {\
-	x = (x + y) / 2;\
+	x = (Int32)((x + y) / 2);\
 }
 #endif
 
-__inline static Int32 CalcOutputBuffer(Int32 output, Int32 *outputbf){
+/*
+ __inline static Int32 CalcOutputBuffer(Int32 output, Int32 *outputbf){
 	Uint8 a;
 	Int64 buffer,c;
 	for(a=OUTPUT_BUFFER-1;a>0;a--) outputbf[a]=outputbf[a-1];
@@ -277,6 +281,7 @@ __inline static Int32 CalcOutputBuffer(Int32 output, Int32 *outputbf){
 	for(a=0;a<OUTPUT_BUFFER;a++)buffer+=outputbf[a];
 	return buffer/OUTPUT_BUFFER;
 }
+*/
 
 __inline static void EgStep(OPLSOUND *sndp, OPL_OP *opp)
 {
@@ -632,7 +637,8 @@ static Int32 __fastcall OpSynthSnr(OPLSOUND *sndp, OPL_OP *opp, OPL_OP *opp2)
 	if (opp2->enable)
 	{
 		Uint32 tll;
-		Int32 output=0,outval;
+		// Int32 output=0,
+        Int32 outval;
 
 		tll = opp2->tll + (opp2->eg.phase / EG_SHIFT2);
 		tll = (tll >= (1 << TLLTBL_BITS)-16) ? LOG_KEYOFF : sndp->common.tll2logtbl[tll];
@@ -656,7 +662,7 @@ __inline static void LfoStep(OPL_LFO *lfop)
 
 static void sndsynth(OPLSOUND *sndp, Int32 *p)
 {
-	long accum[2] = { 0, 0 };
+	Int32 accum[2] = { 0, 0 };
 //	int i = 0 ,count;
 //	count = (FM_FREQ-sndp->freqp)/sndp->freq;
 //	if(count){
@@ -1532,10 +1538,10 @@ KMIF_SOUND_DEVICE *OPLSoundAlloc(Uint32 opl_type)
 	XMEMSET(sndp, 0, sizeof(OPLSOUND));
 	sndp->opl_type = (Uint8)opl_type;
 	sndp->kmif.ctx = sndp;
-	sndp->kmif.release = sndrelease;
-	sndp->kmif.volume = sndvolume;
-	sndp->kmif.reset = sndreset;
-	sndp->kmif.synth = sndsynth;
+	sndp->kmif.release = (FUNC_RELEASE)sndrelease;
+	sndp->kmif.volume = (FUNC_VOLUME)sndvolume;
+	sndp->kmif.reset = (FUNC_RESET)sndreset;
+	sndp->kmif.synth = (FUNC_SYNTH)sndsynth;
 	if (sndp->opl_type == OPL_TYPE_MSXAUDIO)
 	{
 		sndp->deltatpcm = YMDELTATPCMSoundAlloc(YMDELTATPCM_TYPE_Y8950 , 0);
@@ -1544,15 +1550,15 @@ KMIF_SOUND_DEVICE *OPLSoundAlloc(Uint32 opl_type)
 		sndp->deltatpcm = 0;
 	if (sndp->opl_type & OPL_TYPE_OPL)
 	{
-		sndp->kmif.write = oplwrite;
-		sndp->kmif.read = oplread;
-		sndp->kmif.setinst = oplsetinst;
+		sndp->kmif.write = (FUNC_WRITE)oplwrite;
+		sndp->kmif.read = (FUNC_READ)oplread;
+		sndp->kmif.setinst = (FUNC_SETINST)oplsetinst;
 	}
 	else
 	{
-		sndp->kmif.write = opllwrite;
-		sndp->kmif.read = opllread;
-		sndp->kmif.setinst = opllsetinst;
+		sndp->kmif.write = (FUNC_WRITE)opllwrite;
+		sndp->kmif.read = (FUNC_READ)opllread;
+		sndp->kmif.setinst = (FUNC_SETINST)opllsetinst;
 		switch (sndp->opl_type)
 		{
 			case OPL_TYPE_OPLL:

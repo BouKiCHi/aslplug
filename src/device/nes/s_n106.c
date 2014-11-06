@@ -369,11 +369,11 @@ static Uint __fastcall N106SoundReadData(void *pNezPlay, Uint address)
 	return ret;
 }
 
-static Uint __fastcall N106SoundReadDataDebug(void *pNezPlay, Uint address)
+/* static Uint __fastcall N106SoundReadDataDebug(void *pNezPlay, Uint address)
 {
 	N106SOUND *n106s = ((NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf)->n106s;
 	return n106s->data[address & 0x7f];
-}
+} */
 
 static NES_READ_HANDLER s_n106_read_handler[] =
 {

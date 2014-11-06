@@ -772,7 +772,7 @@ Uint32 HESLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
 	HESHES *THIS_;
-	if (pNezPlay->heshes) *((char *)(0)) = 0;	/* ASSERT */
+    if (pNezPlay->heshes) ASSERT(0);	/* ASSERT */
 	THIS_ = (HESHES *)XMALLOC(sizeof(HESHES));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
 	ret = load(pNezPlay, THIS_, pData, uSize);

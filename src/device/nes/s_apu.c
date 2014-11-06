@@ -184,7 +184,7 @@ const static Uint8 square_duty_table[4][8] =
 	{ {0,0,0,1,0,0,0,0} , {0,0,0,1,1,0,0,0} , {0,0,0,1,1,1,1,0} , {1,1,1,0,0,1,1,1} };
 //	{ {0,1,0,0,0,0,0,0} , {0,1,1,0,0,0,0,0} , {0,1,1,1,1,0,0,0} , {0,1,1,1,1,1,1,0} };
 
-const static Uint8 square_duty_avg[4] = {2,4,8,12};
+// const static Uint8 square_duty_avg[4] = {2,4,8,12};
 
 static const Uint8 vbl_length_table[96] = {
 	0x05, 0x7f, 0x0a, 0x01, 0x14, 0x02, 0x28, 0x03,
@@ -949,7 +949,7 @@ static void NESAPUSoundNoiseReset(void *pNezPlay, NESAPU_NOISE *ch)
 
 	//ƒmƒCƒY‰¹‚Ìƒ‰ƒ“ƒ_ƒ€‰Šú‰»
 	if(NSF_noise_random_reset){
-		srand(time(NULL) + clock());
+		srand((unsigned int)(time(NULL) + clock()));
 		ch->rng = rand() + (rand()<<16);
 	}else{
 		ch->rng = 0x8000;
@@ -967,7 +967,7 @@ static void NESAPUSoundDpcmReset(void *pNezPlay, NESAPU_DPCM *ch)
 static void __fastcall APUSoundReset(void* pNezPlay)
 {
 	APUSOUND *apu = ((NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf)->apu;
-	NSFNSF *nsf = (NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf;
+	// NSFNSF *nsf = (NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf;
 	Uint32 i;
 	NESAPUSoundSquareReset(pNezPlay, &apu->square[0]);
 	NESAPUSoundSquareReset(pNezPlay, &apu->square[1]);

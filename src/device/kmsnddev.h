@@ -8,15 +8,31 @@ extern "C" {
 
 #include "../nestypes.h"
 
+typedef void (*FUNC_RELEASE)(void *ctx);
+typedef void (*FUNC_RESET)(void *ctx, Uint32 clock, Uint32 freq);
+typedef void (*FUNC_SYNTH)(void *ctx, Int32 *p);
+typedef void (*FUNC_VOLUME)(void *ctx, Int32 v);
+typedef void (*FUNC_WRITE)(void *ctx, Uint32 a, Uint32 v);
+typedef Uint32 (*FUNC_READ)(void *ctx, Uint32 a);
+typedef void (*FUNC_SETINST)(void *ctx, Uint32 n, void *p, Uint32 l);
+
+    
 typedef struct {
 	void *ctx;
-	void (*release)(void *ctx);
-	void (*reset)(void *ctx, Uint32 clock, Uint32 freq);
-	void (*synth)(void *ctx, Int32 *p);
-	void (*volume)(void *ctx, Int32 v);
-	void (*write)(void *ctx, Uint32 a, Uint32 v);
-	Uint32 (*read)(void *ctx, Uint32 a);
-	void (*setinst)(void *ctx, Uint32 n, void *p, Uint32 l);
+    FUNC_RELEASE release;
+    FUNC_RESET reset;
+    FUNC_SYNTH synth;
+    FUNC_VOLUME volume;
+    FUNC_WRITE write;
+    FUNC_READ read;
+    FUNC_SETINST setinst;
+        
+//	void (*reset)(void *ctx, Uint32 clock, Uint32 freq);
+	// void (*synth)(void *ctx, Int32 *p);
+	// void (*volume)(void *ctx, Int32 v);
+	// void (*write)(void *ctx, Uint32 a, Uint32 v);
+	// Uint32 (*read)(void *ctx, Uint32 a);
+	// void (*setinst)(void *ctx, Uint32 n, void *p, Uint32 l);
 #if 0
 	void (*setrate)(void *ctx, Uint32 clock, Uint32 freq);
 	void (*getinfo)(void *ctx, KMCH_INFO *cip, );

@@ -175,8 +175,10 @@ static Uint32 GetDwordLE(Uint8 *p)
 }
 
 
-static void __fastcall NSDPLAYReset(NEZ_PLAY *pNezPlay)
+static void __fastcall NSDPLAYReset(void *ptr)
 {
+    NEZ_PLAY *pNezPlay = ptr;
+    
 	NSDSEQ *nsdplayer = pNezPlay->nsdp;
 	Uint freq = NESAudioFrequencyGet(pNezPlay);
 	nsdplayer->cleft = 0;

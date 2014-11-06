@@ -120,7 +120,7 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
 	{
 		Uint32 port = a & 0x0F;
 		sndp->regs[port]=v;
-		if (0x0 <= port && port <= 0x9)
+		if (port <= 0x9)
 		{
 			SCC_CH *ch = &sndp->ch[port >> 1];
 			ch->regs[port & 0x1] = v;
