@@ -28,6 +28,8 @@ typedef struct NEZPLAY_TAG {
 	void *kssseq;
 	void *sgcseq;
 	void *nsdp;
+
+    void *log_ctx;
 } NEZ_PLAY;
 
 /* NEZ player */

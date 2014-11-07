@@ -16,7 +16,8 @@ typedef void (*FUNC_WRITE)(void *ctx, Uint32 a, Uint32 v);
 typedef Uint32 (*FUNC_READ)(void *ctx, Uint32 a);
 typedef void (*FUNC_SETINST)(void *ctx, Uint32 n, void *p, Uint32 l);
 
-    
+typedef void (*FUNC_LOGWRITE)(void *ctx, int log_id, int a, int v);
+
 typedef struct {
 	void *ctx;
     FUNC_RELEASE release;
@@ -26,7 +27,11 @@ typedef struct {
     FUNC_WRITE write;
     FUNC_READ read;
     FUNC_SETINST setinst;
-        
+    FUNC_LOGWRITE logwrite;
+    
+    int log_id;
+    void *log_ctx;
+    
 //	void (*reset)(void *ctx, Uint32 clock, Uint32 freq);
 	// void (*synth)(void *ctx, Int32 *p);
 	// void (*volume)(void *ctx, Int32 v);

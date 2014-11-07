@@ -15,6 +15,8 @@
 
 #include <stdio.h>
 
+#include "nlg.h"
+
 #define SHIFT_CPS 15
 #define BASECYCLES       (3579545)
 
@@ -96,6 +98,8 @@ struct  KSSSEQ_TAG {
 	Uint8 ram[0x10000];
 	Uint8 usertone_enable[2];
 	Uint8 usertone[2][16 * 19];
+    
+    void *log_ctx;
 };
 
 Int32 MSXPSGType = 1;
@@ -340,20 +344,25 @@ static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
 
 static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
 {
+    if (THIS_->log_ctx)
+    {
+        WriteNLG_IRQ(THIS_->log_ctx);
+    }
+    
 	vsync_setup(THIS_);
 	if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
 }
 
-//‚±‚±‚©‚çƒƒ‚ƒŠ[ƒrƒ…ƒA[İ’è
+//ã“ã“ã‹ã‚‰ãƒ¡ãƒ¢ãƒªãƒ¼ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 Uint32 (*memview_memread)(Uint32 a);
 KSSSEQ* memview_context;
 int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_kss(Uint32 a){
 	return read_event(memview_context,a);
 }
-//‚±‚±‚Ü‚Åƒƒ‚ƒŠ[ƒrƒ…ƒA[İ’è
+//ã“ã“ã¾ã§ãƒ¡ãƒ¢ãƒªãƒ¼ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 
-//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 // static NEZ_PLAY *pNezPlayDump;
 Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
@@ -577,6 +586,21 @@ static void reset(NEZ_PLAY *pNezPlay)
 		THIS_->cpf = (4 * 342 * 262 / 6) << SHIFT_CPS;
 
 	{
+        // ãƒ­ã‚°å‡ºåŠ›
+        if (pNezPlay->log_ctx)
+        {
+            THIS_->log_ctx = pNezPlay->log_ctx;
+
+            double vsync = (double)BASECYCLES / (THIS_->cpf >> SHIFT_CPS);
+            double vsync_us = (double)(1*1000*1000) / vsync;
+            // if 60Hz, vsync_us = 16666.666us
+            // 16666 / 64 exceed 256
+            
+            
+            WriteNLG_CTC(pNezPlay->log_ctx, CMD_CTC0, (int)(vsync_us / 128));
+            WriteNLG_CTC(pNezPlay->log_ctx, CMD_CTC3, 2);
+        }
+        
 		/* request execute */
 		Uint32 initbreak = 5 << 8; /* 5sec */
 		while (!THIS_->ctx.regs8[REGID_HALTED] && --initbreak) kmz80_exec(&THIS_->ctx, BASECYCLES >> 8);
@@ -588,14 +612,14 @@ static void reset(NEZ_PLAY *pNezPlay)
 	}
 	THIS_->total_cycles = 0;
 
-	//‚±‚±‚©‚çƒƒ‚ƒŠ[ƒrƒ…ƒA[İ’è
+	//ã“ã“ã‹ã‚‰ãƒ¡ãƒ¢ãƒªãƒ¼ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 	memview_context = THIS_;
 	MEM_MAX=0xffff;
 	MEM_IO =0x0000;
 	MEM_RAM=0xC000;
 	MEM_ROM=0x8000;
 	memview_memread = memview_memread_kss;
-	//‚±‚±‚Ü‚Åƒƒ‚ƒŠ[ƒrƒ…ƒA[İ’è
+	//ã“ã“ã¾ã§ãƒ¡ãƒ¢ãƒªãƒ¼ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 
 }
 
@@ -603,7 +627,7 @@ static void terminate(KSSSEQ *THIS_)
 {
 	Uint32 i;
 
-	//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+	//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 	dump_MEM_MSX     = NULL;
 	dump_DEV_AY8910  = NULL;
 	dump_DEV_SN76489 = NULL;
@@ -611,7 +635,7 @@ static void terminate(KSSSEQ *THIS_)
 	dump_DEV_OPL     = NULL;
 	dump_DEV_OPLL    = NULL;
 	dump_DEV_ADPCM   = NULL;
-	//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+	//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 	for (i = 0; i < SND_MAX; i++)
 	{
 		if (THIS_->sndp[i]) THIS_->sndp[i]->release(THIS_->sndp[i]->ctx);
@@ -680,12 +704,12 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	SONGINFO_SetExtendDevice(pNezPlay->song, THIS_->extdevice << 8);
 
 	sprintf(songinfodata.detail,
-"Type         : KS%c%c\r\n\
-Load Address : %04XH\r\n\
-Load Size    : %04XH\r\n\
-Init Address : %04XH\r\n\
-Play Address : %04XH\r\n\
-Extra Device : %s%s%s%s%s"
+"Type         : KS%c%c\r\n"
+"Load Address : %04XH\r\n"
+"Load Size    : %04XH\r\n"
+"Init Address : %04XH\r\n"
+"Play Address : %04XH\r\n"
+"Extra Device : %s%s%s%s%s"
 		,pData[0x02],pData[0x03]
 		,THIS_->dataaddr,THIS_->datasize,THIS_->initaddr,THIS_->playaddr
 		,pData[0x0F]&0x01 ? (pData[0x0F]&0x02 ? "FMUNIT " : "FMPAC ") : ""
@@ -743,9 +767,9 @@ Extra Device : %s%s%s%s%s"
 		THIS_->bankmode = KSS_BANK_OFF;
 	}
 
-	//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+	//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 	dump_MEM_MSX     = dump_MEM_MSX_bf;
-	//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+	//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 
 
 	THIS_->majutushimode = 0;
@@ -756,26 +780,26 @@ Extra Device : %s%s%s%s%s"
 		{
 			THIS_->sndp[SND_SNG] = SNGSoundAlloc(SNG_TYPE_GAMEGEAR);
 			SONGINFO_SetChannel(pNezPlay->song, 2);
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_SN76489 = dump_DEV_SN76489_bf2;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		}
 		else
 		{
 			THIS_->sndp[SND_SNG] = SNGSoundAlloc(SNG_TYPE_SEGAMKIII);
 			SONGINFO_SetChannel(pNezPlay->song, 1);
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_SN76489 = dump_DEV_SN76489_bf;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		}
 		if (!THIS_->sndp[SND_SNG]) return NESERR_SHORTOFMEMORY;
 		if (THIS_->extdevice & EXTDEVICE_FMUNIT)
 		{
 			THIS_->sndp[SND_FMUNIT] = OPLSoundAlloc(OPL_TYPE_SMSFMUNIT);
 			if (!THIS_->sndp[SND_FMUNIT]) return NESERR_SHORTOFMEMORY;
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_OPLL = dump_DEV_OPLL_bf;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		}
 		if (THIS_->extdevice & (EXTDEVICE_EXRAM | EXTDEVICE_GGRAM))
 		{
@@ -814,27 +838,57 @@ Extra Device : %s%s%s%s%s"
 			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910);
 		}
 		if (!THIS_->sndp[SND_PSG]) return NESERR_SHORTOFMEMORY;
-		//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+        
+        
+		//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 		dump_DEV_AY8910 = dump_DEV_AY8910_bf;
-		//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+		//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		if (THIS_->extdevice & EXTDEVICE_MSXMUSIC)
 		{
 			THIS_->sndp[SND_MSXMUSIC] = OPLSoundAlloc(OPL_TYPE_MSXMUSIC);
 			if (!THIS_->sndp[SND_MSXMUSIC]) return NESERR_SHORTOFMEMORY;
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_OPLL = dump_DEV_OPLL_bf;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		}
 		if (THIS_->extdevice & EXTDEVICE_MSXAUDIO)
 		{
 			//THIS_->sndp[SND_MSXAUDIO] = OPLSoundAlloc(OPL_TYPE_MSXAUDIO);
 			THIS_->sndp[SND_MSXAUDIO] = OPLSoundAlloc(OPL_TYPE_OPL2);
 			if (!THIS_->sndp[SND_MSXAUDIO]) return NESERR_SHORTOFMEMORY;
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_OPL = dump_DEV_OPL_bf;
 			dump_DEV_ADPCM = dump_DEV_ADPCM_bf;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 		}
+        
+        
+        // ãƒ­ã‚°å‡ºåŠ›
+        if (pNezPlay->log_ctx)
+        {
+            THIS_->sndp[SND_PSG]->log_id = CMD_PSG;
+            THIS_->sndp[SND_PSG]->log_ctx = pNezPlay->log_ctx;
+            THIS_->sndp[SND_PSG]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+            
+            if (THIS_->sndp[SND_MSXMUSIC])
+            {
+                THIS_->sndp[SND_MSXMUSIC]->log_id = CMD_DEV2;
+                THIS_->sndp[SND_MSXMUSIC]->log_ctx = pNezPlay->log_ctx;
+                THIS_->sndp[SND_MSXMUSIC]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+            }
+            
+            if (THIS_->sndp[SND_MSXAUDIO])
+            {
+                THIS_->sndp[SND_MSXAUDIO]->log_id = CMD_DEV2;
+                THIS_->sndp[SND_MSXAUDIO]->log_ctx = pNezPlay->log_ctx;
+                THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+            }
+
+            // calc with 4MHz(default)
+            //WriteNLG_SetBaseClock(pNezPlay->log_ctx, BASECYCLES);
+        }
+        
+        
 		if (THIS_->extdevice & EXTDEVICE_EXRAM)
 		{
 			THIS_->rammode = 1;
@@ -844,9 +898,9 @@ Extra Device : %s%s%s%s%s"
 		{
 			THIS_->sndp[SND_SCC] = SCCSoundAlloc();
 			if (!THIS_->sndp[SND_SCC]) return NESERR_SHORTOFMEMORY;
-			//‚±‚±‚©‚çƒ_ƒ“ƒvİ’è
+			//ã“ã“ã‹ã‚‰ãƒ€ãƒ³ãƒ—è¨­å®š
 			dump_DEV_SCC = dump_DEV_SCC_bf;
-			//‚±‚±‚Ü‚Åƒ_ƒ“ƒvİ’è
+			//ã“ã“ã¾ã§ãƒ€ãƒ³ãƒ—è¨­å®š
 			THIS_->rammode = (THIS_->extdevice & EXTDEVICE_MSXRAM) != 0;
 			THIS_->sccenable = !THIS_->rammode;
 		}

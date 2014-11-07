@@ -1274,6 +1274,9 @@ static void oplwrite(OPLSOUND *sndp, Uint32 a, Uint32 v)
 {
 	if (a & 1)
 	{
+        if (sndp->kmif.logwrite)
+            sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
+        
 		sndp->regs[sndp->common.adr] = v;
 		sndp->oplregs[sndp->common.adr] = v;
 		oplwritereg(sndp, sndp->common.adr, v);
@@ -1345,6 +1348,9 @@ static void opllwrite(OPLSOUND *sndp, Uint32 a, Uint32 v)
 	{
 		if (sndp->common.adr < 0x40)
 		{
+            if (sndp->kmif.logwrite)
+                sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
+            
 			sndp->regs[sndp->common.adr] = v;
 			sndp->opllregs[sndp->common.adr] = v;
 			opllwritereg(sndp, sndp->common.adr, v);

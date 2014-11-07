@@ -440,6 +440,9 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
 			sndp->common.adr = v;
 			break;
 		case 1:
+            if (sndp->kmif.logwrite)
+                sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
+            
 			sndwritereg(sndp, sndp->common.adr, v);
 			break;
 		case 2:

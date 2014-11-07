@@ -39,8 +39,12 @@ void WriteHeaderNLG(NLGCTX *ctx);
 NLGCTX *CreateNLG(const char *file);
 void WriteNLG_IRQ(NLGCTX *ctx);
 void WriteNLG_CMD(NLGCTX *ctx, int cmd);
-void WriteNLG_CTC(NLGCTX *ctx, int cmd,int ctc);
-void WriteNLG_Data(NLGCTX *ctx,int cmd,int addr,int data);
+void WriteNLG_CTC(NLGCTX *ctx, int cmd, int ctc);
+void WriteNLG_Data(NLGCTX *ctx, int cmd, int addr, int data);
+
+void WriteNLG_SetBaseClock(NLGCTX *ctx, int clock);
+
+typedef void (*NLG_WRITELOG)(NLGCTX *ctx, int cmd, int addr, int data);
 
 #endif
 

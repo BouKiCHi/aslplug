@@ -17,6 +17,8 @@
 
 #include "nezplug.h"
 
+#include "nlg.h"
+
 NEZ_PLAY *nezctx = NULL;
 
 
@@ -623,28 +625,13 @@ int audio_main(int argc, char *argv[])
         return 1;
     }
     
+    NLGCTX *nlg_ctx = NULL;
+    
     nezctx = NEZNew();
     
     pcm.on = 1;
     
-    /* 
-    	if (!n163mode)
-        N163SetOldMode(1);
-     SetStrictModeNSF(strictmode);
-    
-    if (drvpath)
-    {
-        SetDriverPathNSF(drvpath);
-    }
-    else
-    {
-        PathFromEnvNSF();
-    }
-    
-    if (logfile)
-        OpenLogNSF(logfile);
-    */
-    
+
     // ファイルの数だけ処理
     for(;optind < argc; optind++)
     {
@@ -666,14 +653,17 @@ int audio_main(int argc, char *argv[])
             }
 
             printf("CreateNLG:%s\n",nlgfile);
-            // CreateNLG_NSF(nlgfile);
+            nlg_ctx = CreateNLG(nlgfile);
         }
+        
+        nezctx->log_ctx = nlg_ctx;
         
         if (audio_load_file(nezctx, playfile, rate, 2, vol, songno))
         {
             printf("File open error : %s\n", playfile);
-            // CloseLogNSF();
-            // CloseNLG_NSF();
+            
+            audio_file_free();
+            CloseNLG(nlg_ctx);
             
             return 0;
         }
@@ -693,7 +683,8 @@ int audio_main(int argc, char *argv[])
         
         audio_file_free();
         
-        // CloseNLG_NSF();
+        CloseNLG(nlg_ctx);
+        nlg_ctx = NULL;
     }
     
     // CloseLogNSF();

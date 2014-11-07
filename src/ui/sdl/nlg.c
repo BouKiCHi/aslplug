@@ -3,6 +3,7 @@
  2013-xx-xx 開始
  2014-02-11 書き込み機能を追加(NLG format 1.10)
  2014-05-18 コンテキスト化
+ 2014-11-07 ベースクロック設定の追加
  ********/
 
 #include <stdio.h>
@@ -216,6 +217,11 @@ NLGCTX *CreateNLG(const char *file)
 	return ctx;
 }
 
+// ベース周波数の設定
+void WriteNLG_SetBaseClock(NLGCTX *ctx, int clock)
+{
+    ctx->baseclk = clock;
+}
 
 // コマンドの書き込み
 void WriteNLG_CMD(NLGCTX *ctx, int cmd)
@@ -240,6 +246,8 @@ void WriteNLG_IRQ(NLGCTX *ctx)
 
 
 // CTC定数の書き込み
+// 256clock in 4MHz is 64us
+// (CMD_CTC0 * 64us) * (CMD_CTC3)
 void WriteNLG_CTC(NLGCTX *ctx, int cmd, int ctc)
 {
     if (!ctx || !ctx->file)
