@@ -505,12 +505,27 @@ int audio_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
 	
 	NEZSetFrequency(ctx, freq);
 	NEZSetChannel(ctx, ch);
-	NEZSetSongNo(ctx, songno);
-	NEZReset(ctx);
+    
+	if (songno >= 0)
+        NEZSetSongNo(ctx, songno);
+
+    NEZReset(ctx);
 	
 	return 0;
 }
 
+
+int get_length(const char *str)
+{
+    if (strchr(str, ':') == NULL)
+        return atoi(optarg);
+    else
+    {
+        int min = 0, sec = 0;
+        sscanf(str,"%d:%d", &min, &sec);
+        return (min * 60) + sec;
+    }
+}
 
 int audio_main(int argc, char *argv[])
 {
@@ -597,7 +612,7 @@ int audio_main(int argc, char *argv[])
                 pcmfile = optarg;
                 break;
             case 'l':
-                len = atoi(optarg);
+                len = get_length(optarg);
                 break;
             case 'x':
                 strictmode = 1;

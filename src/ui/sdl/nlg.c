@@ -130,7 +130,7 @@ void CloseNLG(NLGCTX *ctx)
     free(ctx);
 }
 
-
+/////////////////////////////////////////////////
 #ifndef NLG_READONLY
 
 void WriteHeaderNLG(NLGCTX *ctx)
@@ -269,6 +269,8 @@ void WriteNLG_Data(NLGCTX *ctx, int cmd, int addr, int data)
 }
 
 #endif
+/////////////////////////////////////////////////
+
 
 // データの読み出し
 int ReadNLG(NLGCTX *ctx)

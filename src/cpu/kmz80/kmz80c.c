@@ -31,7 +31,7 @@ void dox(int pc, int i, int af, int bc, int de, int hl ,int sp)
 		if (fp) { fclose(fp); fp = 0; }
 		return;
 	}
-	if (!fp) fp = fopen("c:\\kmz80d.out", "wb");
+	if (!fp) fp = fopen("kmz80d.out", "wb");
 	if (fp) { 
 		fprintf(fp,"%04X:%02X\tAF-%04X BC-%04X DE-%04X HL-%04X SP-%04X\r\n",pc-1,i,af,bc,de,hl,sp);
 /*		fputc(pc, fp);
