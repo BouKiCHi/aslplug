@@ -297,7 +297,8 @@ const static NES_AUDIO_HANDLER nsf6502_audio_handler[] = {
 
 #ifdef _WIN32
 extern int __stdcall MulDiv(int nNumber,int nNumerator,int nDenominator);
-static Uint32 __forceinline muldiv(Uint32 m, Uint32 n, Uint32 d)
+//static Uint32 __forceinline muldiv(Uint32 m, Uint32 n, Uint32 d)
+static Uint32 inline muldiv(Uint32 m, Uint32 n, Uint32 d)
 {
 	return MulDiv(m,n,d);
 }

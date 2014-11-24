@@ -58,9 +58,15 @@ static struct pcm_struct
 
 #include "fade.h"
 
+#ifndef WIN32
 void _sleep(int val)
 {
 }
+#else
+void sleep(int val)
+{
+}
+#endif
 
 // audio_callback 再生時に呼び出される
 // data : データ 
@@ -462,7 +468,7 @@ int audio_check_nlgmode(const char *file)
 unsigned char *audio_mem_ptr = NULL;
 
 // ファイルサイズの取得
-long GetFileSize(const char *file)
+long get_filesize(const char *file)
 {
     struct stat st;
     
@@ -488,7 +494,7 @@ int audio_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
 
 	audio_file_free();
 	
-	long size = GetFileSize(file);
+	long size = get_filesize(file);
 	
 	if (size < 0)
 		return (int)size;

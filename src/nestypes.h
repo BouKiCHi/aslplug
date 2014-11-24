@@ -53,6 +53,9 @@ typedef unsigned short	Uint16;
 #else
 #include <windows.h>
 #include <stdlib.h>
+
+#undef THIS_ // for MinGW32
+
 #define XSLEEP(t)		sleep(t)
 #endif
 #define XMALLOC(s)		malloc(s)
