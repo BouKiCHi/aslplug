@@ -15,7 +15,7 @@
 
 #include <stdio.h>
 
-#include "nlg.h"
+#include "log.h"
 
 #define SHIFT_CPS 15
 #define BASECYCLES       (3579545)
@@ -346,7 +346,7 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
 {
     if (THIS_->log_ctx)
     {
-        WriteNLG_IRQ(THIS_->log_ctx);
+        WriteLOG_SYNC(THIS_->log_ctx);
     }
     
 	vsync_setup(THIS_);
@@ -596,9 +596,7 @@ static void reset(NEZ_PLAY *pNezPlay)
             // if 60Hz, vsync_us = 16666.666us
             // 16666 / 64 exceed 256
             
-            
-            WriteNLG_CTC(pNezPlay->log_ctx, CMD_CTC0, (int)(vsync_us / 128));
-            WriteNLG_CTC(pNezPlay->log_ctx, CMD_CTC3, 2);
+            WriteLOG_Timing(pNezPlay->log_ctx,(int)vsync_us);
         }
         
 		/* request execute */
@@ -866,23 +864,31 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         // ログ出力
         if (pNezPlay->log_ctx)
         {
-            THIS_->sndp[SND_PSG]->log_id = CMD_PSG;
+            int type = LOG_TYPE_PSG;
+            
+            if (MSXPSGType)
+                type = LOG_TYPE_SSG;
+
+            THIS_->sndp[SND_PSG]->log_id = addMapLOG(pNezPlay->log_ctx, type, BASECYCLES);
             THIS_->sndp[SND_PSG]->log_ctx = pNezPlay->log_ctx;
-            THIS_->sndp[SND_PSG]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+            THIS_->sndp[SND_PSG]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             
             if (THIS_->sndp[SND_MSXMUSIC])
             {
-                THIS_->sndp[SND_MSXMUSIC]->log_id = CMD_DEV2;
+                THIS_->sndp[SND_MSXMUSIC]->log_id =  addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, BASECYCLES);
                 THIS_->sndp[SND_MSXMUSIC]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_MSXMUSIC]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+                THIS_->sndp[SND_MSXMUSIC]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
             if (THIS_->sndp[SND_MSXAUDIO])
             {
-                THIS_->sndp[SND_MSXAUDIO]->log_id = CMD_DEV2;
+                // Y8950 is not defined in S98V3
+                THIS_->sndp[SND_MSXAUDIO]->log_id = addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, BASECYCLES);
                 THIS_->sndp[SND_MSXAUDIO]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteNLG_Data;
+                THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
+            
+            mapEndLOG(pNezPlay->log_ctx);
 
             // calc with 4MHz(default)
             //WriteNLG_SetBaseClock(pNezPlay->log_ctx, BASECYCLES);

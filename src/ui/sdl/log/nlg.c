@@ -66,6 +66,7 @@ NLGCTX *OpenNLG(const char *file)
         printf("Failed to malloc!");
         return NULL;
     }
+    memset(ctx, 0 ,sizeof(NLGCTX));
     
 	ctx->file = fopen(file,"rb");
 	
@@ -169,6 +170,8 @@ NLGCTX *CreateNLG(const char *file)
         printf("Failed to malloc!");
         return NULL;
     }
+    
+    memset(ctx, 0, sizeof(NLGCTX));
     
     ctx->mode = NLG_WRITE;
 	ctx->file = fopen(file, "wb");

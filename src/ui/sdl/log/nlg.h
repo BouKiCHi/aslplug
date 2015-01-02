@@ -1,3 +1,10 @@
+/*
+NLG.h
+ 2014-12-29
+ 定義の追加
+ 
+*/
+
 #ifndef __NLG_H__
 #define __NLG_H__
 
@@ -65,6 +72,11 @@ void SetCTC3_NLG(NLGCTX *ctx, int value);
 #define CMD_OPM  0x01
 #define CMD_OPM2 0x02
 #define CMD_IRQ  0x80
+
+#define CMD_FM1 0x01
+#define CMD_FM2 0x02
+#define CMD_FM3 0x03
+
 
 #define CMD_DEV1  0x00
 #define CMD_DEV2  0x01

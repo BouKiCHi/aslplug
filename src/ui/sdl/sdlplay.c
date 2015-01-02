@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
-#include <SDL.h>
+#include "SDL.h"
 
 #include <signal.h>
 #define USE_SDL
@@ -17,7 +17,7 @@
 
 #include "nezplug.h"
 
-#include "nlg.h"
+#include "log.h"
 
 NEZ_PLAY *nezctx = NULL;
 
@@ -26,7 +26,8 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2014-11-0x"
+#define NEZ_VER "2015-01-01"
+#define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -421,7 +422,9 @@ static void audio_loop_file(const char *file, int freq , int len )
 void usage(void)
 {
     printf(
-    "Usage nezplay [ options ...] <file>\n"
+    "Usage %s [ options ...] <file>\n", PRGNAME);
+    
+    printf(
     "\n"
     " Options ...\n"
     " -s rate   : Set playback rate\n"
@@ -435,10 +438,10 @@ void usage(void)
     "\n"
     " -z        : Set N163 mode\n"
     "\n"
-    " -r file   : Record a NLG\n"
-    " -b        : Record a NLG without sound\n"
+    " -9        : Set sound log mode to S98V3\n"
+    " -r file   : Record a sound log\n"
+    " -b        : Record a sound log without sound\n"
     "\n"
-    " -d file   : Record a debug LOG\n"
     " -x        : Set strict mode\n"
     " -w        : Set verbose mode\n"
     "\n"
@@ -452,6 +455,7 @@ void usage(void)
 #define NLG_SAMEPATH 2
 
 #define NLG_EXT ".NLG"
+#define S98_EXT ".S98"
 
 int audio_check_nlgmode(const char *file)
 {
@@ -520,7 +524,7 @@ int audio_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
 	return 0;
 }
 
-
+// 時間表記を秒数に変換する
 int get_length(const char *str)
 {
     if (strchr(str, ':') == NULL)
@@ -535,12 +539,11 @@ int get_length(const char *str)
 
 int audio_main(int argc, char *argv[])
 {
-    char nlg_path[NSF_FNMAX];
+    char log_path[NSF_FNMAX];
     
     char *drvpath = NULL;
-    char *nlgfile = NULL;
-    char *pcmfile = NULL;
     char *logfile = NULL;
+    char *pcmfile = NULL;
     int opt;
     
     int rate   = 44100;
@@ -548,21 +551,22 @@ int audio_main(int argc, char *argv[])
     int len    = 360;
     int songno = -1;
     
-    int nlg_log = 0;
+    int log_mode = 0;
     int nosound = 0;
     
+    int s98mode = 0;
     int n163mode = 0;
     int strictmode = 0;
 
 #ifdef _WIN32   
-    freopen( "CON", "wt", stdout );
-    freopen( "CON", "wt", stderr );
+    freopen("CON", "wt", stdout);
+    freopen("CON", "wt", stderr);
 #endif
 
     audio_sdl_init();
     
     
-    signal( SIGINT , audio_sig_handle );
+    signal(SIGINT, audio_sig_handle);
     
     printf(
         "NEZPLAY on SDL Version %s\n"
@@ -580,21 +584,24 @@ int audio_main(int argc, char *argv[])
     
     debug = 0;
     
-    while ((opt = getopt(argc, argv, "q:s:n:v:l:d:o:r:btxhpzw")) != -1)
+    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzw")) != -1)
     {
         switch (opt) 
         {
+            case '9':
+                s98mode = 1;
+                break;
             case 'q':
                 drvpath = optarg;
                 break;
             case 'b':
-                nlg_log = NLG_SAMEPATH;
-                nlgfile = NULL;
+                log_mode = NLG_SAMEPATH;
+                logfile = NULL;
                 nosound = 1;
                 break;
             case 'r':
-                nlg_log = NLG_NORMAL;
-                nlgfile = optarg;
+                log_mode = NLG_NORMAL;
+                logfile = optarg;
                 break;
             case 'p':
                 nosound = 1;
@@ -612,7 +619,6 @@ int audio_main(int argc, char *argv[])
                 vol = atoi(optarg);
                 break;
             case 'd':
-                logfile = optarg;
                 break;
             case 'o':
                 pcmfile = optarg;
@@ -646,7 +652,7 @@ int audio_main(int argc, char *argv[])
         return 1;
     }
     
-    NLGCTX *nlg_ctx = NULL;
+    LOGCTX *log_ctx = NULL;
     
     nezctx = NEZNew();
     
@@ -658,33 +664,43 @@ int audio_main(int argc, char *argv[])
     {
         char *playfile = argv[optind];
         
-        if (nlg_log)
+        if (log_mode)
         {
-            if (nlg_log == NLG_SAMEPATH)
+            char *log_ext = NLG_EXT;
+            if (s98mode)
+                log_ext = S98_EXT;
+            
+            if (log_mode == NLG_SAMEPATH)
             {
-                strcpy(nlg_path, playfile);
-                char *p = strrchr(nlg_path, '.');
+                strcpy(log_path, playfile);
+                char *p = strrchr(log_path, '.');
                 
                 if (p)
-                    strcpy(p,NLG_EXT);
+                    strcpy(p, log_ext);
                 else
-                    strcat(nlg_path,NLG_EXT);
+                    strcat(log_path, log_ext);
                 
-                nlgfile = nlg_path;
+                logfile = log_path;
             }
 
-            printf("CreateNLG:%s\n",nlgfile);
-            nlg_ctx = CreateNLG(nlgfile);
+            printf("CreateLOG:%s\n",logfile);
+            
+            int log_mode = LOG_MODE_NLG;
+            if (s98mode)
+                log_mode = LOG_MODE_S98;
+            
+            log_ctx = CreateLOG(logfile, log_mode);
         }
         
-        nezctx->log_ctx = nlg_ctx;
+        nezctx->log_ctx = log_ctx;
         
+        // ファイルの読み出し
         if (audio_load_file(nezctx, playfile, rate, 2, vol, songno))
         {
             printf("File open error : %s\n", playfile);
             
             audio_file_free();
-            CloseNLG(nlg_ctx);
+            CloseLOG(log_ctx);
             
             return 0;
         }
@@ -692,23 +708,23 @@ int audio_main(int argc, char *argv[])
         if (!debug)
             printf("Freq = %d, SongNo = %d\n", rate, songno);
         
+        // ボリューム設定
         if (vol >= 0)
         {
             // SetVolumeNSF(vol);
         }
         
+        // ループ実行
         if (nosound || pcmfile)
             audio_loop_file(pcmfile, rate, len);
         else
-            audio_loop(rate , len);
+            audio_loop(rate, len);
         
         audio_file_free();
         
-        CloseNLG(nlg_ctx);
-        nlg_ctx = NULL;
+        CloseLOG(log_ctx);
+        log_ctx = NULL;
     }
-    
-    // CloseLogNSF();
     
     audio_free();
     

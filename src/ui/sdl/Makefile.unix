@@ -11,14 +11,14 @@
 ifndef DEBUG
 
 OBJDIR   = obj-x86-gcc
-TARGET   = nezplay
-TARGET_S = nezplay_s
+TARGET   = $(NAME)
+TARGET_S = $(NAME)_s
 
 else
 
 OBJDIR   = obj-x86-gcc-dbg
-TARGET   = nezplay_dbg
-TARGET_S = nezplays_dbg
+TARGET   = $(NAME)_dbg
+TARGET_S = $(NAME)_dbg_s
 
 endif
 

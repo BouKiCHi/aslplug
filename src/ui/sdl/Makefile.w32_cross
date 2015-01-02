@@ -22,17 +22,17 @@ AR=$(PREFIX)ar
 #
 # Target name
 #
-ifdef DEBUG
 
+ifdef DEBUG
 OBJDIR = obj-w32-debug
-TARGET = nezplay_dbg$(SFX)
-TARGET_S = nezplays_dbg$(SFX)
+TARGET = $(NAME)_dbg$(SFX)
+TARGET_S = $(NAME)_dbg_s$(SFX)
 
 else
 
 OBJDIR=obj-w32
-TARGET = nezplay$(SFX)
-TARGET_S = nezplays$(SFX)
+TARGET = $(NAME)$(SFX)
+TARGET_S = $(NAME)_s$(SFX)
 
 endif
 
