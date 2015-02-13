@@ -9,6 +9,7 @@
 #include "device/s_scc.h"
 #include "device/s_sng.h"
 #include "device/opl/s_opl.h"
+#include "device/s_opl4.h"
 #include "device/divfix.h"
 
 #include "kmz80/kmz80.h"
@@ -17,7 +18,7 @@
 
 #include "log.h"
 
-#define SHIFT_CPS 15
+#define SHIFT_CPS 12
 #define BASECYCLES       (3579545)
 
 #define EXTDEVICE_SNG		(1 << 1)
@@ -34,11 +35,16 @@
 #define EXTDEVICE_PAL		(1 << 6)
 #define EXTDEVICE_EXRAM		(1 << 7)
 
+#define EXT2_OPL3	(1 << 0)
+#define EXT2_TURBO	(1 << 7)
+
+
 #define SND_PSG 0
 #define SND_SCC 1
 #define SND_MSXMUSIC 2
 #define SND_MSXAUDIO 3
-#define SND_MAX 4
+#define SND_OPL3 4
+#define SND_MAX 5
 
 #define SND_SNG 0
 #define SND_FMUNIT 2
@@ -93,6 +99,7 @@ struct  KSSSEQ_TAG {
 	Uint8 sccenable;
 	Uint8 rammode;
 	Uint8 extdevice;
+    Uint8 ext2;
 	Uint8 majutushimode;
 
 	Uint8 ram[0x10000];
@@ -130,14 +137,14 @@ void OPLLSetTone(Uint8 *p, Uint32 type)
 
 static Int32 execute(KSSSEQ *THIS_)
 {
-	Uint32 cycles;
+	Int32 cycles;
 	THIS_->cpsrem += THIS_->cps;
 	cycles = THIS_->cpsrem >> SHIFT_CPS;
 	if (THIS_->cpsgap >= cycles)
 		THIS_->cpsgap -= cycles;
 	else
 	{
-		Uint32 excycles = cycles - THIS_->cpsgap;
+		Int32 excycles = cycles - THIS_->cpsgap;
 		THIS_->cpsgap = kmz80_exec(&THIS_->ctx, excycles) - excycles;
 	}
 	THIS_->cpsrem &= (1 << SHIFT_CPS) - 1;
@@ -166,6 +173,7 @@ __inline static void synth(KSSSEQ *THIS_, Int32 *d)
 				THIS_->sndp[SND_SCC]->synth(THIS_->sndp[SND_SCC]->ctx, d);
 				if (THIS_->sndp[SND_MSXMUSIC]) THIS_->sndp[SND_MSXMUSIC]->synth(THIS_->sndp[SND_MSXMUSIC]->ctx, d);
 				if (THIS_->sndp[SND_MSXAUDIO]) THIS_->sndp[SND_MSXAUDIO]->synth(THIS_->sndp[SND_MSXAUDIO]->ctx, d);
+                if (THIS_->sndp[SND_OPL3]) THIS_->sndp[SND_OPL3]->synth(THIS_->sndp[SND_OPL3]->ctx, d);
 			}
 			break;
 		case SYNTHMODE_MSXSTEREO:
@@ -177,6 +185,9 @@ __inline static void synth(KSSSEQ *THIS_, Int32 *d)
 				THIS_->sndp[SND_SCC]->synth(THIS_->sndp[SND_SCC]->ctx, &b[0]);
 				if (THIS_->sndp[SND_MSXMUSIC]) THIS_->sndp[SND_MSXMUSIC]->synth(THIS_->sndp[SND_MSXMUSIC]->ctx, &b[0]);
 				if (THIS_->sndp[SND_MSXAUDIO]) THIS_->sndp[SND_MSXAUDIO]->synth(THIS_->sndp[SND_MSXAUDIO]->ctx, &b[1]);
+
+                if (THIS_->sndp[SND_OPL3]) THIS_->sndp[SND_OPL3]->synth(THIS_->sndp[SND_OPL3]->ctx, &b[0]);
+
 				d[0] += b[1];
 				d[1] += b[2] + b[2];
 			}
@@ -207,11 +218,11 @@ __inline static void volume(KSSSEQ *THIS_, Uint32 v)
 
 static void vsync_setup(KSSSEQ *THIS_)
 {
-	Int32 cycles;
+	Int64 cycles;
 	THIS_->cpfrem += THIS_->cpf;
 	cycles = THIS_->cpfrem >> SHIFT_CPS;
 	THIS_->cpfrem &= (1 << SHIFT_CPS) - 1;
-	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, cycles);
+	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, (Uint32)cycles);
 }
 
 static void play_setup(KSSSEQ *THIS_, Uint32 pc)
@@ -306,6 +317,9 @@ static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
 {
 	KSSSEQ *THIS_ = ctx;
 	a &= 0xff;
+    if ((a & 0xfc) == 0xc4)
+        return 0x00;
+    
 	if (a == 0xa2)
 		return THIS_->sndp[SND_PSG]->read(THIS_->sndp[SND_PSG]->ctx, 0);
 	if (THIS_->sndp[SND_MSXAUDIO] && (a & 0xfe) == 0xc0)
@@ -317,6 +331,7 @@ static void iowrite_eventSMS(void *ctx, Uint32 a, Uint32 v)
 {
 	KSSSEQ *THIS_ = ctx;
 	a &= 0xff;
+    
 	if ((a & 0xfe) == 0x7e)
 		THIS_->sndp[SND_SNG]->write(THIS_->sndp[SND_SNG]->ctx, 0, v);
 	else if (a == 0x06)
@@ -330,6 +345,14 @@ static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
 {
 	KSSSEQ *THIS_ = ctx;
 	a &= 0xff;
+    
+    if ((a & 0xfc) == 0xc4)
+    {
+        if (THIS_->sndp[SND_OPL3])
+            THIS_->sndp[SND_OPL3]->write(THIS_->sndp[SND_OPL3]->ctx, a, v);
+        return;
+    }
+    
 	if ((a & 0xfe) == 0xa0)
 		THIS_->sndp[SND_PSG]->write(THIS_->sndp[SND_PSG]->ctx, a & 1, v);
 	else if (a == 0xab)
@@ -579,19 +602,27 @@ static void reset(NEZ_PLAY *pNezPlay)
 	kmevent_setevent(&THIS_->kme, THIS_->vsync_id, vsync_event, THIS_);
 	THIS_->cpsgap = THIS_->cpsrem  = 0;
 	THIS_->cpfrem  = 0;
-	THIS_->cps = DivFix(BASECYCLES, freq, SHIFT_CPS);
-	if (THIS_->extdevice & EXTDEVICE_PAL)
-		THIS_->cpf = (4 * 342 * 313 / 6) << SHIFT_CPS;
-	else
-		THIS_->cpf = (4 * 342 * 262 / 6) << SHIFT_CPS;
+    
 
+    int cpu_ratio = 1;
+    if (THIS_->ext2 & EXT2_TURBO)
+        cpu_ratio = 4;
+    
+    int cpu_cycle = BASECYCLES * cpu_ratio;
+
+    THIS_->cps = DivFix(cpu_cycle, freq, SHIFT_CPS);
+	if (THIS_->extdevice & EXTDEVICE_PAL)
+		THIS_->cpf = ((Uint32)(4 * 342 * 313 / 6) * cpu_ratio) << SHIFT_CPS;
+	else
+		THIS_->cpf = ((Uint32)(4 * 342 * 262 / 6) * cpu_ratio) << SHIFT_CPS;
+    
 	{
         // ログ出力
         if (pNezPlay->log_ctx)
         {
             THIS_->log_ctx = pNezPlay->log_ctx;
 
-            double vsync = (double)BASECYCLES / (THIS_->cpf >> SHIFT_CPS);
+            double vsync = (double)cpu_cycle / (THIS_->cpf >> SHIFT_CPS);
             double vsync_us = (double)(1*1000*1000) / vsync;
             // if 60Hz, vsync_us = 16666.666us
             // 16666 / 64 exceed 256
@@ -601,7 +632,7 @@ static void reset(NEZ_PLAY *pNezPlay)
         
 		/* request execute */
 		Uint32 initbreak = 5 << 8; /* 5sec */
-		while (!THIS_->ctx.regs8[REGID_HALTED] && --initbreak) kmz80_exec(&THIS_->ctx, BASECYCLES >> 8);
+		while (!THIS_->ctx.regs8[REGID_HALTED] && --initbreak) kmz80_exec(&THIS_->ctx, cpu_cycle >> 8);
 	}
 	vsync_setup(THIS_);
 	if (THIS_->ctx.regs8[REGID_HALTED])
@@ -694,6 +725,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	THIS_->playaddr = GetWordLE(pData + 0x0A);
 	THIS_->bankofs = pData[0x0C];
 	THIS_->banknum = pData[0x0D];
+    THIS_->ext2 = pData[0x0E];
 	THIS_->extdevice = pData[0x0F];
 	SONGINFO_SetStartSongNo(pNezPlay->song, THIS_->startsong);
 	SONGINFO_SetMaxSongNo(pNezPlay->song, THIS_->maxsong);
@@ -860,6 +892,12 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 			//ここまでダンプ設定
 		}
         
+        // OPL3
+        if (THIS_->ext2 & EXT2_OPL3)
+        {
+            THIS_->sndp[SND_OPL3] = OPL3SoundAlloc();
+            if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
+        }
         
         // ログ出力
         if (pNezPlay->log_ctx)
@@ -886,6 +924,14 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
                 THIS_->sndp[SND_MSXAUDIO]->log_id = addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, BASECYCLES);
                 THIS_->sndp[SND_MSXAUDIO]->log_ctx = pNezPlay->log_ctx;
                 THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+            }
+            
+            if (THIS_->sndp[SND_OPL3])
+            {
+                THIS_->sndp[SND_OPL3]->log_id =  addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPL3,
+                                                           BASECLOCK_OPL3);
+                THIS_->sndp[SND_OPL3]->log_ctx = pNezPlay->log_ctx;
+                THIS_->sndp[SND_OPL3]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
             mapEndLOG(pNezPlay->log_ctx);

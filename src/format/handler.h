@@ -28,8 +28,8 @@ void NESReset(void*);
 void NESResetHandlerInstall(NES_RESET_HANDLER**, const NES_RESET_HANDLER *ph);
 void NESTerminate(void*);
 void NESTerminateHandlerInstall(NES_TERMINATE_HANDLER**, const NES_TERMINATE_HANDLER *ph);
-void NESHandlerInitialize(NES_RESET_HANDLER**, NES_TERMINATE_HANDLER *);
-void NESHandlerTerminate(NES_RESET_HANDLER**, NES_TERMINATE_HANDLER *);
+void NESHandlerInitialize(NES_RESET_HANDLER**, NES_TERMINATE_HANDLER **);
+void NESHandlerTerminate(NES_RESET_HANDLER**, NES_TERMINATE_HANDLER **);
 
 #ifdef __cplusplus
 }

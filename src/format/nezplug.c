@@ -230,7 +230,7 @@ Uint NEZLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint uSize)
 			break;
 		}
 		NESTerminate(pNezPlay);
-		NESHandlerInitialize(pNezPlay->nrh, pNezPlay->nth);
+		NESHandlerInitialize(pNezPlay->nrh, &pNezPlay->nth);
 		NESAudioHandlerInitialize(pNezPlay);
 		if (uSize < 8)
 		{

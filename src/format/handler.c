@@ -72,8 +72,9 @@ void NESTerminate(void *pNezPlay)
 {
 	NES_TERMINATE_HANDLER *ph;
 	if (!pNezPlay) return;
-	for (ph = ((NEZ_PLAY*)pNezPlay)->nth; ph; ph = ph->next) ph->Proc(pNezPlay);
-	NESHandlerTerminate(((NEZ_PLAY*)pNezPlay)->nrh, ((NEZ_PLAY*)pNezPlay)->nth);
+	for (ph = ((NEZ_PLAY*)pNezPlay)->nth; ph; ph = ph->next)
+        ph->Proc(pNezPlay);
+	NESHandlerTerminate(((NEZ_PLAY*)pNezPlay)->nrh, &((NEZ_PLAY*)pNezPlay)->nth);
 }
 void NESTerminateHandlerInstall(NES_TERMINATE_HANDLER **nth, const NES_TERMINATE_HANDLER *ph)
 {
@@ -97,16 +98,17 @@ static void NESTerminateHandlerTerminate(NES_TERMINATE_HANDLER **nth)
 		XFREE(p);
 		p = next;
 	}
+    *nth = NULL;
 }
 
-void NESHandlerInitialize(NES_RESET_HANDLER** nrh, NES_TERMINATE_HANDLER* nth)
+void NESHandlerInitialize(NES_RESET_HANDLER** nrh, NES_TERMINATE_HANDLER** nth)
 {
 	NESResetHandlerInitialize(nrh);
-	NESTerminateHandlerInitialize(&nth);
+	NESTerminateHandlerInitialize(nth);
 }
 
-void NESHandlerTerminate(NES_RESET_HANDLER** nrh, NES_TERMINATE_HANDLER* nth)
+void NESHandlerTerminate(NES_RESET_HANDLER** nrh, NES_TERMINATE_HANDLER** nth)
 {
 	NESResetHandlerTerminate(nrh);
-	NESTerminateHandlerTerminate(&nth);
+	NESTerminateHandlerTerminate(nth);
 }

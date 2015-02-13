@@ -76,12 +76,12 @@ static Uint NES6502Execute(NEZ_PLAY *pNezPlay, Uint start_cycles, Uint total_cyc
 
 static void NES6502ReadHandlerSet(NEZ_PLAY *pNezPlay, Uint bank, READHANDLER rh)
 {
-	((NSFNSF*)pNezPlay->nsf)->work6502.ReadByte[bank] = rh;
+	((NSFNSF*)pNezPlay->nsf)->work6502.ReadByte[bank] = (ReadHandler)rh;
 }
 
 static void NES6502WriteHandlerSet(NEZ_PLAY *pNezPlay, Uint bank, WRITEHANDLER wh)
 {
-	((NSFNSF*)pNezPlay->nsf)->work6502.WriteByte[bank] = wh;
+	((NSFNSF*)pNezPlay->nsf)->work6502.WriteByte[bank] = (WriteHandler)wh;
 }
 
 #define EXTREADWRITE(p) \

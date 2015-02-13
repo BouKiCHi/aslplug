@@ -14,6 +14,8 @@ FMTDIR    = format
 DEVDIR    = device
 NESDIR    = device/nes
 OPLDIR    = device/opl
+OPL3DIR    = device/mame
+
 
 CPUDIR = cpu
 
@@ -34,22 +36,26 @@ s_fme7.c s_mmc5.c s_n106.c s_vrc6.c s_vrc7.c
 
 DEVSRCS = \
  s_dmg.c s_hesad.c s_psg.c s_sng.c \
- s_hes.c s_logtbl.c s_scc.c
+ s_hes.c s_logtbl.c s_scc.c s_opl4.c
  
 OPLSRCS = \
  s_deltat.c s_opl.c s_opltbl.c
+
+OPL3SRCS = \
+ ymf262.c 
 
 KMZ80SRCS = \
  kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
 
 MAINSRCS = \
- sdlplay.c 
+ sdlplay.c glue2.c
  
 LOGSRCS = \
  nlg.c s98x.c log.c
  
 
-DIRS = $(FMTDIR) $(KMZ80DIR) $(KM6502DIR) $(DEVDIR) $(CPUDIR) $(NESDIR) $(OPLDIR) $(LOGDIR)
+DIRS = $(FMTDIR) $(KMZ80DIR) $(KM6502DIR) 
+DIRS += $(DEVDIR) $(CPUDIR) $(NESDIR) $(OPLDIR) $(OPL3DIR) $(LOGDIR)
 
 LIBSRCS = \
        $(addprefix $(FMTDIR)/,$(FMTSRCS)) \
@@ -57,6 +63,7 @@ LIBSRCS = \
        $(addprefix $(DEVDIR)/,$(DEVSRCS)) \
        $(addprefix $(NESDIR)/,$(NESSRCS)) \
        $(addprefix $(OPLDIR)/,$(OPLSRCS)) \
+       $(addprefix $(OPL3DIR)/,$(OPL3SRCS)) \
        $(addprefix $(LOGDIR)/,$(LOGSRCS)) \
 
 MAINSRCFILES = $(MAINSRCS)

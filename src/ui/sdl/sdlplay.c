@@ -14,7 +14,7 @@
 // for stat
 #include <sys/stat.h> 
 
-
+#include "glue2.h"
 #include "nezplug.h"
 
 #include "log.h"
@@ -26,17 +26,17 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-01-01"
+#define NEZ_VER "2015-02-02"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 2048
+#define PCM_NUM_BLOCKS 8
 #define PCM_BYTE_PER_SAMPLE 2
 #define PCM_CH  2
-#define PCM_NUM_BLOCKS 4
 
-#define PCM_BLOCK_SIZE (PCM_BLOCK * PCM_CH)
-#define PCM_BLOCK_BYTES (PCM_BLOCK_SIZE * PCM_BYTE_PER_SAMPLE)
-#define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS)
+#define PCM_BLOCK_SIZE (PCM_BLOCK * PCM_CH) // 1つのブロック
+#define PCM_BLOCK_BYTES (PCM_BLOCK_SIZE * PCM_BYTE_PER_SAMPLE) // 1ブロックのバイト換算
+#define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS) // すべてのブロック
 
 
 // PCM構造体
@@ -45,11 +45,13 @@ static struct pcm_struct
     int on;
     int stop;
 
+	// 再生位置とバッファされているサンプル数
     int write;
     int play;
-    
     int count;
     
+    int over;
+    int under;
     int file_mode;
     
     short buffer[PCM_BUFFER_LEN];
@@ -75,6 +77,7 @@ void sleep(int val)
 static void audio_callback( void *param , Uint8 *data , int len )
 {
     int i;
+    int under = 0;
     
     short *audio_buffer = (short *)data;
 
@@ -92,11 +95,15 @@ static void audio_callback( void *param , Uint8 *data , int len )
             pcm.count--;
         }
         else
+        {
+            under = 1;
             audio_buffer[i] = 0;
-        
+        }
         if (pcm.play >= PCM_BUFFER_LEN)
             pcm.play = 0;
     }
+    if (under)
+        pcm.under++;
 }
 
 // SDL初期化
@@ -210,7 +217,7 @@ INLINE void write_word(byte *p,word v)
 // pcm_bytesize : データの長さ
 static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
 {
-    unsigned char hdr[0x80];
+    byte hdr[0x80];
     
     if (!fp)
         return;
@@ -239,9 +246,17 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
 static void audio_info(int sec, int len)
 {
     if (! debug )
+    {
+        if (nsf_verbose)
+            printf("\rTime : %02d:%02d / %02d:%02d over:%d under:%d",
+                   sec / 60, sec % 60,
+                   len / 60, len % 60,
+                   pcm.over, pcm.under);
+        
+        else
         printf("\rTime : %02d:%02d / %02d:%02d",
                sec / 60 , sec % 60 , len / 60 , len % 60 );
-    
+    }
     fflush(stdout);
 }
 
@@ -274,17 +289,19 @@ static void audio_loop( int freq , int len )
     
     do
     {
-        // delay until next block is writable
-        
-        while(pcm.count >= (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
+        // 書き込み可能になるのを待つ
+        if (pcm.count > (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
         {
-            if (audio_poll_event() < 0)
+            pcm.over++;
+            while(pcm.count > (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
             {
-                SDL_PauseAudio(1);
-                return;
+                if (audio_poll_event() < 0)
+                {
+                    SDL_PauseAudio(1);
+                    return;
+                }
+                SDL_Delay(1);
             }
-            
-            SDL_Delay(1);
         }
         if (nezctx)
 	        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
@@ -469,60 +486,6 @@ int audio_check_nlgmode(const char *file)
     return 0;
 }
 
-unsigned char *audio_mem_ptr = NULL;
-
-// ファイルサイズの取得
-long get_filesize(const char *file)
-{
-    struct stat st;
-    
-    if (stat(file, &st) < 0)
-        return -1;
-    
-    return (long)st.st_size;
-}
-
-// ファイル用メモリの開放
-void audio_file_free()
-{
-	if (audio_mem_ptr)
-	{
-		free(audio_mem_ptr);
-		audio_mem_ptr = NULL;
-	}
-}
-
-// ファイルの読み込み
-int audio_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, int songno)
-{
-
-	audio_file_free();
-	
-	long size = get_filesize(file);
-	
-	if (size < 0)
-		return (int)size;
-	
-	audio_mem_ptr = malloc(size);
-	
-	FILE *fp = fopen(file, "rb");
-	
-	fread(audio_mem_ptr, size, 1, fp);
-	
-	fclose(fp);
-	
-	NEZLoad(ctx, audio_mem_ptr, (Uint)size);
-	
-	NEZSetFrequency(ctx, freq);
-	NEZSetChannel(ctx, ch);
-    
-	if (songno >= 0)
-        NEZSetSongNo(ctx, songno);
-
-    NEZReset(ctx);
-	
-	return 0;
-}
 
 // 時間表記を秒数に変換する
 int get_length(const char *str)
@@ -664,6 +627,7 @@ int audio_main(int argc, char *argv[])
     {
         char *playfile = argv[optind];
         
+        // ログモードの設定
         if (log_mode)
         {
             char *log_ext = NLG_EXT;
@@ -695,11 +659,11 @@ int audio_main(int argc, char *argv[])
         nezctx->log_ctx = log_ctx;
         
         // ファイルの読み出し
-        if (audio_load_file(nezctx, playfile, rate, 2, vol, songno))
+        if (glue2_load_file(nezctx, playfile, rate, 2, vol, songno) < 0)
         {
             printf("File open error : %s\n", playfile);
             
-            audio_file_free();
+            glue2_mem_free();
             CloseLOG(log_ctx);
             
             return 0;
@@ -716,19 +680,22 @@ int audio_main(int argc, char *argv[])
         
         // ループ実行
         if (nosound || pcmfile)
-            audio_loop_file(pcmfile, rate, len);
+            audio_loop_file(pcmfile, rate, len); // 音なし
         else
-            audio_loop(rate, len);
+            audio_loop(rate, len); // 音出力
         
-        audio_file_free();
+        glue2_mem_free();
         
         CloseLOG(log_ctx);
         log_ctx = NULL;
+
+        if (pcm.stop)
+            break;
     }
     
     audio_free();
     
-    PRNDBG("terminateNSF\n");
+    PRNDBG("NEZDelete\n");
 
     if (nezctx)
     {
