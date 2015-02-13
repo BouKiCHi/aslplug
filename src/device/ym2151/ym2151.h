@@ -38,6 +38,7 @@ typedef short INT16;
 typedef unsigned short UINT16;
 typedef unsigned int UINT32;
 typedef int INT32;
+
 typedef UINT32 offs_t;
 typedef UINT32 data_t;
 

@@ -48,15 +48,14 @@ typedef unsigned short	Uint16;
 
 #ifndef WIN32
 #include <stdlib.h>
-#define XSLEEP(t)		
+#define XSLEEP(t)
 //#define XSLEEP(t)		_sleep(t)
 #else
-#include <windows.h>
+// #include <windows.h>
 #include <stdlib.h>
 
 #undef THIS_ // for MinGW32
-
-#define XSLEEP(t)		sleep(t)
+#define XSLEEP(t)		
 #endif
 #define XMALLOC(s)		malloc(s)
 #define XREALLOC(p,s)	realloc(p,s)

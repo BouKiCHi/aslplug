@@ -18,7 +18,7 @@
 
 #include "log.h"
 
-#define SHIFT_CPS 12
+#define SHIFT_CPS 15
 #define BASECYCLES       (3579545)
 
 #define EXTDEVICE_SNG		(1 << 1)
@@ -64,11 +64,15 @@ struct  KSSSEQ_TAG {
 	Uint8 *readmap[8];
 	Uint8 *writemap[8];
 
-	Uint32 cps;		/* cycles per sample:fixed point */
-	Uint32 cpsrem;	/* cycle remain */
-	Uint32 cpsgap;	/* cycle gap */
-	Uint32 cpf;		/* cycles per frame:fixed point */
-	Uint32 cpfrem;	/* cycle remain */
+    double cps;
+    double cpsrem;
+    double cpf;
+    double cpfrem;
+//	Uint32 cps;		/* cycles per sample:fixed point */
+//	Uint32 cpsrem;	/* cycle remain */
+//	Uint32 cpsgap;	/* cycle gap */
+//	Uint64 cpf;		/* cycles per frame:fixed point */
+//	Uint64 cpfrem;	/* cycle remain */
 	Uint32 total_cycles;	/* total played cycles */
 
 	Uint32 startsong;
@@ -139,7 +143,10 @@ static Int32 execute(KSSSEQ *THIS_)
 {
 	Int32 cycles;
 	THIS_->cpsrem += THIS_->cps;
-	cycles = THIS_->cpsrem >> SHIFT_CPS;
+    cycles = (Int32)THIS_->cpsrem;
+    THIS_->cpsrem -= kmz80_exec(&THIS_->ctx, cycles);
+
+/*    cycles = THIS_->cpsrem >> SHIFT_CPS;
 	if (THIS_->cpsgap >= cycles)
 		THIS_->cpsgap -= cycles;
 	else
@@ -148,8 +155,10 @@ static Int32 execute(KSSSEQ *THIS_)
 		THIS_->cpsgap = kmz80_exec(&THIS_->ctx, excycles) - excycles;
 	}
 	THIS_->cpsrem &= (1 << SHIFT_CPS) - 1;
+*/
 	THIS_->total_cycles += cycles;
-	return 0;
+    
+    return 0;
 }
 
 __inline static void synth(KSSSEQ *THIS_, Int32 *d)
@@ -218,10 +227,14 @@ __inline static void volume(KSSSEQ *THIS_, Uint32 v)
 
 static void vsync_setup(KSSSEQ *THIS_)
 {
-	Int64 cycles;
-	THIS_->cpfrem += THIS_->cpf;
-	cycles = THIS_->cpfrem >> SHIFT_CPS;
-	THIS_->cpfrem &= (1 << SHIFT_CPS) - 1;
+	Int32 cycles = 0;
+    THIS_->cpfrem += THIS_->cpf;
+    cycles = (Int32)THIS_->cpfrem;
+    THIS_->cpfrem -= cycles;
+
+//	THIS_->cpfrem += THIS_->cpf;
+//	cycles = THIS_->cpfrem >> SHIFT_CPS;
+//	THIS_->cpfrem &= (1 << SHIFT_CPS) - 1;
 	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, (Uint32)cycles);
 }
 
@@ -600,7 +613,7 @@ static void reset(NEZ_PLAY *pNezPlay)
 	kmevent_init(&THIS_->kme);
 	THIS_->vsync_id = kmevent_alloc(&THIS_->kme);
 	kmevent_setevent(&THIS_->kme, THIS_->vsync_id, vsync_event, THIS_);
-	THIS_->cpsgap = THIS_->cpsrem  = 0;
+	// THIS_->cpsgap = THIS_->cpsrem  = 0;
 	THIS_->cpfrem  = 0;
     
 
@@ -610,11 +623,15 @@ static void reset(NEZ_PLAY *pNezPlay)
     
     int cpu_cycle = BASECYCLES * cpu_ratio;
 
-    THIS_->cps = DivFix(cpu_cycle, freq, SHIFT_CPS);
+    THIS_->cps = cpu_cycle / freq;
+    // THIS_->cps = DivFix(cpu_cycle, freq, SHIFT_CPS);
+
 	if (THIS_->extdevice & EXTDEVICE_PAL)
-		THIS_->cpf = ((Uint32)(4 * 342 * 313 / 6) * cpu_ratio) << SHIFT_CPS;
+        THIS_->cpf = ((4 * 342 * 313 / 6) * cpu_ratio);
 	else
-		THIS_->cpf = ((Uint32)(4 * 342 * 262 / 6) * cpu_ratio) << SHIFT_CPS;
+        THIS_->cpf = ((4 * 342 * 262 / 6) * cpu_ratio);
+
+    // THIS_->cpf = THIS_->cpf << SHIFT_CPS;
     
 	{
         // ログ出力
@@ -622,7 +639,7 @@ static void reset(NEZ_PLAY *pNezPlay)
         {
             THIS_->log_ctx = pNezPlay->log_ctx;
 
-            double vsync = (double)cpu_cycle / (THIS_->cpf >> SHIFT_CPS);
+            double vsync = (double)cpu_cycle / (THIS_->cpf);
             double vsync_us = (double)(1*1000*1000) / vsync;
             // if 60Hz, vsync_us = 16666.666us
             // 16666 / 64 exceed 256

@@ -26,17 +26,18 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-02-02"
+#define NEZ_VER "2015-02-14"
 #define PRGNAME "NEZPLAY_ASL"
 
-#define PCM_BLOCK 2048
-#define PCM_NUM_BLOCKS 8
+#define PCM_BLOCK 512
+#define PCM_NUM_BLOCKS 16
 #define PCM_BYTE_PER_SAMPLE 2
 #define PCM_CH  2
 
 #define PCM_BLOCK_SIZE (PCM_BLOCK * PCM_CH) // 1つのブロック
 #define PCM_BLOCK_BYTES (PCM_BLOCK_SIZE * PCM_BYTE_PER_SAMPLE) // 1ブロックのバイト換算
 #define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS) // すべてのブロック
+#define PCM_WAIT_SIZE (PCM_BUFFER_LEN - (PCM_BLOCK_SIZE * 4)) // このサイズで空きを待つ
 
 
 // PCM構造体
@@ -248,10 +249,12 @@ static void audio_info(int sec, int len)
     if (! debug )
     {
         if (nsf_verbose)
-            printf("\rTime : %02d:%02d / %02d:%02d over:%d under:%d",
+            printf("\rTime : %02d:%02d / %02d:%02d o:%5d u:%5d c:%5d w:%6d p:%6d",
                    sec / 60, sec % 60,
                    len / 60, len % 60,
-                   pcm.over, pcm.under);
+                   pcm.over, pcm.under, pcm.count,
+                   pcm.write, pcm.play
+                   );
         
         else
         printf("\rTime : %02d:%02d / %02d:%02d",
@@ -290,19 +293,17 @@ static void audio_loop( int freq , int len )
     do
     {
         // 書き込み可能になるのを待つ
-        if (pcm.count > (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
+        while(pcm.count > PCM_WAIT_SIZE)
         {
-            pcm.over++;
-            while(pcm.count > (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
+            if (audio_poll_event() < 0)
             {
-                if (audio_poll_event() < 0)
-                {
-                    SDL_PauseAudio(1);
-                    return;
-                }
-                SDL_Delay(1);
+                SDL_PauseAudio(1);
+                return;
             }
+            pcm.over++;
+            SDL_Delay(1);
         }
+    
         if (nezctx)
 	        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
         // RenderNSF(pcm.buffer + pcm.write, PCM_BLOCK);
@@ -363,8 +364,6 @@ static void audio_loop_file(const char *file, int freq , int len )
     int frames;
     int total_frames;
 
-    short pcm_buffer[PCM_BLOCK_SIZE];
-
     // len = 5;
 
     fade_init();
@@ -394,10 +393,10 @@ static void audio_loop_file(const char *file, int freq , int len )
         // RenderNSF(pcm_buffer, PCM_BLOCK);
                 
         if (fade_is_running())
-            fade_stereo (pcm_buffer, PCM_BLOCK);
+            fade_stereo (pcm.buffer, PCM_BLOCK);
         
         if (fp)
-            fwrite(pcm_buffer, PCM_BLOCK_BYTES, 1, fp);
+            fwrite(pcm.buffer, PCM_BLOCK_BYTES, 1, fp);
 
         frames += PCM_BLOCK;
         total_frames += PCM_BLOCK;
