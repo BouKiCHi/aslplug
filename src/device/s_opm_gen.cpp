@@ -66,7 +66,7 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
 {
     OPM_FMGEN *sndp = (OPM_FMGEN *)(p);
 
-    int chip = (a / 0x10);
+    // int chip = (a / 0x10);
     
 	switch(a & 0x1)
 	{
@@ -118,9 +118,9 @@ static void sndrelease(void *p)
 	XFREE(sndp);
 }
 
-static void setmask(void *p, int dev, char *mask)
+/*static void setmask(void *p, int dev, char *mask)
 {
-}
+}*/
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 

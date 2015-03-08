@@ -8,8 +8,8 @@ extern "C" {
 #endif
 
 #if USE_USERPOINTER
-typedef Uword (Callback *ReadHandler)(void *user, Uword adr);
-typedef void (Callback *WriteHandler)(void *user, Uword adr, Uword value);
+typedef __fastcall Uword (Callback *ReadHandler)(void *user, Uword adr);
+typedef __fastcall void (Callback *WriteHandler)(void *user, Uword adr, Uword value);
 #else
 typedef Uword (Callback *ReadHandler)(Uword adr);
 typedef void (Callback *WriteHandler)(Uword adr, Uword value);

@@ -20,6 +20,16 @@
 
 #define MAX_S98DEV 4
 
+// 優先順位マップ
+struct prio_list
+{
+    struct prio_list *left;
+    struct prio_list *right;
+    
+    int prio;
+    int index;
+};
+
 typedef struct {
     FILE *file;
     int version;
@@ -35,7 +45,13 @@ typedef struct {
     int dev_count;
     int dev_type[MAX_S98DEV];
     int dev_freq[MAX_S98DEV];
+    int dev_map[MAX_S98DEV];
+    
+    struct prio_list prio_map[MAX_S98DEV];
+    struct prio_list *prio_top;
+
 } S98CTX;
+
 
 #define S98_READMODE 0
 #define S98_WRITEMODE 1
@@ -72,8 +88,10 @@ int ReadS98VV(S98CTX *ctx);
 
 
 #ifndef S98_READONLY
+
 S98CTX *CreateS98(const char *file);
-int addMapS98(S98CTX *ctx, int type, int freq);
+int AddMapS98(S98CTX *ctx, int type, int freq, int prio);
+void MapEndS98(S98CTX *ctx);
 void WriteDataS98(S98CTX *ctx, int id, int addr, int data);
 void WriteSyncS98(S98CTX *ctx);
 void SetTimingS98(S98CTX *ctx, int us);

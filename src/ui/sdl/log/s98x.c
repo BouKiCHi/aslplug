@@ -1,5 +1,6 @@
 /*********
  s98x.c by BouKiCHi 2014
+ 2015-02-25 Added priority settings.
  2014-12-29
 
  This file is no warranty, but free to use. 
@@ -161,6 +162,7 @@ static void WriteDWORD(byte *p, dword val)
     p[3] = ((val>>24) & 0xff);
 }
 
+// ヘッダの作成
 static void WriteHeaderS98(S98CTX *ctx)
 {
 	int i;
@@ -184,12 +186,32 @@ static void WriteHeaderS98(S98CTX *ctx)
 	fseek(ctx->file, 0, SEEK_SET);
 	fwrite(hdr, 0x20, 1, ctx->file);
 	
+    // ポインタ
+    struct prio_list *ptr = ctx->prio_top;
+
+    // デバイスがない
+    if (!ptr)
+        return;
+    
+    // デバイスマップの作成
+    for(i = 0; i < MAX_S98DEV; i++)
+    {
+        // ptr->index = device_id
+        ctx->dev_map[i] = ptr->index;
+        
+        if (ptr->right)
+            ptr = ptr->right;
+        else
+            break;
+    }
+    
     // デバイスリスト書き込み
 	for(i = 0; i < MAX_S98DEV; i++)
 	{
 		memset(hdr, 0, 0x20);
-		WriteDWORD(hdr + 0x00, ctx->dev_type[i]);
-		WriteDWORD(hdr + 0x04, ctx->dev_freq[i]);
+        
+		WriteDWORD(hdr + 0x00, ctx->dev_type[ctx->dev_map[i]]);
+		WriteDWORD(hdr + 0x04, ctx->dev_freq[ctx->dev_map[i]]);
 		
 		fwrite(hdr, 0x10, 1, ctx->file);
 	}
@@ -200,12 +222,15 @@ S98CTX *CreateS98(const char *file)
 {
     
     S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
+    memset(ctx, 0 , sizeof(S98CTX));
+    
     
     if (!ctx)
     {
         printf("Failed to malloc!");
         return NULL;
     }
+    
     memset(ctx, 0, sizeof(S98CTX));
 
     
@@ -221,13 +246,74 @@ S98CTX *CreateS98(const char *file)
     ctx->mode = S98_WRITEMODE;
     ctx->dev_count = 0;
     
-    WriteHeaderS98(ctx);
-    
     return ctx;
 }
 
+// マップ終了
+void MapEndS98(S98CTX *ctx)
+{
+    WriteHeaderS98(ctx);
+}
+
+// ソートマップを作る
+void AddSortMapS98(S98CTX *ctx, int id, int prio)
+{
+    struct prio_list *obj = &ctx->prio_map[ctx->dev_count];
+
+    // まだマップなし
+    if (!ctx->prio_top)
+    {
+        ctx->prio_top = obj;
+        ctx->prio_top->index = id;
+        ctx->prio_top->prio = prio;
+        return;
+    }
+    
+    struct prio_list *ptr = ctx->prio_top;
+
+    // トップより大きい
+    if (prio > ptr->prio)
+    {
+        ptr->left = obj;
+        obj->right = ptr;
+        ctx->prio_top = obj;
+        
+        obj->index = id;
+        obj->prio = prio;
+        return;
+    }
+    
+    // 下をたどる
+    while(ptr->prio > prio)
+    {
+        // 一番下だった
+        if (!ptr->right)
+        {
+            ptr->right = obj;
+            obj->left = ptr;
+            
+            obj->prio = prio;
+            obj->index = id;
+            return;
+        }
+        ptr = ptr->right;
+    }
+    
+    // 途中に挿入する
+    // ptr > obj > ptr->right
+    
+    obj->right = ptr->right;
+    obj->left = ptr;
+    ptr->right = obj;
+    
+    obj->prio = prio;
+    obj->index = id;
+    
+}
+
+
 // デバイスマッピング
-int addMapS98(S98CTX *ctx, int type, int freq)
+int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
 {
     if (!ctx)
         return -1;
@@ -236,6 +322,8 @@ int addMapS98(S98CTX *ctx, int type, int freq)
 
     ctx->dev_type[idx] = type;
     ctx->dev_freq[idx] = freq;
+    
+    AddSortMapS98(ctx, idx, prio);
     
     ctx->dev_count++;
     
@@ -248,7 +336,10 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
 {
     if (id < 0 || !ctx)
         return;
+    
+    id = ctx->dev_map[id];
 
+    // レジスタは表と裏が想定されている
     int cmd = id * 2;
 
     if (addr > 0xff)

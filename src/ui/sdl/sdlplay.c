@@ -26,7 +26,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-02-14"
+#define NEZ_VER "2015-03-06"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -37,8 +37,9 @@ int debug = 0;
 #define PCM_BLOCK_SIZE (PCM_BLOCK * PCM_CH) // 1つのブロック
 #define PCM_BLOCK_BYTES (PCM_BLOCK_SIZE * PCM_BYTE_PER_SAMPLE) // 1ブロックのバイト換算
 #define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS) // すべてのブロック
-#define PCM_WAIT_SIZE (PCM_BUFFER_LEN - (PCM_BLOCK_SIZE * 4)) // このサイズで空きを待つ
+#define PCM_WAIT_SIZE (PCM_BUFFER_LEN - (PCM_BLOCK_SIZE)) // このサイズで空きを待つ
 
+#define USE_SYNC
 
 // PCM構造体
 static struct pcm_struct
@@ -54,6 +55,8 @@ static struct pcm_struct
     int over;
     int under;
     int file_mode;
+    
+    float volume;
     
     short buffer[PCM_BUFFER_LEN];
 } pcm;
@@ -88,12 +91,14 @@ static void audio_callback( void *param , Uint8 *data , int len )
         return;
     }
     
+    int count = pcm.count;
+    
     for(i = 0; i < len / 2; i++)
     {
-        if (pcm.count > 0)
+        if (count > 0)
         {
             audio_buffer[i] = pcm.buffer[pcm.play++];
-            pcm.count--;
+            count--;
         }
         else
         {
@@ -103,6 +108,10 @@ static void audio_callback( void *param , Uint8 *data , int len )
         if (pcm.play >= PCM_BUFFER_LEN)
             pcm.play = 0;
     }
+    
+    pcm.count = count;
+
+    
     if (under)
         pcm.under++;
 }
@@ -128,6 +137,8 @@ static int audio_sdl_init()
 static int audio_init(int freq)
 {
     SDL_AudioSpec af;
+    PRNDBG("audio_init\n");
+
     
     // SDL_SetVideoMode ( 320 , 240 , 32 , SDL_SWSURFACE );
     
@@ -144,23 +155,18 @@ static int audio_init(int freq)
         return 1;
     }
     
-    
     SDL_PauseAudio(0);
-    
-    PRNDBG("Start Audio\n");
-    
+
     return 0;
 }
 
 // オーディオ開放
 static void audio_free(void)
 {
-    PRNDBG("Close Audio\n");
+    PRNDBG("audio_free\n");
+
     SDL_CloseAudio();
-    PRNDBG("Quit SDL\n");
     SDL_Quit();
-    PRNDBG("OK\n");
-    
 }
 
 static int audio_poll_event(void)
@@ -180,6 +186,7 @@ static int audio_poll_event(void)
     return 0;
 }
 
+// Ctrl+Cで呼ばれる
 static void audio_sig_handle(int sig)
 {
     pcm.stop = 1;
@@ -263,10 +270,27 @@ static void audio_info(int sec, int len)
     fflush(stdout);
 }
 
+// audio_volume : 音量増幅
+static void audio_volume(short *data, int len, float volume)
+{
+    // stereo
+    int i = 0;
+    for (i = 0; i < len * 2; i++)
+    {
+        float s = ((float)data[i]) * volume;
+        if (s < -0x8000)
+            s = -0x8000;
+        if (s > 0x7fff)
+            s = 0x7fff;
+        data[i] = (short)s;
+    }
+}
+
+
 // audio_loop : 再生時にループする
 // freq : 再生周波数
 // len : 長さ(秒)
-static void audio_loop( int freq , int len )
+static void audio_loop(int freq, int len)
 {
     int sec;
     
@@ -281,9 +305,9 @@ static void audio_loop( int freq , int len )
     frames =
     total_frames = 0;
     
-    if ( audio_poll_event() < 0 )
+    if (audio_poll_event() < 0)
     {
-        SDL_PauseAudio( 1 );
+        SDL_PauseAudio(1);
         return;
     }
 
@@ -292,9 +316,11 @@ static void audio_loop( int freq , int len )
     
     do
     {
+        __sync_synchronize();
         // 書き込み可能になるのを待つ
         while(pcm.count > PCM_WAIT_SIZE)
-        {
+        {   
+            // 閉じる
             if (audio_poll_event() < 0)
             {
                 SDL_PauseAudio(1);
@@ -305,7 +331,10 @@ static void audio_loop( int freq , int len )
         }
     
         if (nezctx)
+        {
 	        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
+            audio_volume(pcm.buffer + pcm.write, PCM_BLOCK, pcm.volume);            
+        }
         // RenderNSF(pcm.buffer + pcm.write, PCM_BLOCK);
                 
         if (fade_is_running())
@@ -389,9 +418,11 @@ static void audio_loop_file(const char *file, int freq , int len )
     do
     {
         if (nezctx)
+        {
 	        NEZRender(nezctx, pcm.buffer, PCM_BLOCK);
-        // RenderNSF(pcm_buffer, PCM_BLOCK);
-                
+            audio_volume(pcm.buffer, PCM_BLOCK, pcm.volume);
+        }
+        
         if (fade_is_running())
             fade_stereo (pcm.buffer, PCM_BLOCK);
         
@@ -445,7 +476,7 @@ void usage(void)
     " Options ...\n"
     " -s rate   : Set playback rate\n"
     " -n no     : Set song number\n"
-    " -v vol    : Set volume\n"
+    " -v vol    : Set volume(def. 1.0)\n"
     " -l n      : Set song length (n secs)\n"
     " -q dir    : Set driver's path\n"
     "\n"
@@ -532,7 +563,7 @@ int audio_main(int argc, char *argv[])
     
     printf(
         "NEZPLAY on SDL Version %s\n"
-        "build at %s\n"
+        "Built at %s\n"
         "Ctrl-C to stop\n"
            , NEZ_VER, __DATE__);
 
@@ -545,6 +576,7 @@ int audio_main(int argc, char *argv[])
     }
     
     debug = 0;
+    pcm.volume = 1.0f;
     
     while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzw")) != -1)
     {
@@ -578,7 +610,7 @@ int audio_main(int argc, char *argv[])
                 songno = atoi(optarg);
                 break;
             case 'v':
-                vol = atoi(optarg);
+                sscanf(optarg, "%f", &pcm.volume);
                 break;
             case 'd':
                 break;
@@ -670,12 +702,6 @@ int audio_main(int argc, char *argv[])
 
         if (!debug)
             printf("Freq = %d, SongNo = %d\n", rate, songno);
-        
-        // ボリューム設定
-        if (vol >= 0)
-        {
-            // SetVolumeNSF(vol);
-        }
         
         // ループ実行
         if (nosound || pcmfile)

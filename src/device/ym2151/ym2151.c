@@ -4,6 +4,8 @@
 *
 ******************************************************************************/
 
+#include "kmsnddev.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -176,7 +178,7 @@ typedef struct
 
 	unsigned int clock;					/* chip clock in Hz (passed from 2151intf.c) */
 	unsigned int sampfreq;				/* sampling frequency in Hz (passed from 2151intf.c) */
-    char *chmask;
+    Uint8 *maskptr; /* mask pointer */
 } YM2151;
 
 
@@ -1572,7 +1574,7 @@ void YM2151ResetChip(void *_chip)
 		chip->oper[i].volume = MAX_ATT_INDEX;
 	        chip->oper[i].kc_i = 768; /* min kc_i value */
 	}
-    chip->chmask = NULL;
+    chip->maskptr = NULL;
 
 	chip->eg_timer = 0;
 	chip->eg_cnt   = 0;
@@ -2347,7 +2349,7 @@ void YM2151UpdateOne(void *chip, SAMP **buffers, int length)
 {
 	int i;
 	signed int outl,outr;
-    char mask[8]={1,1,1,1,1,1,1,1};
+    Uint8 defmask[8]={1,1,1,1,1,1,1,1};
 	SAMP *bufL, *bufR;
 
 	bufL = buffers[0];
@@ -2388,9 +2390,9 @@ void YM2151UpdateOne(void *chip, SAMP **buffers, int length)
 	}
 #endif
 
-    char *chmask = PSG->chmask;
-    if (chmask == NULL)
-        chmask = mask;
+    Uint8 *opmmask = PSG->maskptr;
+    if (!opmmask)
+        opmmask = defmask;
     
 	for (i=0; i<length; i++)
 	{
@@ -2424,42 +2426,42 @@ void YM2151UpdateOne(void *chip, SAMP **buffers, int length)
 
         outl = outr = 0;
 
-        if (chmask[0])
+        if (opmmask[0])
         {
-		outl = chanout[0] & PSG->pan[0];
-		outr = chanout[0] & PSG->pan[1];
+            outl = chanout[0] & PSG->pan[0];
+            outr = chanout[0] & PSG->pan[1];
         }
-        if (chmask[1])
+        if (opmmask[1])
         {
             outl += (chanout[1] & PSG->pan[2]);
             outr += (chanout[1] & PSG->pan[3]);
         }
-        if (chmask[2])
+        if (opmmask[2])
         {
             outl += (chanout[2] & PSG->pan[4]);
             outr += (chanout[2] & PSG->pan[5]);
         }
-        if (chmask[3])
+        if (opmmask[3])
         {
             outl += (chanout[3] & PSG->pan[6]);
             outr += (chanout[3] & PSG->pan[7]);
         }
-        if (chmask[4])
+        if (opmmask[4])
         {
             outl += (chanout[4] & PSG->pan[8]);
             outr += (chanout[4] & PSG->pan[9]);
         }
-        if (chmask[5])
+        if (opmmask[5])
         {
             outl += (chanout[5] & PSG->pan[10]);
             outr += (chanout[5] & PSG->pan[11]);
         }
-        if (chmask[6])
+        if (opmmask[6])
         {
             outl += (chanout[6] & PSG->pan[12]);
             outr += (chanout[6] & PSG->pan[13]);
         }
-        if (chmask[7])
+        if (opmmask[7])
         {
             outl += (chanout[7] & PSG->pan[14]);
             outr += (chanout[7] & PSG->pan[15]);
@@ -2504,8 +2506,7 @@ void YM2151UpdateOne(void *chip, SAMP **buffers, int length)
 void YM2151SetMask(void *chip,char *mask)
 {
 	YM2151 *PSG = chip;
-	PSG->chmask = mask;
-    
+	PSG->maskptr = (Uint8 *)mask;
 }
 
 void YM2151SetIrqHandler(void *chip, void(*handler)(int irq))

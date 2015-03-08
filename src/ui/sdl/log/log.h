@@ -25,6 +25,15 @@ enum
 
 enum
 {
+    LOG_PRIO_PSG = 0,
+    LOG_PRIO_OPN,
+    LOG_PRIO_OPM,
+    LOG_PRIO_OPLL,
+    LOG_PRIO_OPL3,
+};
+
+enum
+{
     LOG_CTC0 = 0,
     LOG_CTC3,
 };
@@ -49,10 +58,10 @@ void CloseLOG(LOGCTX *ctx);
 
 
 // デバイスの追加(返り値はデバイスID)
-int addMapLOG(LOGCTX *ctx, int type, int freq);
+int AddMapLOG(LOGCTX *ctx, int type, int freq, int prio);
 
 // デバイス追加の終了
-void mapEndLOG(LOGCTX *ctx);
+void MapEndLOG(LOGCTX *ctx);
 
 // データ書き込み
 void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data);

@@ -1,6 +1,6 @@
 /*********
  LOG.C by BouKiCHi 2015
- 2015-01-01
+ 2015-02-25
  ********/
 
 #include <stdio.h>
@@ -98,7 +98,7 @@ static int convS98Type(int type)
 }
 
 // デバイスの追加(返り値はデバイスID)
-int addMapLOG(LOGCTX *ctx, int type, int freq)
+int AddMapLOG(LOGCTX *ctx, int type, int freq, int prio)
 {
     int idx = 0;
     
@@ -126,7 +126,7 @@ int addMapLOG(LOGCTX *ctx, int type, int freq)
             return idx;
         break;
         case LOG_MODE_S98:
-            return addMapS98(ctx->log_ctx, convS98Type(type), freq);
+            return AddMapS98(ctx->log_ctx, convS98Type(type), freq, prio);
         break;
     }
     
@@ -135,7 +135,7 @@ int addMapLOG(LOGCTX *ctx, int type, int freq)
 
 
 // マップ終了
-void mapEndLOG(LOGCTX *ctx)
+void MapEndLOG(LOGCTX *ctx)
 {
     if (!ctx)
         return;
@@ -143,6 +143,9 @@ void mapEndLOG(LOGCTX *ctx)
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
+            break;
+        case LOG_MODE_S98:
+            MapEndS98(ctx->log_ctx);
             break;
     }
     
@@ -162,7 +165,7 @@ void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data)
             WriteNLG_Data(ctx->log_ctx, device, addr, data);
             break;
         case LOG_MODE_S98:
-            WriteDataS98(ctx->log_ctx,device, addr, data);
+            WriteDataS98(ctx->log_ctx, device, addr, data);
             break;
     }
 }

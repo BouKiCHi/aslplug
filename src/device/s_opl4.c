@@ -11,18 +11,20 @@
 typedef struct
 {
 	KMIF_SOUND_DEVICE kmif;
+    KMIF_LOGTABLE *logtbl;
 
 	Uint8 type;
 	
 	int chip_addr;
 	void *chip_ctx;
 	char *mask;
-	
+    Int32 volume;
+
 } OPL3SOUND;
 
 
 // #define VOL_OPM 128
-#define VOL_CHIP 256
+#define VOL_CHIP 512
 
 static void sndsynth(void *p, Int32 *dest)
 {
@@ -38,17 +40,26 @@ static void sndsynth(void *p, Int32 *dest)
 
     YMF262UpdateOne(sndp->chip_ctx, bufp, 1);
     
-    dest[0] += (buf[0] * VOL_CHIP);
-    dest[1] += (buf[1] * VOL_CHIP);
-    dest[0] += (buf[2] * VOL_CHIP);
-    dest[1] += (buf[3] * VOL_CHIP);
+    Int32 lout = 0;
+    Int32 rout = 0;
+    
+    
+    lout += (buf[0] * VOL_CHIP);
+    rout += (buf[1] * VOL_CHIP);
+    
+    // lout += (buf[2] * VOL_CHIP);
+    // rout += (buf[3] * VOL_CHIP);
+    
+    dest[0] += lout;
+    dest[1] += rout;
+    
 
 }
 
 static void sndvolume(void *p, Int32 volume)
 {
-	// OPL3SOUND *sndp = (OPL3SOUND *)(p);
-	// volume = (volume << (LOG_BITS - 8)) << 1;
+	OPL3SOUND *sndp = (OPL3SOUND *)(p);
+	sndp->volume = (volume << (LOG_BITS - 8)) << 1;
 }
 
 
@@ -106,11 +117,16 @@ static void sndrelease(void *p)
 {
 	OPL3SOUND *sndp = (OPL3SOUND *)(p);
 	
-    if ( sndp->chip_ctx )
+    if ( sndp && sndp->chip_ctx )
     {
         YMF262Shutdown( sndp->chip_ctx );
         sndp->chip_ctx = NULL;
     }
+    if ( sndp )
+    {
+        if (sndp->logtbl) sndp->logtbl->release(sndp->logtbl->ctx);
+    }
+
 
 	XFREE(sndp);
 }
@@ -147,5 +163,13 @@ KMIF_SOUND_DEVICE *OPL3SoundAlloc(void)
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
 	
+    sndp->logtbl = LogTableAddRef();
+    if (!sndp->logtbl)
+    {
+        sndrelease(sndp);
+        return 0;
+    }
+
+    
 	return &sndp->kmif;
 }

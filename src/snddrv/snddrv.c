@@ -23,6 +23,8 @@ SOUNDDEVICE *CreateSoundDevice(SOUNDDEVICEINITDATA *psdid)
 #endif
 }
 
+#ifdef USE_DX
+
 SOUNDDEVICE *CreateSoundDeviceDX(SOUNDDEVICEINITDATA *psdid)
 {
 #ifdef _WIN32
@@ -34,3 +36,5 @@ SOUNDDEVICE *CreateSoundDeviceDX(SOUNDDEVICEINITDATA *psdid)
 	return 0;
 #endif
 }
+
+#endif

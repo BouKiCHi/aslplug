@@ -14,13 +14,9 @@
 #include "m_nsd.h"
 #include "m_sgc.h"
 
+static int chmask_init = 0;
+Uint8 chmask[0x200];
 
-Uint8 chmask[0x80]={
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-};
 extern int (*ioview_ioread_DEV_2A03   )(int a);
 extern int (*ioview_ioread_DEV_FDS    )(int a);
 extern int (*ioview_ioread_DEV_MMC5   )(int a);
@@ -62,6 +58,13 @@ static Uint32 GetDwordLE(Uint8 *p)
 NEZ_PLAY* NEZNew()
 {
 	NEZ_PLAY *pNezPlay = (NEZ_PLAY*)XMALLOC(sizeof(NEZ_PLAY));
+    
+    // マスクの初期化
+    if (!chmask_init)
+    {
+        memset(chmask, 1, sizeof(chmask));
+        chmask_init = 1;
+    }
 
 	if (pNezPlay != NULL) {
 		XMEMSET(pNezPlay, 0, sizeof(NEZ_PLAY));

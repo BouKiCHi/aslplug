@@ -10,7 +10,6 @@
 #include "device/s_sng.h"
 #include "device/opl/s_opl.h"
 #include "device/s_opl4.h"
-#include "device/divfix.h"
 
 #include "kmz80/kmz80.h"
 
@@ -20,6 +19,7 @@
 
 #define SHIFT_CPS 15
 #define BASECYCLES       (3579545)
+#define BASECYCLES_4M    (4000000)
 
 #define EXTDEVICE_SNG		(1 << 1)
 
@@ -36,8 +36,9 @@
 #define EXTDEVICE_EXRAM		(1 << 7)
 
 #define EXT2_OPL3	(1 << 0)
+#define EXT2_OPM	(1 << 1)
 #define EXT2_TURBO	(1 << 7)
-
+#define EXT2_4M 	(1 << 6)
 
 #define SND_PSG 0
 #define SND_SCC 1
@@ -68,12 +69,14 @@ struct  KSSSEQ_TAG {
     double cpsrem;
     double cpf;
     double cpfrem;
+    
 //	Uint32 cps;		/* cycles per sample:fixed point */
 //	Uint32 cpsrem;	/* cycle remain */
 //	Uint32 cpsgap;	/* cycle gap */
 //	Uint64 cpf;		/* cycles per frame:fixed point */
 //	Uint64 cpfrem;	/* cycle remain */
-	Uint32 total_cycles;	/* total played cycles */
+
+    Uint32 total_cycles;	/* total played cycles */
 
 	Uint32 startsong;
 	Uint32 maxsong;
@@ -100,6 +103,7 @@ struct  KSSSEQ_TAG {
 		SYNTHMODE_MSX,
 		SYNTHMODE_MSXSTEREO
 	} synthmode;
+    
 	Uint8 sccenable;
 	Uint8 rammode;
 	Uint8 extdevice;
@@ -235,6 +239,7 @@ static void vsync_setup(KSSSEQ *THIS_)
 //	THIS_->cpfrem += THIS_->cpf;
 //	cycles = THIS_->cpfrem >> SHIFT_CPS;
 //	THIS_->cpfrem &= (1 << SHIFT_CPS) - 1;
+    
 	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, (Uint32)cycles);
 }
 
@@ -535,6 +540,12 @@ static void reset(NEZ_PLAY *pNezPlay)
 {
 	KSSSEQ *THIS_ = pNezPlay->kssseq;
 	Uint32 i, freq, song;
+    
+    // 基本周波数の設定
+    int baseclock = BASECYCLES;
+    
+    if (THIS_->ext2 & EXT2_4M)
+        baseclock = BASECYCLES_4M;
 
 	freq = NESAudioFrequencyGet(pNezPlay);
 	song = SONGINFO_GetSongNo(pNezPlay->song) - 1;
@@ -551,7 +562,7 @@ static void reset(NEZ_PLAY *pNezPlay)
 	}
 	for (i = 0; i < SND_MAX; i++)
 	{
-		if (THIS_->sndp[i]) THIS_->sndp[i]->reset(THIS_->sndp[i]->ctx, BASECYCLES, freq);
+		if (THIS_->sndp[i]) THIS_->sndp[i]->reset(THIS_->sndp[i]->ctx, baseclock, freq);
 	}
 
 	/* memory reset */
@@ -616,14 +627,16 @@ static void reset(NEZ_PLAY *pNezPlay)
 	// THIS_->cpsgap = THIS_->cpsrem  = 0;
 	THIS_->cpfrem  = 0;
     
-
+    // CPUを高速に設定
     int cpu_ratio = 1;
     if (THIS_->ext2 & EXT2_TURBO)
         cpu_ratio = 4;
     
-    int cpu_cycle = BASECYCLES * cpu_ratio;
+    //
+    int cpu_cycle = baseclock * cpu_ratio;
 
-    THIS_->cps = cpu_cycle / freq;
+    THIS_->cps = (double)cpu_cycle / freq;
+    
     // THIS_->cps = DivFix(cpu_cycle, freq, SHIFT_CPS);
 
 	if (THIS_->extdevice & EXTDEVICE_PAL)
@@ -818,6 +831,12 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	dump_MEM_MSX     = dump_MEM_MSX_bf;
 	//ここまでダンプ設定
 
+    // 基本周波数
+    int baseclock = BASECYCLES;
+
+    if (THIS_->ext2 & EXT2_4M)
+        baseclock = BASECYCLES_4M;
+    
 
 	THIS_->majutushimode = 0;
 	if (THIS_->extdevice & EXTDEVICE_SNG)
@@ -921,37 +940,44 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         {
             int type = LOG_TYPE_PSG;
             
+            // SSGの場合もある
             if (MSXPSGType)
                 type = LOG_TYPE_SSG;
-
-            THIS_->sndp[SND_PSG]->log_id = addMapLOG(pNezPlay->log_ctx, type, BASECYCLES);
+            
+            // PSG or SSG
+            THIS_->sndp[SND_PSG]->log_id = AddMapLOG(pNezPlay->log_ctx, type, baseclock, LOG_PRIO_PSG);
             THIS_->sndp[SND_PSG]->log_ctx = pNezPlay->log_ctx;
             THIS_->sndp[SND_PSG]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             
+            // MSXMUSIC(YM2413)
             if (THIS_->sndp[SND_MSXMUSIC])
             {
-                THIS_->sndp[SND_MSXMUSIC]->log_id =  addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, BASECYCLES);
+                THIS_->sndp[SND_MSXMUSIC]->log_id =
+                    AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, baseclock, LOG_PRIO_OPLL);
                 THIS_->sndp[SND_MSXMUSIC]->log_ctx = pNezPlay->log_ctx;
                 THIS_->sndp[SND_MSXMUSIC]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
+            // MSXAUDIO(Y8950)
             if (THIS_->sndp[SND_MSXAUDIO])
             {
                 // Y8950 is not defined in S98V3
-                THIS_->sndp[SND_MSXAUDIO]->log_id = addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, BASECYCLES);
+                THIS_->sndp[SND_MSXAUDIO]->log_id =
+                    AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, baseclock, LOG_PRIO_OPLL);
                 THIS_->sndp[SND_MSXAUDIO]->log_ctx = pNezPlay->log_ctx;
                 THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
+            // OPL3(MoonSound FM)
             if (THIS_->sndp[SND_OPL3])
             {
-                THIS_->sndp[SND_OPL3]->log_id =  addMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPL3,
-                                                           BASECLOCK_OPL3);
+                THIS_->sndp[SND_OPL3]->log_id =
+                    AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPL3, BASECLOCK_OPL3, LOG_PRIO_OPL3);
                 THIS_->sndp[SND_OPL3]->log_ctx = pNezPlay->log_ctx;
                 THIS_->sndp[SND_OPL3]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
-            mapEndLOG(pNezPlay->log_ctx);
+            MapEndLOG(pNezPlay->log_ctx);
 
             // calc with 4MHz(default)
             //WriteNLG_SetBaseClock(pNezPlay->log_ctx, BASECYCLES);

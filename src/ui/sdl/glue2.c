@@ -13,14 +13,13 @@
 typedef unsigned char byte;
 typedef unsigned short word;
 
-
 #ifndef _WIN32
 #define PATH_SEP '/'
 #else
 #define PATH_SEP '\\'
 #endif
 
-
+// メモリポインタ
 byte *glue_mem_ptr = NULL;
 char glue_exec_path[1024];
 
@@ -78,11 +77,11 @@ void glue2_write_byte(byte *p, byte v)
     p[0] = v & 0xff;
 }
 
-
 // KSSヘッダを作る
-void glue2_make_kss_header(byte *mem,
-                    int load_addr, int data_size, int init_addr, int play_addr,
-                    int start_bank, int bank_size, int ext_chip, int ext2)
+void glue2_make_kss_header(
+        byte *mem,
+        int load_addr, int data_size, int init_addr, int play_addr,
+        int start_bank, int bank_size, int ext_chip, int ext2)
 {
     memset(mem, 0, 0x10);
     memcpy(mem, "KSCC", 0x04);
@@ -125,7 +124,6 @@ void glue2_make_path(char *dest, const char *dir,const char *name)
     sprintf(sep,"%c%s", PATH_SEP, name);
 }
 
-
 // 曲ファイルの読み出し
 int glue2_read_mdr_song(const char *file)
 {
@@ -143,6 +141,7 @@ int glue2_read_mdr_song(const char *file)
         drv_size = glue2_get_filesize(drv_path);
     }
 
+    // ファイルサイズを取得
     long song_size = glue2_get_filesize(file);
     
     if (song_size < 0 || drv_size < 0)
@@ -156,22 +155,22 @@ int glue2_read_mdr_song(const char *file)
     if (song_size & 0x3fff)
         song_banks++;
     
-    
-    
+
     glue_mem_ptr = malloc(size);
     memset(glue_mem_ptr, 0, size);
     
     // ヘッダ作成
-    glue2_make_kss_header(glue_mem_ptr,
-                          0x4000,
-                          (int)drv_size,
-                          0x4000,
-                          0x4003,
-                          0x04,
-                          (int)song_banks,
-                          0x20,
-                          0x81
-                          );
+    glue2_make_kss_header(
+        glue_mem_ptr,
+        0x4000,
+        (int)drv_size,
+        0x4000,
+        0x4003,
+        0x04,
+        (int)song_banks,
+        0x20,
+        0x81
+    );
 
     // ファイル読み込み
     glue2_read_file(glue_mem_ptr + 0x10, drv_size, drv_path);
@@ -193,21 +192,23 @@ int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
     // 拡張子の検出
     char *ext = strrchr(file,'.');
     
-    if (ext && strcasecmp(ext,".mdr") == 0)
+    // MDRであれば
+    if (ext && strcasecmp(ext, ".mdr") == 0)
     {
-        // MDRファイル
+        // MDRファイルを読み出す
         size = glue2_read_mdr_song(file);
     }
     else
     {
         // 通常イメージ
         size = glue2_read_normal_image(file);
-        
     }
     
+    // サイズが異常(エラー)
     if (size < 0)
         return -1;
     
+    // NEZLoadを行う
     NEZLoad(ctx, glue_mem_ptr, (Uint)size);
     
     NEZSetFrequency(ctx, freq);
