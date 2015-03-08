@@ -10,6 +10,8 @@
 #include "device/s_sng.h"
 #include "device/opl/s_opl.h"
 #include "device/s_opl4.h"
+#include "device/s_opm.h"
+
 
 #include "kmz80/kmz80.h"
 
@@ -32,20 +34,24 @@
 #define EXTDEVICE_MSXAUDIO	(1 << 3)
 #define EXTDEVICE_MSXSTEREO	(1 << 4)
 
+#define EXTDEVICE_USE_EXT2	(1 << 5)
+
 #define EXTDEVICE_PAL		(1 << 6)
 #define EXTDEVICE_EXRAM		(1 << 7)
 
 #define EXT2_OPL3	(1 << 0)
 #define EXT2_OPM	(1 << 1)
-#define EXT2_TURBO	(1 << 7)
 #define EXT2_4M 	(1 << 6)
+#define EXT2_TURBO	(1 << 7)
 
 #define SND_PSG 0
 #define SND_SCC 1
 #define SND_MSXMUSIC 2
 #define SND_MSXAUDIO 3
 #define SND_OPL3 4
-#define SND_MAX 5
+#define SND_OPM  5
+#define SND_OPM2 6
+#define SND_MAX 7
 
 #define SND_SNG 0
 #define SND_FMUNIT 2
@@ -61,6 +67,16 @@ struct  KSSSEQ_TAG {
 	Uint8 vola[SND_MAX];
 	KMEVENT kme;
 	KMEVENT_ITEM_ID vsync_id;
+    KMEVENT_ITEM_ID ctc3_id;
+    KMEVENT_ITEM_ID ctc1_id;
+    
+    Uint8 ctc_const[4];
+    Uint8 ctc_conf[4];
+    Uint8 ctc_vect[4];
+    Uint8 ctc_flag[4];
+
+    
+    Uint32 bus_vector;
 
 	Uint8 *readmap[8];
 	Uint8 *writemap[8];
@@ -187,6 +203,8 @@ __inline static void synth(KSSSEQ *THIS_, Int32 *d)
 				if (THIS_->sndp[SND_MSXMUSIC]) THIS_->sndp[SND_MSXMUSIC]->synth(THIS_->sndp[SND_MSXMUSIC]->ctx, d);
 				if (THIS_->sndp[SND_MSXAUDIO]) THIS_->sndp[SND_MSXAUDIO]->synth(THIS_->sndp[SND_MSXAUDIO]->ctx, d);
                 if (THIS_->sndp[SND_OPL3]) THIS_->sndp[SND_OPL3]->synth(THIS_->sndp[SND_OPL3]->ctx, d);
+                if (THIS_->sndp[SND_OPM]) THIS_->sndp[SND_OPM]->synth(THIS_->sndp[SND_OPM]->ctx, d);
+                if (THIS_->sndp[SND_OPM2]) THIS_->sndp[SND_OPM2]->synth(THIS_->sndp[SND_OPM2]->ctx, d);
 			}
 			break;
 		case SYNTHMODE_MSXSTEREO:
@@ -200,6 +218,12 @@ __inline static void synth(KSSSEQ *THIS_, Int32 *d)
 				if (THIS_->sndp[SND_MSXAUDIO]) THIS_->sndp[SND_MSXAUDIO]->synth(THIS_->sndp[SND_MSXAUDIO]->ctx, &b[1]);
 
                 if (THIS_->sndp[SND_OPL3]) THIS_->sndp[SND_OPL3]->synth(THIS_->sndp[SND_OPL3]->ctx, &b[0]);
+                
+                if (THIS_->sndp[SND_OPM])
+                        THIS_->sndp[SND_OPM]->synth(THIS_->sndp[SND_OPM]->ctx, &b[0]);
+                if (THIS_->sndp[SND_OPM2])
+                        THIS_->sndp[SND_OPM2]->synth(THIS_->sndp[SND_OPM2]->ctx, &b[0]);
+
 
 				d[0] += b[1];
 				d[1] += b[2] + b[2];
@@ -243,9 +267,39 @@ static void vsync_setup(KSSSEQ *THIS_)
 	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, (Uint32)cycles);
 }
 
-static void play_setup(KSSSEQ *THIS_, Uint32 pc)
+static void ctc3_setup(KSSSEQ *THIS_)
 {
-	Uint32 sp = 0xF380, rp;
+    int c0 = THIS_->ctc_const[0];
+    int c3 = THIS_->ctc_const[3];
+    
+    // 定数が0の場合は256になる
+    if (c0 == 0) c0 = 256;
+    if (c3 == 0) c3 = 256;
+    
+    Int32 cycles = (c0 * 256) * c3;
+    
+    if (THIS_->ext2 & EXT2_TURBO)
+        cycles *= 4;
+    
+    kmevent_settimer(&THIS_->kme, THIS_->ctc3_id, (Uint32)cycles);
+}
+
+static void ctc1_setup(KSSSEQ *THIS_)
+{
+    Int32 cycles = 256 * 256;
+    
+    if (THIS_->ext2 & EXT2_TURBO)
+        cycles *= 4;
+
+    
+    kmevent_settimer(&THIS_->kme, THIS_->ctc1_id, (Uint32)cycles);
+}
+
+
+
+static void play_setup_base(KSSSEQ *THIS_, Uint32 pc, Uint32 sp)
+{
+	Uint32 rp;
 	THIS_->ram[--sp] = 0;
 	THIS_->ram[--sp] = 0xfe;
 	THIS_->ram[--sp] = 0x18;	/* JR +0 */
@@ -258,9 +312,32 @@ static void play_setup(KSSSEQ *THIS_, Uint32 pc)
 	THIS_->ctx.regs8[REGID_HALTED] = 0;
 }
 
+static void play_setup(KSSSEQ *THIS_, Uint32 pc)
+{
+    if (THIS_->ext2 & EXT2_OPM)
+        play_setup_base(THIS_, pc, 0x1000);
+    else
+        play_setup_base(THIS_, pc, 0xF380);
+}
+
 static Uint32 busread_event(void *ctx, Uint32 a)
 {
-	return 0x38;
+    KSSSEQ *THIS_ = ctx;
+    
+    if (THIS_->ctc_flag[1] > 0)
+    {
+        THIS_->ctc_flag[1]--;
+        return THIS_->ctc_vect[0] + (1 * 2);
+    }
+    
+    if (THIS_->ctc_flag[3] > 0)
+    {
+        THIS_->ctc_flag[3]--;
+        return THIS_->ctc_vect[0] + (3 * 2);
+    }
+
+
+    return THIS_->bus_vector;
 }
 
 static Uint32 read_event(void *ctx, Uint32 a)
@@ -334,6 +411,28 @@ static Uint32 ioread_eventSMS(void *ctx, Uint32 a)
 static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
 {
 	KSSSEQ *THIS_ = ctx;
+    
+    // PSG
+    if ((a & 0xF800) == 0x1800)
+    {
+        return 0x00;
+    }
+    
+    // printf("Read A:%04X \n");
+    
+    // OPM
+    if ((a & 0xFFF4) == 0x700)
+    {
+        return 0x00;
+    }
+    
+    // Z80 CTC 0x704 or 0x70C
+    if (a == 0x704 || a == 0x70c)
+    {
+        return  (THIS_->ctc_const[0]) & 0xFF;
+    }
+    
+    // 8bit mask
 	a &= 0xff;
     if ((a & 0xfc) == 0xc4)
         return 0x00;
@@ -348,7 +447,8 @@ static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
 static void iowrite_eventSMS(void *ctx, Uint32 a, Uint32 v)
 {
 	KSSSEQ *THIS_ = ctx;
-	a &= 0xff;
+    
+    a &= 0xff;
     
 	if ((a & 0xfe) == 0x7e)
 		THIS_->sndp[SND_SNG]->write(THIS_->sndp[SND_SNG]->ctx, 0, v);
@@ -362,8 +462,84 @@ static void iowrite_eventSMS(void *ctx, Uint32 a, Uint32 v)
 static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
 {
 	KSSSEQ *THIS_ = ctx;
-	a &= 0xff;
     
+    // PSG
+    if ((a & 0xF800) == 0x1800)
+    {
+        a = ((a>>8) & 1);
+        v &= 0xff;
+        
+        THIS_->sndp[SND_PSG]->write(THIS_->sndp[SND_PSG]->ctx, a, v);
+        
+        return;
+    }
+    
+    // OPM
+    if ((a & 0xFFF4) == 0x700)
+    {
+        int chip = (a & 0x08 ? 1 : 0);
+        v &= 0xff;
+        
+        int opm_id = chip ? SND_OPM2 : SND_OPM;
+        
+        if (THIS_->sndp[opm_id])
+            THIS_->sndp[opm_id]->
+            write(THIS_->sndp[opm_id]->ctx, a & 0x01, v);
+        
+        return;
+    }
+    
+    // Z80 CTC
+    if ((a & 0xFFF4) == 0x704)
+    {
+        int ch = a & 0x03;
+        v &= 0xff;
+        
+        // 76543210
+        // 7 = 割り込みフラグ(1で許可)
+        // 6 = カウンタモード(0でタイマー)
+        // 5 = プリスケーラ(1で1/256、0で1/16)
+        // 4 = トリガ極性(1で立ち上がり)
+        // 3 = トリガ(タイマー時に1で外部トリガ)
+        // 2 = 定数設定(1で定数を書き換える)
+        // 1 = リセット(1で動作停止)
+        // 0 = 設定モード(1で設定、0でベクタ書き換え)
+        
+        if (THIS_->ctc_conf[ch] & 4)
+        {
+            // 定数設定モード
+            THIS_->ctc_const[ch] = v;
+            
+            THIS_->ctc_conf[ch] &= ~4;
+            
+            // 割り込み変更
+            if (ch == 1)
+                ctc1_setup(THIS_);
+            
+            if (ch == 0 || ch == 3)
+                ctc3_setup(THIS_);
+        }
+        else
+        {
+            // ベクタ設定
+            if (!(v & 1))
+            {
+                THIS_->ctc_vect[ch] = v;
+                
+                // printf("CTC Vect:%02x\n",v);
+            }
+            else
+            {
+                THIS_->ctc_conf[ch] = v;
+            }
+        }
+        return;
+    }
+    
+    // 8bit
+    a &= 0xff;
+
+    // OPL3
     if ((a & 0xfc) == 0xc4)
     {
         if (THIS_->sndp[SND_OPL3])
@@ -391,8 +567,36 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
     }
     
 	vsync_setup(THIS_);
-	if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
+    
+    if (!THIS_->ext2 & EXT2_OPM)
+        if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
 }
+
+// CTC1はエフェクト
+static void ctc1_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
+{
+    if (THIS_->ctc_conf[1] & 0x80)
+    {
+        THIS_->ctx.regs8[REGID_INTREQ] = 1;
+        THIS_->ctc_flag[1] = 1;
+        ctc1_setup(THIS_);
+    }
+}
+
+// CTC3はテンポ
+static void ctc3_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
+{
+    if (THIS_->ctc_conf[3] & 0x80)
+    {
+        THIS_->ctx.regs8[REGID_INTREQ] = 1;
+        THIS_->ctc_flag[3] = 1;
+        ctc3_setup(THIS_);
+
+    }
+}
+
+
+
 
 //ここからメモリービュアー設定
 Uint32 (*memview_memread)(Uint32 a);
@@ -626,6 +830,18 @@ static void reset(NEZ_PLAY *pNezPlay)
 	kmevent_setevent(&THIS_->kme, THIS_->vsync_id, vsync_event, THIS_);
 	// THIS_->cpsgap = THIS_->cpsrem  = 0;
 	THIS_->cpfrem  = 0;
+
+    // 割り込みベクタ
+    THIS_->bus_vector = 0x38;
+    
+    /* CTC */
+    if (THIS_->ext2 & EXT2_OPM)
+    {
+        THIS_->ctc1_id = kmevent_alloc(&THIS_->kme);
+        THIS_->ctc3_id = kmevent_alloc(&THIS_->kme);
+        kmevent_setevent(&THIS_->kme, THIS_->ctc1_id, ctc1_event, THIS_);
+        kmevent_setevent(&THIS_->kme, THIS_->ctc3_id, ctc3_event, THIS_);
+    }
     
     // CPUを高速に設定
     int cpu_ratio = 1;
@@ -830,6 +1046,11 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	//ここからダンプ設定
 	dump_MEM_MSX     = dump_MEM_MSX_bf;
 	//ここまでダンプ設定
+    
+    // 独自拡張を使用するか
+    if (!(THIS_->extdevice & EXTDEVICE_USE_EXT2))
+        THIS_->ext2 = 0;
+        
 
     // 基本周波数
     int baseclock = BASECYCLES;
@@ -935,6 +1156,17 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
             if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
         }
         
+        // OPM
+        if (THIS_->ext2 & EXT2_OPM)
+        {
+            THIS_->sndp[SND_OPM] = OPMSoundAlloc();
+            if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
+            
+            THIS_->sndp[SND_OPM2] = OPMSoundAlloc();
+            if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
+        }
+        
+        
         // ログ出力
         if (pNezPlay->log_ctx)
         {
@@ -975,6 +1207,24 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
                     AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPL3, BASECLOCK_OPL3, LOG_PRIO_OPL3);
                 THIS_->sndp[SND_OPL3]->log_ctx = pNezPlay->log_ctx;
                 THIS_->sndp[SND_OPL3]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+            }
+            
+            // OPM(X1 FM)
+            if (THIS_->sndp[SND_OPM])
+            {
+                THIS_->sndp[SND_OPM]->log_id =
+                AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
+                THIS_->sndp[SND_OPM]->log_ctx = pNezPlay->log_ctx;
+                THIS_->sndp[SND_OPM]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+            }
+
+            // OPM(X1 2nd FM)
+            if (THIS_->sndp[SND_OPM2])
+            {
+                THIS_->sndp[SND_OPM2]->log_id =
+                AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
+                THIS_->sndp[SND_OPM2]->log_ctx = pNezPlay->log_ctx;
+                THIS_->sndp[SND_OPM2]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
             }
             
             MapEndLOG(pNezPlay->log_ctx);

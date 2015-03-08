@@ -25,7 +25,7 @@ typedef struct
 	} common;
 	Uint8 type;
 	
-	Uint8 opm_addr;
+	int opm_addr;
 	void *opm_ctx;
 	char *mask;
 	
@@ -69,8 +69,6 @@ static Uint32 sndread(void *p, Uint32 a)
 static void sndwrite(void *p, Uint32 a, Uint32 v)
 {
 	OPMSOUND *sndp = (OPMSOUND *)(p);
-
-    // int chip = (a / 0x10);
     
 	switch(a & 0x1)
 	{
@@ -79,9 +77,10 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
 			sndp->opm_addr = v;
 		break;
 		case 0x01:
-			// if (nes_logfile)
-			//	fprintf(nes_logfile,"OPM:%d:%02X:%02X\n",
-			//		chip, sndp->opm_addr, v);
+            
+            if (sndp->kmif.logwrite)
+                sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->opm_addr, v);
+
 
 			YM2151WriteReg( sndp->opm_ctx , sndp->opm_addr, v);
 		break;
