@@ -30,6 +30,10 @@ typedef struct NEZPLAY_TAG {
 	void *nsdp;
 
     void *log_ctx;
+    
+    int turbo;
+    int use_fmgen;
+    
 } NEZ_PLAY;
 
 /* NEZ player */

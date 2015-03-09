@@ -26,7 +26,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-03-06"
+#define NEZ_VER "2015-03-09"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -196,11 +196,7 @@ typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
 
-#ifndef DEBUG
-#define INLINE inline
-#else
 #define INLINE
-#endif
 
 
 INLINE void write_dword(byte *p,dword v)
@@ -489,6 +485,10 @@ void usage(void)
     " -r file   : Record a sound log\n"
     " -b        : Record a sound log without sound\n"
     "\n"
+#ifdef USE_FMGEN
+    " -g        : Use FMGEN for OPM\n"
+#endif
+    " -a        : Force turbo CPU mode\n"
     " -x        : Set strict mode\n"
     " -w        : Set verbose mode\n"
     "\n"
@@ -551,6 +551,9 @@ int audio_main(int argc, char *argv[])
     int n163mode = 0;
     int strictmode = 0;
 
+    int turbo_mode = 0;
+    int use_fmgen = 0;
+
 #ifdef _WIN32   
     freopen("CON", "wt", stdout);
     freopen("CON", "wt", stderr);
@@ -578,10 +581,16 @@ int audio_main(int argc, char *argv[])
     debug = 0;
     pcm.volume = 1.0f;
     
-    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzw")) != -1)
+    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwag")) != -1)
     {
         switch (opt) 
         {
+            case 'a':
+                turbo_mode = 1;
+                break;
+            case 'g':
+                use_fmgen = 1;
+                break;
             case '9':
                 s98mode = 1;
                 break;
@@ -649,6 +658,8 @@ int audio_main(int argc, char *argv[])
     LOGCTX *log_ctx = NULL;
     
     nezctx = NEZNew();
+    nezctx->turbo = turbo_mode;
+    nezctx->use_fmgen = use_fmgen;
     
     pcm.on = 1;
     

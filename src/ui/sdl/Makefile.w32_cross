@@ -71,8 +71,3 @@ SLIBS += -ldinput8
 all : dynamic
 	$(STRIP) $(TARGET)
 
-#
-# common
-#
-include Makefile.common
-

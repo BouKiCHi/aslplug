@@ -11,6 +11,7 @@
 #include "device/opl/s_opl.h"
 #include "device/s_opl4.h"
 #include "device/s_opm.h"
+#include "device/s_opm_gen.h"
 
 
 #include "kmz80/kmz80.h"
@@ -58,6 +59,9 @@
 
 #define SND_VOLUME 0x800
 
+#define CTC1_INT (1 << 0)
+#define CTC3_INT (1 << 1)
+
 
 typedef struct KSSSEQ_TAG KSSSEQ;
 
@@ -73,7 +77,7 @@ struct  KSSSEQ_TAG {
     Uint8 ctc_const[4];
     Uint8 ctc_conf[4];
     Uint8 ctc_vect[4];
-    Uint8 ctc_flag[4];
+    Uint8 ctc_flags;
 
     
     Uint32 bus_vector;
@@ -323,21 +327,29 @@ static void play_setup(KSSSEQ *THIS_, Uint32 pc)
 static Uint32 busread_event(void *ctx, Uint32 a)
 {
     KSSSEQ *THIS_ = ctx;
+ 
+    Uint32 vec = THIS_->bus_vector;
     
-    if (THIS_->ctc_flag[1] > 0)
+    // CTCの割り込み要因によってベクタが設定される
+    if (THIS_->ctc_flags & CTC1_INT)
     {
-        THIS_->ctc_flag[1]--;
-        return THIS_->ctc_vect[0] + (1 * 2);
+        THIS_->ctc_flags &= ~CTC1_INT;
+        vec = (THIS_->ctc_vect[0] + (1 * 2));
     }
-    
-    if (THIS_->ctc_flag[3] > 0)
+    else
+    if (THIS_->ctc_flags & CTC3_INT)
     {
-        THIS_->ctc_flag[3]--;
-        return THIS_->ctc_vect[0] + (3 * 2);
+        THIS_->ctc_flags &= ~CTC3_INT;
+        vec = (THIS_->ctc_vect[0] + (3 * 2));
     }
 
+    // 同時に割り込みが発生している
+    if (THIS_->ctc_flags)
+    {
+        THIS_->ctx.regs8[REGID_INTREQ] = 1;
+    }
 
-    return THIS_->bus_vector;
+    return vec;
 }
 
 static Uint32 read_event(void *ctx, Uint32 a)
@@ -408,10 +420,11 @@ static Uint32 ioread_eventSMS(void *ctx, Uint32 a)
 {
 	return 0xff;
 }
-static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
+
+static Uint32 ioread_eventX1(void *ctx, Uint32 a)
 {
-	KSSSEQ *THIS_ = ctx;
-    
+    KSSSEQ *THIS_ = ctx;
+
     // PSG
     if ((a & 0xF800) == 0x1800)
     {
@@ -431,9 +444,23 @@ static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
     {
         return  (THIS_->ctc_const[0]) & 0xFF;
     }
+    return 0xff;
+}
+
+
+static Uint32 ioread_eventMSX(void *ctx, Uint32 a)
+{
+	KSSSEQ *THIS_ = ctx;
+    
+    if (THIS_->ext2 & EXT2_OPM)
+    {
+        return ioread_eventX1(ctx, a);
+    }
     
     // 8bit mask
 	a &= 0xff;
+    
+    // OPL3
     if ((a & 0xfc) == 0xc4)
         return 0x00;
     
@@ -459,10 +486,10 @@ static void iowrite_eventSMS(void *ctx, Uint32 a, Uint32 v)
 	else if (a == 0xfe && THIS_->bankmode == KSS_16K_MAPPER)
 		KSSMaper16KWrite(THIS_, 0x8000, v);
 }
-static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
+
+static void iowrite_eventX1(void *ctx, Uint32 a, Uint32 v)
 {
-	KSSSEQ *THIS_ = ctx;
-    
+    KSSSEQ *THIS_ = ctx;
     // PSG
     if ((a & 0xF800) == 0x1800)
     {
@@ -535,6 +562,17 @@ static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
         }
         return;
     }
+}
+
+static void iowrite_eventMSX(void *ctx, Uint32 a, Uint32 v)
+{
+	KSSSEQ *THIS_ = ctx;
+    
+    if (THIS_->ext2 & EXT2_OPM)
+    {
+        iowrite_eventX1(ctx, a, v);
+        return;
+    }
     
     // 8bit
     a &= 0xff;
@@ -568,7 +606,7 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
     
 	vsync_setup(THIS_);
     
-    if (!THIS_->ext2 & EXT2_OPM)
+    if (!(THIS_->ext2 & EXT2_OPM))
         if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
 }
 
@@ -578,7 +616,7 @@ static void ctc1_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
     if (THIS_->ctc_conf[1] & 0x80)
     {
         THIS_->ctx.regs8[REGID_INTREQ] = 1;
-        THIS_->ctc_flag[1] = 1;
+        THIS_->ctc_flags |= CTC1_INT;
         ctc1_setup(THIS_);
     }
 }
@@ -589,7 +627,7 @@ static void ctc3_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
     if (THIS_->ctc_conf[3] & 0x80)
     {
         THIS_->ctx.regs8[REGID_INTREQ] = 1;
-        THIS_->ctc_flag[3] = 1;
+        THIS_->ctc_flags |= CTC3_INT;
         ctc3_setup(THIS_);
 
     }
@@ -766,7 +804,9 @@ static void reset(NEZ_PLAY *pNezPlay)
 	}
 	for (i = 0; i < SND_MAX; i++)
 	{
-		if (THIS_->sndp[i]) THIS_->sndp[i]->reset(THIS_->sndp[i]->ctx, baseclock, freq);
+		if (THIS_->sndp[i])
+            
+            THIS_->sndp[i]->reset(THIS_->sndp[i]->ctx, baseclock, freq);
 	}
 
 	/* memory reset */
@@ -978,6 +1018,9 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	SONGINFO_SetInitAddress(pNezPlay->song, THIS_->initaddr);
 	SONGINFO_SetPlayAddress(pNezPlay->song, THIS_->playaddr);
 	SONGINFO_SetExtendDevice(pNezPlay->song, THIS_->extdevice << 8);
+    
+    if (pNezPlay->turbo)
+        THIS_->ext2 |= EXT2_TURBO;
 
 	sprintf(songinfodata.detail,
 "Type         : KS%c%c\r\n"
@@ -1149,21 +1192,36 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 			//ここまでダンプ設定
 		}
         
+#ifdef USE_OPL3
         // OPL3
         if (THIS_->ext2 & EXT2_OPL3)
         {
             THIS_->sndp[SND_OPL3] = OPL3SoundAlloc();
             if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
         }
-        
+#endif
         // OPM
         if (THIS_->ext2 & EXT2_OPM)
         {
-            THIS_->sndp[SND_OPM] = OPMSoundAlloc();
-            if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
-            
-            THIS_->sndp[SND_OPM2] = OPMSoundAlloc();
-            if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
+#ifdef USE_FMGEN
+            if (pNezPlay->use_fmgen)
+            {
+                THIS_->sndp[SND_OPM] = OPM_FMGen_SoundAlloc();
+                if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
+                THIS_->sndp[SND_OPM2] = OPM_FMGen_SoundAlloc();
+                if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
+            }
+            else
+#endif
+            {
+#ifdef USE_OPM
+                THIS_->sndp[SND_OPM] = OPMSoundAlloc();
+                if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
+                THIS_->sndp[SND_OPM2] = OPMSoundAlloc();
+                if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
+#endif
+            }
+                
         }
         
         
@@ -1325,6 +1383,8 @@ Uint32 KSSLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 	if (pNezPlay->kssseq) ASSERT(0);	/* ASSERT */
 	THIS_ = XMALLOC(sizeof(KSSSEQ));
 	if (!THIS_) return NESERR_SHORTOFMEMORY;
+    memset(THIS_, 0, sizeof(KSSSEQ));
+    
 	ret = load(pNezPlay, THIS_, pData, uSize);
 	if (ret)
 	{

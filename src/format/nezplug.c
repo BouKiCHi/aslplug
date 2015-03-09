@@ -58,6 +58,7 @@ static Uint32 GetDwordLE(Uint8 *p)
 NEZ_PLAY* NEZNew()
 {
 	NEZ_PLAY *pNezPlay = (NEZ_PLAY*)XMALLOC(sizeof(NEZ_PLAY));
+    memset(pNezPlay, 0, sizeof(NEZ_PLAY));
     
     // マスクの初期化
     if (!chmask_init)

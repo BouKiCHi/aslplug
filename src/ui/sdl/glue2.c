@@ -230,7 +230,7 @@ int glue2_read_nrd_song(const char *file)
     glue2_write_word(glue_mem_ptr + 0x06, size);
 
     // 独自拡張モードの設定
-    glue2_write_byte(glue_mem_ptr + 0x0e, 0xc2); // EXT2
+    glue2_write_byte(glue_mem_ptr + 0x0e, 0x42); // EXT2
     glue2_write_byte(glue_mem_ptr + 0x0f, 0x20); // EXT
 
     
