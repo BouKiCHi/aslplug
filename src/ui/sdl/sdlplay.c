@@ -649,6 +649,8 @@ int audio_main(int argc, char *argv[])
     if (rate < 8000)
         rate = 8000;
     
+    glue2_set_exec_path(argv[0]);
+    
     if (audio_init(rate))
     {
         printf("Failed to initialize audio hardware\n");

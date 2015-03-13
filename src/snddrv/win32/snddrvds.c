@@ -95,7 +95,7 @@ static void Write(SOUNDDEVICE_DS *psdds)
 	while (SD->nextpos != cp)
 	{
 		SD->sd.sdid.Write(SD->sd.sdid.lpargs, mixbuf, BLOCKLEN);
-		hr = IDirectSoundBuffer_Lock(SD->lpdsb, SD->nextpos, BLOCKLEN, &buf1, &len1, &buf2, &len2, 0);
+		hr = IDirectSoundBuffer_Lock(SD->lpdsb, SD->nextpos, BLOCKLEN, (LPVOID *)&buf1, &len1, (LPVOID *)&buf2, &len2, 0);
 		if (FAILED(hr)) return;
 		if (buf1)
 		{
@@ -196,7 +196,7 @@ SOUNDDEVICE *CreateSoundDeviceDX3(SOUNDDEVICEINITDATA *psdid)
 		hr = IDirectSound_CreateSoundBuffer(SD->lpds, &dsbd, &SD->lpdsb, NULL);
 		if (FAILED(hr)) break;
 
-		hr = IDirectSoundBuffer_QueryInterface(SD->lpdsb, &IID_IDirectSoundNotify, &SD->lpdsn);
+		hr = IDirectSoundBuffer_QueryInterface(SD->lpdsb, &IID_IDirectSoundNotify, (void *)&SD->lpdsn);
 		if (FAILED(hr)) break;
 
 		SD->hevent = CreateEvent(0, FALSE, FALSE, 0);
