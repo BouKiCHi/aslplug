@@ -3,6 +3,7 @@
 #
 
 SFX = .exe
+OSSFX = _w32
 
 #
 # Commands for building

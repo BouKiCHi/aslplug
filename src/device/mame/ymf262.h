@@ -1,23 +1,25 @@
-#ifndef YMF262_H
-#define YMF262_H
+#pragma once
 
-
-#define BUILD_YMF262 (HAS_YMF262)
-
+#ifndef __YMF262_H__
+#define __YMF262_H__
 
 /* select number of output bits: 8 or 16 */
 #define OPL3_SAMPLE_BITS 16
 
 /* compiler dependence */
-#ifndef OSD_CPU_H
-#define OSD_CPU_H
-typedef unsigned char	UINT8;   /* unsigned  8bit */
-typedef unsigned short	UINT16;  /* unsigned 16bit */
-typedef unsigned int	UINT32;  /* unsigned 32bit */
-typedef signed char		INT8;    /* signed  8bit   */
-typedef signed short	INT16;   /* signed 16bit   */
-typedef signed int		INT32;   /* signed 32bit   */
+#ifndef __OSDCOMM_H__
+#define __OSDCOMM_H__
+typedef unsigned char   UINT8;   /* unsigned  8bit */
+typedef unsigned short  UINT16;  /* unsigned 16bit */
+typedef unsigned int    UINT32;  /* unsigned 32bit */
+typedef signed char     INT8;    /* signed  8bit   */
+typedef signed short    INT16;   /* signed 16bit   */
+typedef signed int      INT32;   /* signed 32bit   */
 #endif
+
+typedef void device_t;
+
+typedef signed int stream_sample_t;
 
 typedef stream_sample_t OPL3SAMPLE;
 /*
@@ -29,27 +31,22 @@ typedef INT8 OPL3SAMPLE;
 #endif
 */
 
-typedef void (*OPL3_TIMERHANDLER)(void *param,int timer,double interval_Sec);
+typedef void (*OPL3_TIMERHANDLER)(void *param,int timer);
 typedef void (*OPL3_IRQHANDLER)(void *param,int irq);
 typedef void (*OPL3_UPDATEHANDLER)(void *param,int min_interval_us);
 
 
+void *ymf262_init(device_t *device, int clock, int rate);
+void ymf262_shutdown(void *chip);
+void ymf262_reset_chip(void *chip);
+int  ymf262_write(void *chip, int a, int v);
+unsigned char ymf262_read(void *chip, int a);
+int  ymf262_timer_over(void *chip, int c);
+void ymf262_update_one(void *chip, OPL3SAMPLE **buffers, int length);
 
-#if BUILD_YMF262
-
-void *YMF262Init(int clock, int rate);
-void YMF262Shutdown(void *chip);
-void YMF262ResetChip(void *chip);
-int  YMF262Write(void *chip, int a, int v);
-unsigned char YMF262Read(void *chip, int a);
-int  YMF262TimerOver(void *chip, int c);
-void YMF262UpdateOne(void *chip, OPL3SAMPLE **buffers, int length);
-
-void YMF262SetTimerHandler(void *chip, OPL3_TIMERHANDLER TimerHandler, void *param);
-void YMF262SetIRQHandler(void *chip, OPL3_IRQHANDLER IRQHandler, void *param);
-void YMF262SetUpdateHandler(void *chip, OPL3_UPDATEHANDLER UpdateHandler, void *param);
-
-#endif
+void ymf262_set_timer_handler(void *chip, OPL3_TIMERHANDLER TimerHandler, void *param);
+void ymf262_set_irq_handler(void *chip, OPL3_IRQHANDLER IRQHandler, void *param);
+void ymf262_set_update_handler(void *chip, OPL3_UPDATEHANDLER UpdateHandler, void *param);
 
 
-#endif /* YMF262_H */
+#endif /* __YMF262_H__ */

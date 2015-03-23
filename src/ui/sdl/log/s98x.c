@@ -78,7 +78,7 @@ S98CTX *OpenS98(const char *file)
 	// フォーマット確認
 	if (memcmp(hdr, "S98", 3) != 0)
 	{
-		printf("This is not S98 format!\n");
+		printf("Invalid S98 header!!\n");
 		fclose(ctx->file);
         
         free(ctx);
@@ -245,6 +245,7 @@ S98CTX *CreateS98(const char *file)
 
     ctx->mode = S98_WRITEMODE;
     ctx->dev_count = 0;
+    ctx->def_denom = 10000;
     
     return ctx;
 }
@@ -355,8 +356,19 @@ void WriteSyncS98(S98CTX *ctx)
 {
     if (!ctx)
         return;
-    
-    fputc(S98_CMD_SYNC, ctx->file);
+
+    ctx->sys_time += ctx->sys_step;
+    while((ctx->sys_time - ctx->s98_step) >= 0)
+    {
+        ctx->sys_time -= ctx->s98_step;
+        fputc(S98_CMD_SYNC, ctx->file);
+    }
+}
+
+// 分母設定
+void SetDenomS98(S98CTX *ctx,int denom)
+{
+    ctx->def_denom = denom;
 }
 
 // タイミング設定
@@ -365,12 +377,18 @@ void SetTimingS98(S98CTX *ctx, int us)
     if (!ctx)
         return;
     
-    double sec = ((double)us / 1000000);
+    double step_sec = ((double)us / 1000000);
     
-    int denom = 10000;
+    int denom = ctx->def_denom;
+    int nume = (int)(step_sec * denom);
     
-    ctx->time_nume = (int)(sec * denom);
+    // S98設定値
+    ctx->time_nume = nume;
     ctx->time_denom = denom;
+
+    // 積算用数値
+    ctx->sys_step = step_sec;
+    ctx->s98_step = ((double)nume/denom);
 }
 
 

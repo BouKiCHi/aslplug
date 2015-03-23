@@ -1192,14 +1192,16 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 			//ここまでダンプ設定
 		}
         
-#ifdef USE_OPL3
         // OPL3
         if (THIS_->ext2 & EXT2_OPL3)
         {
+#ifdef USE_OPL3
             THIS_->sndp[SND_OPL3] = OPL3SoundAlloc();
             if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
-        }
+#else
+            printf("Warning: USE_OPL3 is not defined\n");
 #endif
+        }
         // OPM
         if (THIS_->ext2 & EXT2_OPM)
         {
@@ -1222,7 +1224,12 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 #endif
             }
                 
+#if !defined(USE_FMGEN) && !defined(USE_OPM)
+            printf("Warning: NO OPM Sound Generator\n");
+#endif
+
         }
+
         
         
         // ログ出力

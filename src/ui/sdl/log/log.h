@@ -75,4 +75,7 @@ void WriteLOG_Timing(LOGCTX *ctx, int us);
 // シンク出力
 void WriteLOG_SYNC(LOGCTX *ctx);
 
+// ラフモード出力
+void SetRoughModeLOG(LOGCTX *ctx, int denom);
+
 #endif

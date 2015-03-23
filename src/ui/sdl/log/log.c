@@ -229,3 +229,22 @@ void WriteLOG_SYNC(LOGCTX *ctx)
 
 }
 
+
+// ラフモード出力
+void SetRoughModeLOG(LOGCTX *ctx, int denom)
+{
+    if (!ctx)
+        return;
+    
+    switch (ctx->mode)
+    {
+        case LOG_MODE_NLG:
+            break;
+        case LOG_MODE_S98:
+            SetDenomS98(ctx->log_ctx, denom);
+            break;
+    }
+    
+}
+
+

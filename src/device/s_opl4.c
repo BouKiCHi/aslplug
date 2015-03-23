@@ -38,7 +38,7 @@ static void sndsynth(void *p, Int32 *dest)
     bufp[2] = buf + 2;
     bufp[3] = buf + 3;
 
-    YMF262UpdateOne(sndp->chip_ctx, bufp, 1);
+    ymf262_update_one(sndp->chip_ctx, bufp, 1);
     
     Int32 lout = 0;
     Int32 rout = 0;
@@ -67,7 +67,7 @@ static Uint32 sndread(void *p, Uint32 a)
 {
 	OPL3SOUND *sndp = (OPL3SOUND *)(p);
     
-    return YMF262Read(sndp->chip_ctx,a);
+    return ymf262_read(sndp->chip_ctx,a);
 }
 
 static void sndwrite(void *p, Uint32 a, Uint32 v)
@@ -89,7 +89,7 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             sndp->chip_addr = v;
     }
 
-    YMF262Write(sndp->chip_ctx, a & 3, v);
+    ymf262_write(sndp->chip_ctx, a & 3, v);
 }
 
 static void sndreset(void *p, Uint32 clock, Uint32 freq)
@@ -102,12 +102,12 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
 	
     if ( sndp->chip_ctx )
     {
-        YMF262Shutdown( sndp->chip_ctx );
+        ymf262_shutdown( sndp->chip_ctx );
         sndp->chip_ctx = NULL;
     }
     
-    sndp->chip_ctx = YMF262Init(bc, freq);
-    YMF262ResetChip(sndp->chip_ctx);
+    sndp->chip_ctx = ymf262_init(NULL, bc, freq);
+    ymf262_reset_chip(sndp->chip_ctx);
 		
     // if (sndp->mask)
     //    YM2151SetMask(sndp->chip_ctx, sndp->mask);
@@ -119,7 +119,7 @@ static void sndrelease(void *p)
 	
     if ( sndp && sndp->chip_ctx )
     {
-        YMF262Shutdown( sndp->chip_ctx );
+        ymf262_shutdown( sndp->chip_ctx );
         sndp->chip_ctx = NULL;
     }
     if ( sndp )

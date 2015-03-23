@@ -39,6 +39,13 @@ typedef struct {
     int time_denom; // 分母(デフォルトは1000)
     int time_us; // us単位での1SYNC
     
+    int def_denom;
+    
+    double s98_step; // S98の単位時間
+    double sys_time; // 実際の時間
+    double sys_step; // 実際の単位時間    
+    
+    
     int dump_ptr; // データ先頭
     int dump_loop; // ループ位置
 
@@ -95,6 +102,7 @@ void MapEndS98(S98CTX *ctx);
 void WriteDataS98(S98CTX *ctx, int id, int addr, int data);
 void WriteSyncS98(S98CTX *ctx);
 void SetTimingS98(S98CTX *ctx, int us);
+void SetDenomS98(S98CTX *ctx,int denom);
 
 
 #endif

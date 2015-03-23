@@ -3,7 +3,7 @@
 ** File: ymf262.c - software implementation of YMF262
 **                  FM sound generator type OPL3
 **
-** Copyright (C) 2003 Jarek Burczynski
+** Copyright Jarek Burczynski
 **
 ** Version 0.2
 **
@@ -14,6 +14,20 @@ Revision History:
  - thanks to Olivier Galibert and Chris Hardy for YMF262 and YAC512 chips
  - thanks to Stiletto for the datasheets
 
+   Features as listed in 4MF262A6 data sheet:
+    1. Registers are compatible with YM3812 (OPL2) FM sound source.
+    2. Up to six sounds can be used as four-operator melody sounds for variety.
+    3. 18 simultaneous melody sounds, or 15 melody sounds with 5 rhythm sounds (with two operators).
+    4. 6 four-operator melody sounds and 6 two-operator melody sounds, or 6 four-operator melody
+       sounds, 3 two-operator melody sounds and 5 rhythm sounds (with four operators).
+    5. 8 selectable waveforms.
+    6. 4-channel sound output.
+    7. YMF262 compabile DAC (YAC512) is available.
+    8. LFO for vibrato and tremolo effedts.
+    9. 2 programable timers.
+   10. Shorter register access time compared with YM3812.
+   11. 5V single supply silicon gate CMOS process.
+   12. 24 Pin SOP Package (YMF262-M), 48 Pin SQFP Package (YMF262-S).
 
 
 differences between OPL2 and OPL3 not documented in Yamaha datahasheets:
@@ -41,51 +55,52 @@ differences between OPL2 and OPL3 shown in datasheets:
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
+#include <math.h>
 
-#include "driver.h"		/* use M.A.M.E. */
+#define INLINE
+
+// #include "emu.h"
+
+#define logerror(x,y,z)
+
 #include "ymf262.h"
-
-#ifndef PI
-#define PI 3.14159265358979323846
-#endif
 
 
 
 /* output final shift */
 #if (OPL3_SAMPLE_BITS==16)
-	#define FINAL_SH	(0)
-	#define MAXOUT		(+32767)
-	#define MINOUT		(-32768)
+	#define FINAL_SH    (0)
+	#define MAXOUT      (+32767)
+	#define MINOUT      (-32768)
 #else
-	#define FINAL_SH	(8)
-	#define MAXOUT		(+127)
-	#define MINOUT		(-128)
+	#define FINAL_SH    (8)
+	#define MAXOUT      (+127)
+	#define MINOUT      (-128)
 #endif
 
 
-#define FREQ_SH			16  /* 16.16 fixed point (frequency calculations) */
-#define EG_SH			16  /* 16.16 fixed point (EG timing)              */
-#define LFO_SH			24  /*  8.24 fixed point (LFO calculations)       */
-#define TIMER_SH		16  /* 16.16 fixed point (timers calculations)    */
+#define FREQ_SH         16  /* 16.16 fixed point (frequency calculations) */
+#define EG_SH           16  /* 16.16 fixed point (EG timing)              */
+#define LFO_SH          24  /*  8.24 fixed point (LFO calculations)       */
+#define TIMER_SH        16  /* 16.16 fixed point (timers calculations)    */
 
-#define FREQ_MASK		((1<<FREQ_SH)-1)
+#define FREQ_MASK       ((1<<FREQ_SH)-1)
 
 /* envelope output entries */
-#define ENV_BITS		10
-#define ENV_LEN			(1<<ENV_BITS)
-#define ENV_STEP		(128.0/ENV_LEN)
+#define ENV_BITS        10
+#define ENV_LEN         (1<<ENV_BITS)
+#define ENV_STEP        (128.0/ENV_LEN)
 
-#define MAX_ATT_INDEX	((1<<(ENV_BITS-1))-1) /*511*/
-#define MIN_ATT_INDEX	(0)
+#define MAX_ATT_INDEX   ((1<<(ENV_BITS-1))-1) /*511*/
+#define MIN_ATT_INDEX   (0)
 
 /* sinwave entries */
-#define SIN_BITS		10
-#define SIN_LEN			(1<<SIN_BITS)
-#define SIN_MASK		(SIN_LEN-1)
+#define SIN_BITS        10
+#define SIN_LEN         (1<<SIN_BITS)
+#define SIN_MASK        (SIN_LEN-1)
 
-#define TL_RES_LEN		(256)	/* 8 bits addressing (real chip) */
+#define TL_RES_LEN      (256)   /* 8 bits addressing (real chip) */
 
 
 
@@ -95,11 +110,11 @@ differences between OPL2 and OPL3 shown in datasheets:
 
 /* Envelope Generator phases */
 
-#define EG_ATT			4
-#define EG_DEC			3
-#define EG_SUS			2
-#define EG_REL			1
-#define EG_OFF			0
+#define EG_ATT          4
+#define EG_DEC          3
+#define EG_SUS          2
+#define EG_REL          1
+#define EG_OFF          0
 
 
 /* save output as raw 16-bit sample */
@@ -108,15 +123,15 @@ differences between OPL2 and OPL3 shown in datasheets:
 
 #ifdef SAVE_SAMPLE
 static FILE *sample[1];
-	#if 1	/*save to MONO file */
+	#if 1   /*save to MONO file */
 		#define SAVE_ALL_CHANNELS \
-		{	signed int pom = a; \
+		{   signed int pom = a; \
 			fputc((unsigned short)pom&0xff,sample[0]); \
 			fputc(((unsigned short)pom>>8)&0xff,sample[0]); \
 		}
-	#else	/*save to STEREO file */
+	#else   /*save to STEREO file */
 		#define SAVE_ALL_CHANNELS \
-		{	signed int pom = a; \
+		{   signed int pom = a; \
 			fputc((unsigned short)pom&0xff,sample[0]); \
 			fputc(((unsigned short)pom>>8)&0xff,sample[0]); \
 			pom = b; \
@@ -126,61 +141,60 @@ static FILE *sample[1];
 	#endif
 #endif
 
-/*#define LOG_CYM_FILE*/
-#ifdef LOG_CYM_FILE
-	FILE * cymfile = NULL;
-#endif
+#define LOG_CYM_FILE 0
+static FILE * cymfile = NULL;
 
 
 
 
 
-#define OPL3_TYPE_YMF262 (0)	/* 36 operators, 8 waveforms */
+#define OPL3_TYPE_YMF262 (0)    /* 36 operators, 8 waveforms */
 
 
-typedef struct{
-	UINT32	ar;			/* attack rate: AR<<2           */
-	UINT32	dr;			/* decay rate:  DR<<2           */
-	UINT32	rr;			/* release rate:RR<<2           */
-	UINT8	KSR;		/* key scale rate               */
-	UINT8	ksl;		/* keyscale level               */
-	UINT8	ksr;		/* key scale rate: kcode>>KSR   */
-	UINT8	mul;		/* multiple: mul_tab[ML]        */
+typedef struct
+{
+	UINT32  ar;         /* attack rate: AR<<2           */
+	UINT32  dr;         /* decay rate:  DR<<2           */
+	UINT32  rr;         /* release rate:RR<<2           */
+	UINT8   KSR;        /* key scale rate               */
+	UINT8   ksl;        /* keyscale level               */
+	UINT8   ksr;        /* key scale rate: kcode>>KSR   */
+	UINT8   mul;        /* multiple: mul_tab[ML]        */
 
 	/* Phase Generator */
-	UINT32	Cnt;		/* frequency counter            */
-	UINT32	Incr;		/* frequency counter step       */
-	UINT8   FB;			/* feedback shift value         */
-	INT32   *connect;	/* slot output pointer          */
-	INT32   op1_out[2];	/* slot1 output for feedback    */
-	UINT8   CON;		/* connection (algorithm) type  */
+	UINT32  Cnt;        /* frequency counter            */
+	UINT32  Incr;       /* frequency counter step       */
+	UINT8   FB;         /* feedback shift value         */
+	INT32   *connect;   /* slot output pointer          */
+	INT32   op1_out[2]; /* slot1 output for feedback    */
+	UINT8   CON;        /* connection (algorithm) type  */
 
 	/* Envelope Generator */
-	UINT8	eg_type;	/* percussive/non-percussive mode */
-	UINT8	state;		/* phase type                   */
-	UINT32	TL;			/* total level: TL << 2         */
-	INT32	TLL;		/* adjusted now TL              */
-	INT32	volume;		/* envelope counter             */
-	UINT32	sl;			/* sustain level: sl_tab[SL]    */
+	UINT8   eg_type;    /* percussive/non-percussive mode */
+	UINT8   state;      /* phase type                   */
+	UINT32  TL;         /* total level: TL << 2         */
+	INT32   TLL;        /* adjusted now TL              */
+	INT32   volume;     /* envelope counter             */
+	UINT32  sl;         /* sustain level: sl_tab[SL]    */
 
-	UINT32	eg_m_ar;	/* (attack state)               */
-	UINT8	eg_sh_ar;	/* (attack state)               */
-	UINT8	eg_sel_ar;	/* (attack state)               */
-	UINT32	eg_m_dr;	/* (decay state)                */
-	UINT8	eg_sh_dr;	/* (decay state)                */
-	UINT8	eg_sel_dr;	/* (decay state)                */
-	UINT32	eg_m_rr;	/* (release state)              */
-	UINT8	eg_sh_rr;	/* (release state)              */
-	UINT8	eg_sel_rr;	/* (release state)              */
+	UINT32  eg_m_ar;    /* (attack state)               */
+	UINT8   eg_sh_ar;   /* (attack state)               */
+	UINT8   eg_sel_ar;  /* (attack state)               */
+	UINT32  eg_m_dr;    /* (decay state)                */
+	UINT8   eg_sh_dr;   /* (decay state)                */
+	UINT8   eg_sel_dr;  /* (decay state)                */
+	UINT32  eg_m_rr;    /* (release state)              */
+	UINT8   eg_sh_rr;   /* (release state)              */
+	UINT8   eg_sel_rr;  /* (release state)              */
 
-	UINT32	key;		/* 0 = KEY OFF, >0 = KEY ON     */
+	UINT32  key;        /* 0 = KEY OFF, >0 = KEY ON     */
 
 	/* LFO */
-	UINT32	AMmask;		/* LFO Amplitude Modulation enable mask */
-	UINT8	vib;		/* LFO Phase Modulation enable flag (active high)*/
+	UINT32  AMmask;     /* LFO Amplitude Modulation enable mask */
+	UINT8   vib;        /* LFO Phase Modulation enable flag (active high)*/
 
 	/* waveform select */
-	UINT8	waveform_number;
+	UINT8   waveform_number;
 	unsigned int wavetable;
 
 //unsigned char reserved[128-84];//speedup: pump up the struct size to power of 2
@@ -188,88 +202,92 @@ unsigned char reserved[128-100];//speedup: pump up the struct size to power of 2
 
 } OPL3_SLOT;
 
-typedef struct{
-	OPL3_SLOT SLOT[2];
+typedef struct
+{
+    OPL3_SLOT SLOT[2];
 
-	UINT32	block_fnum;	/* block+fnum                   */
-	UINT32	fc;			/* Freq. Increment base         */
-	UINT32	ksl_base;	/* KeyScaleLevel Base step      */
-	UINT8	kcode;		/* key code (for key scaling)   */
+	UINT32  block_fnum; /* block+fnum                   */
+	UINT32  fc;         /* Freq. Increment base         */
+	UINT32  ksl_base;   /* KeyScaleLevel Base step      */
+	UINT8   kcode;      /* key code (for key scaling)   */
 
 	/*
-       there are 12 2-operator channels which can be combined in pairs
-       to form six 4-operator channel, they are:
-        0 and 3,
-        1 and 4,
-        2 and 5,
-        9 and 12,
-        10 and 13,
-        11 and 14
-    */
-	UINT8	extended;	/* set to 1 if this channel forms up a 4op channel with another channel(only used by first of pair of channels, ie 0,1,2 and 9,10,11) */
+	   there are 12 2-operator channels which can be combined in pairs
+	   to form six 4-operator channel, they are:
+	    0 and 3,
+	    1 and 4,
+	    2 and 5,
+	    9 and 12,
+	    10 and 13,
+	    11 and 14
+	*/
+	UINT8   extended;   /* set to 1 if this channel forms up a 4op channel with another channel(only used by first of pair of channels, ie 0,1,2 and 9,10,11) */
 
 unsigned char reserved[512-272];//speedup:pump up the struct size to power of 2
 
 } OPL3_CH;
 
 /* OPL3 state */
-typedef struct {
-	OPL3_CH	P_CH[18];				/* OPL3 chips have 18 channels  */
+typedef struct
+{
+    OPL3_CH P_CH[18];               /* OPL3 chips have 18 channels  */
 
-	UINT32	pan[18*4];				/* channels output masks (0xffffffff = enable); 4 masks per one channel */
-	UINT32	pan_ctrl_value[18];		/* output control values 1 per one channel (1 value contains 4 masks) */
+	UINT32  pan[18*4];              /* channels output masks (0xffffffff = enable); 4 masks per one channel */
+	UINT32  pan_ctrl_value[18];     /* output control values 1 per one channel (1 value contains 4 masks) */
 
-	UINT32	eg_cnt;					/* global envelope generator counter    */
-	UINT32	eg_timer;				/* global envelope generator counter works at frequency = chipclock/288 (288=8*36) */
-	UINT32	eg_timer_add;			/* step of eg_timer                     */
-	UINT32	eg_timer_overflow;		/* envelope generator timer overlfows every 1 sample (on real chip) */
+	signed int chanout[18];
+	signed int phase_modulation;        /* phase modulation input (SLOT 2) */
+	signed int phase_modulation2;   /* phase modulation input (SLOT 3 in 4 operator channels) */
 
-	UINT32	fn_tab[1024];			/* fnumber->increment counter   */
+	UINT32  eg_cnt;                 /* global envelope generator counter    */
+	UINT32  eg_timer;               /* global envelope generator counter works at frequency = chipclock/288 (288=8*36) */
+	UINT32  eg_timer_add;           /* step of eg_timer                     */
+	UINT32  eg_timer_overflow;      /* envelope generator timer overlfows every 1 sample (on real chip) */
+
+	UINT32  fn_tab[1024];           /* fnumber->increment counter   */
 
 	/* LFO */
-	UINT8	lfo_am_depth;
-	UINT8	lfo_pm_depth_range;
-	UINT32	lfo_am_cnt;
-	UINT32	lfo_am_inc;
-	UINT32	lfo_pm_cnt;
-	UINT32	lfo_pm_inc;
+	UINT32  LFO_AM;
+	INT32   LFO_PM;
 
-	UINT32	noise_rng;				/* 23 bit noise shift register  */
-	UINT32	noise_p;				/* current noise 'phase'        */
-	UINT32	noise_f;				/* current noise period         */
+	UINT8   lfo_am_depth;
+	UINT8   lfo_pm_depth_range;
+	UINT32  lfo_am_cnt;
+	UINT32  lfo_am_inc;
+	UINT32  lfo_pm_cnt;
+	UINT32  lfo_pm_inc;
 
-	UINT8	OPL3_mode;				/* OPL3 extension enable flag   */
+	UINT32  noise_rng;              /* 23 bit noise shift register  */
+	UINT32  noise_p;                /* current noise 'phase'        */
+	UINT32  noise_f;                /* current noise period         */
 
-	UINT8	rhythm;					/* Rhythm mode                  */
+	UINT8   OPL3_mode;              /* OPL3 extension enable flag   */
 
-	int		T[2];					/* timer counters               */
-	UINT8	st[2];					/* timer enable                 */
+	UINT8   rhythm;                 /* Rhythm mode                  */
 
-	UINT32	address;				/* address register             */
-	UINT8	status;					/* status flag                  */
-	UINT8	statusmask;				/* status mask                  */
+	int     T[2];                   /* timer counters               */
+	UINT8   st[2];                  /* timer enable                 */
 
-	UINT8	nts;					/* NTS (note select)            */
+	UINT32  address;                /* address register             */
+	UINT8   status;                 /* status flag                  */
+	UINT8   statusmask;             /* status mask                  */
+
+	UINT8   nts;                    /* NTS (note select)            */
 
 	/* external event callback handlers */
-	OPL3_TIMERHANDLER  TimerHandler;/* TIMER handler                */
-	void *TimerParam;					/* TIMER parameter              */
-	OPL3_IRQHANDLER    IRQHandler;	/* IRQ handler                  */
-	void *IRQParam;					/* IRQ parameter                */
+	OPL3_TIMERHANDLER  timer_handler;/* TIMER handler                */
+	void *TimerParam;                   /* TIMER parameter              */
+	OPL3_IRQHANDLER    IRQHandler;  /* IRQ handler                  */
+	void *IRQParam;                 /* IRQ parameter                */
 	OPL3_UPDATEHANDLER UpdateHandler;/* stream update handler       */
-	void *UpdateParam;				/* stream update parameter      */
+	void *UpdateParam;              /* stream update parameter      */
 
-	UINT8 type;						/* chip type                    */
-	int clock;						/* master clock  (Hz)           */
-	int rate;						/* sampling rate (Hz)           */
-	double freqbase;				/* frequency base               */
-	double TimerBase;				/* Timer base time (==sampling time)*/
-
-	signed int phase_modulation;	/* phase modulation input (SLOT 2) */
-	signed int phase_modulation2;	/* phase modulation input (SLOT 3 in 4 operator channels) */
-	signed int chanout[18];			/* 18 channels */
-	UINT32	LFO_AM;
-	INT32	LFO_PM;
+	UINT8 type;                     /* chip type                    */
+	int clock;                      /* master clock  (Hz)           */
+	int rate;                       /* sampling rate (Hz)           */
+	double freqbase;                /* frequency base               */
+	// attotime TimerBase;         /* Timer base time (==sampling time)*/
+	device_t *device;
 } OPL3;
 
 
@@ -277,8 +295,8 @@ typedef struct {
 /* mapping of register number (offset) to slot number used by the emulator */
 static const int slot_array[32]=
 {
-	 0, 2, 4, 1, 3, 5,-1,-1,
-	 6, 8,10, 7, 9,11,-1,-1,
+		0, 2, 4, 1, 3, 5,-1,-1,
+		6, 8,10, 7, 9,11,-1,-1,
 	12,14,16,13,15,17,-1,-1,
 	-1,-1,-1,-1,-1,-1,-1,-1
 };
@@ -290,61 +308,64 @@ static const int slot_array[32]=
 static const UINT32 ksl_tab[8*16]=
 {
 	/* OCT 0 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
 	/* OCT 1 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.750/DV, 1.125/DV, 1.500/DV,
-	 1.875/DV, 2.250/DV, 2.625/DV, 3.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 0.750/DV, 1.125/DV, 1.500/DV,
+		1.875/DV, 2.250/DV, 2.625/DV, 3.000/DV,
 	/* OCT 2 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 1.125/DV, 1.875/DV, 2.625/DV,
-	 3.000/DV, 3.750/DV, 4.125/DV, 4.500/DV,
-	 4.875/DV, 5.250/DV, 5.625/DV, 6.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+		0.000/DV, 1.125/DV, 1.875/DV, 2.625/DV,
+		3.000/DV, 3.750/DV, 4.125/DV, 4.500/DV,
+		4.875/DV, 5.250/DV, 5.625/DV, 6.000/DV,
 	/* OCT 3 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 1.875/DV,
-	 3.000/DV, 4.125/DV, 4.875/DV, 5.625/DV,
-	 6.000/DV, 6.750/DV, 7.125/DV, 7.500/DV,
-	 7.875/DV, 8.250/DV, 8.625/DV, 9.000/DV,
+		0.000/DV, 0.000/DV, 0.000/DV, 1.875/DV,
+		3.000/DV, 4.125/DV, 4.875/DV, 5.625/DV,
+		6.000/DV, 6.750/DV, 7.125/DV, 7.500/DV,
+		7.875/DV, 8.250/DV, 8.625/DV, 9.000/DV,
 	/* OCT 4 */
-	 0.000/DV, 0.000/DV, 3.000/DV, 4.875/DV,
-	 6.000/DV, 7.125/DV, 7.875/DV, 8.625/DV,
-	 9.000/DV, 9.750/DV,10.125/DV,10.500/DV,
-	10.875/DV,11.250/DV,11.625/DV,12.000/DV,
+		0.000/DV, 0.000/DV, 3.000/DV, 4.875/DV,
+		6.000/DV, 7.125/DV, 7.875/DV, 8.625/DV,
+		9.000/DV, 9.750/DV,10.125/DV,10.500/DV,
+		10.875/DV,11.250/DV,11.625/DV,12.000/DV,
 	/* OCT 5 */
-	 0.000/DV, 3.000/DV, 6.000/DV, 7.875/DV,
-	 9.000/DV,10.125/DV,10.875/DV,11.625/DV,
-	12.000/DV,12.750/DV,13.125/DV,13.500/DV,
-	13.875/DV,14.250/DV,14.625/DV,15.000/DV,
+		0.000/DV, 3.000/DV, 6.000/DV, 7.875/DV,
+		9.000/DV,10.125/DV,10.875/DV,11.625/DV,
+		12.000/DV,12.750/DV,13.125/DV,13.500/DV,
+		13.875/DV,14.250/DV,14.625/DV,15.000/DV,
 	/* OCT 6 */
-	 0.000/DV, 6.000/DV, 9.000/DV,10.875/DV,
-	12.000/DV,13.125/DV,13.875/DV,14.625/DV,
-	15.000/DV,15.750/DV,16.125/DV,16.500/DV,
-	16.875/DV,17.250/DV,17.625/DV,18.000/DV,
+		0.000/DV, 6.000/DV, 9.000/DV,10.875/DV,
+		12.000/DV,13.125/DV,13.875/DV,14.625/DV,
+		15.000/DV,15.750/DV,16.125/DV,16.500/DV,
+		16.875/DV,17.250/DV,17.625/DV,18.000/DV,
 	/* OCT 7 */
-	 0.000/DV, 9.000/DV,12.000/DV,13.875/DV,
-	15.000/DV,16.125/DV,16.875/DV,17.625/DV,
-	18.000/DV,18.750/DV,19.125/DV,19.500/DV,
-	19.875/DV,20.250/DV,20.625/DV,21.000/DV
+		0.000/DV, 9.000/DV,12.000/DV,13.875/DV,
+		15.000/DV,16.125/DV,16.875/DV,17.625/DV,
+		18.000/DV,18.750/DV,19.125/DV,19.500/DV,
+		19.875/DV,20.250/DV,20.625/DV,21.000/DV
 };
 #undef DV
+
+/* 0 / 3.0 / 1.5 / 6.0 dB/OCT */
+static const UINT32 ksl_shift[4] = { 31, 1, 2, 0 };
+
 
 /* sustain level table (3dB per step) */
 /* 0 - 15: 0, 3, 6, 9,12,15,18,21,24,27,30,33,36,39,42,93 (dB)*/
 #define SC(db) (UINT32) ( db * (2.0/ENV_STEP) )
 static const UINT32 sl_tab[16]={
- SC( 0),SC( 1),SC( 2),SC(3 ),SC(4 ),SC(5 ),SC(6 ),SC( 7),
- SC( 8),SC( 9),SC(10),SC(11),SC(12),SC(13),SC(14),SC(31)
+	SC( 0),SC( 1),SC( 2),SC(3 ),SC(4 ),SC(5 ),SC(6 ),SC( 7),
+	SC( 8),SC( 9),SC(10),SC(11),SC(12),SC(13),SC(14),SC(31)
 };
 #undef SC
 
 
 #define RATE_STEPS (8)
 static const unsigned char eg_inc[15*RATE_STEPS]={
-
 /*cycle:0 1  2 3  4 5  6 7*/
 
 /* 0 */ 0,1, 0,1, 0,1, 0,1, /* rates 00..12 0 (increment by 0 or 1) */
@@ -371,7 +392,7 @@ static const unsigned char eg_inc[15*RATE_STEPS]={
 #define O(a) (a*RATE_STEPS)
 
 /* note that there is no O(13) in this table - it's directly in the code */
-static const unsigned char eg_rate_select[16+64+16]={	/* Envelope Generator rates (16 + 64 rates + 16 RKS) */
+static const unsigned char eg_rate_select[16+64+16]={   /* Envelope Generator rates (16 + 64 rates + 16 RKS) */
 /* 16 infinite time rates */
 O(14),O(14),O(14),O(14),O(14),O(14),O(14),O(14),
 O(14),O(14),O(14),O(14),O(14),O(14),O(14),O(14),
@@ -412,7 +433,7 @@ O(12),O(12),O(12),O(12),O(12),O(12),O(12),O(12),
 /*mask  4095, 2047, 1023, 511, 255, 127, 63, 31, 15, 7,  3,  1,  0,  0,  0,  0  */
 
 #define O(a) (a*1)
-static const unsigned char eg_rate_shift[16+64+16]={	/* Envelope Generator counter shifts (16 + 64 rates + 16 RKS) */
+static const unsigned char eg_rate_shift[16+64+16]={    /* Envelope Generator counter shifts (16 + 64 rates + 16 RKS) */
 /* 16 infinite time rates */
 O(0),O(0),O(0),O(0),O(0),O(0),O(0),O(0),
 O(0),O(0),O(0),O(0),O(0),O(0),O(0),O(0),
@@ -453,8 +474,8 @@ O( 0),O( 0),O( 0),O( 0),O( 0),O( 0),O( 0),O( 0),
 #define ML 2
 static const UINT8 mul_tab[16]= {
 /* 1/2, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,10,12,12,15,15 */
-   0.50*ML, 1.00*ML, 2.00*ML, 3.00*ML, 4.00*ML, 5.00*ML, 6.00*ML, 7.00*ML,
-   8.00*ML, 9.00*ML,10.00*ML,10.00*ML,12.00*ML,12.00*ML,15.00*ML,15.00*ML
+	0.50*ML, 1.00*ML, 2.00*ML, 3.00*ML, 4.00*ML, 5.00*ML, 6.00*ML, 7.00*ML,
+	8.00*ML, 9.00*ML,10.00*ML,10.00*ML,12.00*ML,12.00*ML,15.00*ML,15.00*ML
 };
 #undef ML
 
@@ -470,7 +491,7 @@ static const UINT8 mul_tab[16]= {
 #define TL_TAB_LEN (13*2*TL_RES_LEN)
 static signed int tl_tab[TL_TAB_LEN];
 
-#define ENV_QUIET		(TL_TAB_LEN>>4)
+#define ENV_QUIET       (TL_TAB_LEN>>4)
 
 /* sin waveform table in 'decibel' scale */
 /* there are eight waveforms on OPL3 chips */
@@ -487,7 +508,7 @@ static unsigned int sin_tab[SIN_LEN * 8];
     The whole table takes: 64 * 210 = 13440 samples.
 
     When AM = 1 data is used directly
-    When AM = 0 data is divided by 4 before being used (loosing precision is important)
+    When AM = 0 data is divided by 4 before being used (losing precision is important)
 */
 
 #define LFO_AM_TAB_ELEMENTS 210
@@ -549,38 +570,37 @@ static const UINT8 lfo_am_table[LFO_AM_TAB_ELEMENTS] = {
 
 /* LFO Phase Modulation table (verified on real YM3812) */
 static const INT8 lfo_pm_table[8*8*2] = {
-
 /* FNUM2/FNUM = 00 0xxxxxxx (0x0000) */
-0, 0, 0, 0, 0, 0, 0, 0,	/*LFO PM depth = 0*/
-0, 0, 0, 0, 0, 0, 0, 0,	/*LFO PM depth = 1*/
+0, 0, 0, 0, 0, 0, 0, 0, /*LFO PM depth = 0*/
+0, 0, 0, 0, 0, 0, 0, 0, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 00 1xxxxxxx (0x0080) */
-0, 0, 0, 0, 0, 0, 0, 0,	/*LFO PM depth = 0*/
-1, 0, 0, 0,-1, 0, 0, 0,	/*LFO PM depth = 1*/
+0, 0, 0, 0, 0, 0, 0, 0, /*LFO PM depth = 0*/
+1, 0, 0, 0,-1, 0, 0, 0, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 01 0xxxxxxx (0x0100) */
-1, 0, 0, 0,-1, 0, 0, 0,	/*LFO PM depth = 0*/
-2, 1, 0,-1,-2,-1, 0, 1,	/*LFO PM depth = 1*/
+1, 0, 0, 0,-1, 0, 0, 0, /*LFO PM depth = 0*/
+2, 1, 0,-1,-2,-1, 0, 1, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 01 1xxxxxxx (0x0180) */
-1, 0, 0, 0,-1, 0, 0, 0,	/*LFO PM depth = 0*/
-3, 1, 0,-1,-3,-1, 0, 1,	/*LFO PM depth = 1*/
+1, 0, 0, 0,-1, 0, 0, 0, /*LFO PM depth = 0*/
+3, 1, 0,-1,-3,-1, 0, 1, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 10 0xxxxxxx (0x0200) */
-2, 1, 0,-1,-2,-1, 0, 1,	/*LFO PM depth = 0*/
-4, 2, 0,-2,-4,-2, 0, 2,	/*LFO PM depth = 1*/
+2, 1, 0,-1,-2,-1, 0, 1, /*LFO PM depth = 0*/
+4, 2, 0,-2,-4,-2, 0, 2, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 10 1xxxxxxx (0x0280) */
-2, 1, 0,-1,-2,-1, 0, 1,	/*LFO PM depth = 0*/
-5, 2, 0,-2,-5,-2, 0, 2,	/*LFO PM depth = 1*/
+2, 1, 0,-1,-2,-1, 0, 1, /*LFO PM depth = 0*/
+5, 2, 0,-2,-5,-2, 0, 2, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 11 0xxxxxxx (0x0300) */
-3, 1, 0,-1,-3,-1, 0, 1,	/*LFO PM depth = 0*/
-6, 3, 0,-3,-6,-3, 0, 3,	/*LFO PM depth = 1*/
+3, 1, 0,-1,-3,-1, 0, 1, /*LFO PM depth = 0*/
+6, 3, 0,-3,-6,-3, 0, 3, /*LFO PM depth = 1*/
 
 /* FNUM2/FNUM = 11 1xxxxxxx (0x0380) */
-3, 1, 0,-1,-3,-1, 0, 1,	/*LFO PM depth = 0*/
-7, 3, 0,-3,-7,-3, 0, 3	/*LFO PM depth = 1*/
+3, 1, 0,-1,-3,-1, 0, 1, /*LFO PM depth = 0*/
+7, 3, 0,-3,-7,-3, 0, 3  /*LFO PM depth = 1*/
 };
 
 
@@ -588,20 +608,12 @@ static const INT8 lfo_pm_table[8*8*2] = {
 static int num_lock = 0;
 
 /* work table */
-//static void *cur_chip = NULL;			/* current chip point */
-//static OPL3_SLOT *SLOT7_1,*SLOT7_2,*SLOT8_1,*SLOT8_2;
 #define SLOT7_1 (&chip->P_CH[7].SLOT[SLOT1])
 #define SLOT7_2 (&chip->P_CH[7].SLOT[SLOT2])
 #define SLOT8_1 (&chip->P_CH[8].SLOT[SLOT1])
 #define SLOT8_2 (&chip->P_CH[8].SLOT[SLOT2])
 
-//static signed int phase_modulation;		/* phase modulation input (SLOT 2) */
-//static signed int phase_modulation2;	/* phase modulation input (SLOT 3 in 4 operator channels) */
-//static signed int chanout[18];			/* 18 channels */
 
-
-//static UINT32	LFO_AM;
-//static INT32	LFO_PM;
 
 
 
@@ -623,7 +635,7 @@ INLINE void OPL3_STATUS_SET(OPL3 *chip,int flag)
 	if(!(chip->status & 0x80))
 	{
 		if(chip->status & 0x7f)
-		{	/* IRQ on */
+		{   /* IRQ on */
 			chip->status |= 0x80;
 			/* callback user interrupt handler (IRQ is OFF to ON) */
 			if(chip->IRQHandler) (chip->IRQHandler)(chip->IRQParam,1);
@@ -664,8 +676,8 @@ INLINE void advance_lfo(OPL3 *chip)
 
 	/* LFO */
 	chip->lfo_am_cnt += chip->lfo_am_inc;
-	if (chip->lfo_am_cnt >= (LFO_AM_TAB_ELEMENTS<<LFO_SH) )	/* lfo_am_table is 210 elements long */
-		chip->lfo_am_cnt -= (LFO_AM_TAB_ELEMENTS<<LFO_SH);
+	if (chip->lfo_am_cnt >= ((UINT32)LFO_AM_TAB_ELEMENTS<<LFO_SH) ) /* lfo_am_table is 210 elements long */
+		chip->lfo_am_cnt -= ((UINT32)LFO_AM_TAB_ELEMENTS<<LFO_SH);
 
 	tmp = lfo_am_table[ chip->lfo_am_cnt >> LFO_SH ];
 
@@ -685,7 +697,6 @@ INLINE void advance(OPL3 *chip)
 	OPL3_SLOT *op;
 	int i;
 
-//profiler_mark(PROFILER_USER3);
 	chip->eg_timer += chip->eg_timer_add;
 
 	while (chip->eg_timer >= chip->eg_timer_overflow)
@@ -702,13 +713,13 @@ INLINE void advance(OPL3 *chip)
 			/* Envelope Generator */
 			switch(op->state)
 			{
-			case EG_ATT:	/* attack phase */
+			case EG_ATT:    /* attack phase */
 //              if ( !(chip->eg_cnt & ((1<<op->eg_sh_ar)-1) ) )
 				if ( !(chip->eg_cnt & op->eg_m_ar) )
 				{
 					op->volume += (~op->volume *
-	                        		           (eg_inc[op->eg_sel_ar + ((chip->eg_cnt>>op->eg_sh_ar)&7)])
-        			                          ) >>3;
+												(eg_inc[op->eg_sel_ar + ((chip->eg_cnt>>op->eg_sh_ar)&7)])
+												) >>3;
 
 					if (op->volume <= MIN_ATT_INDEX)
 					{
@@ -719,7 +730,7 @@ INLINE void advance(OPL3 *chip)
 				}
 			break;
 
-			case EG_DEC:	/* decay phase */
+			case EG_DEC:    /* decay phase */
 //              if ( !(chip->eg_cnt & ((1<<op->eg_sh_dr)-1) ) )
 				if ( !(chip->eg_cnt & op->eg_m_dr) )
 				{
@@ -731,17 +742,17 @@ INLINE void advance(OPL3 *chip)
 				}
 			break;
 
-			case EG_SUS:	/* sustain phase */
+			case EG_SUS:    /* sustain phase */
 
 				/* this is important behaviour:
-                one can change percusive/non-percussive modes on the fly and
-                the chip will remain in sustain phase - verified on real YM3812 */
+				one can change percusive/non-percussive modes on the fly and
+				the chip will remain in sustain phase - verified on real YM3812 */
 
-				if(op->eg_type)		/* non-percussive mode */
+				if(op->eg_type)     /* non-percussive mode */
 				{
 									/* do nothing */
 				}
-				else				/* percussive mode */
+				else                /* percussive mode */
 				{
 					/* during sustain phase chip adds Release Rate (in percussive mode) */
 //                  if ( !(chip->eg_cnt & ((1<<op->eg_sh_rr)-1) ) )
@@ -756,7 +767,7 @@ INLINE void advance(OPL3 *chip)
 				}
 			break;
 
-			case EG_REL:	/* release phase */
+			case EG_REL:    /* release phase */
 //              if ( !(chip->eg_cnt & ((1<<op->eg_sh_rr)-1) ) )
 				if ( !(chip->eg_cnt & op->eg_m_rr) )
 				{
@@ -777,9 +788,7 @@ INLINE void advance(OPL3 *chip)
 #endif
 		}
 	}
-//profiler_mark(PROFILER_END);
 
-//profiler_mark(PROFILER_USER4);
 	for (i=0; i<9*2*2; i++)
 	{
 		CH  = &chip->P_CH[i/2];
@@ -795,53 +804,52 @@ INLINE void advance(OPL3 *chip)
 
 			signed int lfo_fn_table_index_offset = lfo_pm_table[chip->LFO_PM + 16*fnum_lfo ];
 
-			if (lfo_fn_table_index_offset)	/* LFO phase modulation active */
+			if (lfo_fn_table_index_offset)  /* LFO phase modulation active */
 			{
 				block_fnum += lfo_fn_table_index_offset;
 				block = (block_fnum&0x1c00) >> 10;
 				op->Cnt += (chip->fn_tab[block_fnum&0x03ff] >> (7-block)) * op->mul;
 			}
-			else	/* LFO phase modulation  = zero */
+			else    /* LFO phase modulation  = zero */
 			{
 				op->Cnt += op->Incr;
 			}
 		}
-		else	/* LFO phase modulation disabled for this operator */
+		else    /* LFO phase modulation disabled for this operator */
 		{
 			op->Cnt += op->Incr;
 		}
 	}
-//profiler_mark(PROFILER_END);
 
 	/*  The Noise Generator of the YM3812 is 23-bit shift register.
-    *   Period is equal to 2^23-2 samples.
-    *   Register works at sampling frequency of the chip, so output
-    *   can change on every sample.
-    *
-    *   Output of the register and input to the bit 22 is:
-    *   bit0 XOR bit14 XOR bit15 XOR bit22
-    *
-    *   Simply use bit 22 as the noise output.
-    */
+	*   Period is equal to 2^23-2 samples.
+	*   Register works at sampling frequency of the chip, so output
+	*   can change on every sample.
+	*
+	*   Output of the register and input to the bit 22 is:
+	*   bit0 XOR bit14 XOR bit15 XOR bit22
+	*
+	*   Simply use bit 22 as the noise output.
+	*/
 
 	chip->noise_p += chip->noise_f;
-	i = chip->noise_p >> FREQ_SH;		/* number of events (shifts of the shift register) */
+	i = chip->noise_p >> FREQ_SH;       /* number of events (shifts of the shift register) */
 	chip->noise_p &= FREQ_MASK;
 	while (i)
 	{
 		/*
-        UINT32 j;
-        j = ( (chip->noise_rng) ^ (chip->noise_rng>>14) ^ (chip->noise_rng>>15) ^ (chip->noise_rng>>22) ) & 1;
-        chip->noise_rng = (j<<22) | (chip->noise_rng>>1);
-        */
+		UINT32 j;
+		j = ( (chip->noise_rng) ^ (chip->noise_rng>>14) ^ (chip->noise_rng>>15) ^ (chip->noise_rng>>22) ) & 1;
+		chip->noise_rng = (j<<22) | (chip->noise_rng>>1);
+		*/
 
 		/*
-            Instead of doing all the logic operations above, we
-            use a trick here (and use bit 0 as the noise output).
-            The difference is only that the noise bit changes one
-            step ahead. This doesn't matter since we don't know
-            what is real state of the noise_rng after the reset.
-        */
+		    Instead of doing all the logic operations above, we
+		    use a trick here (and use bit 0 as the noise output).
+		    The difference is only that the noise bit changes one
+		    step ahead. This doesn't matter since we don't know
+		    what is real state of the noise_rng after the reset.
+		*/
 
 		if (chip->noise_rng & 1) chip->noise_rng ^= 0x800302;
 		chip->noise_rng >>= 1;
@@ -908,7 +916,7 @@ INLINE void chan_calc( OPL3 *chip, OPL3_CH *CH )
 	if( env < ENV_QUIET )
 		*SLOT->connect += op_calc(SLOT->Cnt, env, chip->phase_modulation, SLOT->wavetable);
 
-//logerror("out1=%5i vol1=%4i\n", op_calc(SLOT->Cnt, env, phase_modulation, SLOT->wavetable), env );
+//logerror("out1=%5i vol1=%4i\n", op_calc(SLOT->Cnt, env, chip->phase_modulation, SLOT->wavetable), env );
 
 }
 
@@ -974,16 +982,17 @@ number   number    BLK/FNUM2 FNUM    Drum  Hat   Drum  Tom  Cymbal
 INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 {
 	OPL3_SLOT *SLOT;
+	signed int *chanout = chip->chanout;
 	signed int out;
 	unsigned int env;
 
 
 	/* Bass Drum (verified on real YM3812):
-      - depends on the channel 6 'connect' register:
-          when connect = 0 it works the same as in normal (non-rhythm) mode (op1->op2->out)
-          when connect = 1 _only_ operator 2 is present on output (op2->out), operator 1 is ignored
-      - output sample always is multiplied by 2
-    */
+	  - depends on the channel 6 'connect' register:
+	      when connect = 0 it works the same as in normal (non-rhythm) mode (op1->op2->out)
+	      when connect = 1 _only_ operator 2 is present on output (op2->out), operator 1 is ignored
+	  - output sample always is multiplied by 2
+	*/
 
 	chip->phase_modulation = 0;
 
@@ -1010,7 +1019,7 @@ INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 	SLOT++;
 	env = volume_calc(SLOT);
 	if( env < ENV_QUIET )
-		chip->chanout[6] += op_calc(SLOT->Cnt, env, chip->phase_modulation, SLOT->wavetable) * 2;
+		chanout[6] += op_calc(SLOT->Cnt, env, chip->phase_modulation, SLOT->wavetable) * 2;
 
 
 	/* Phase generation is based on: */
@@ -1027,18 +1036,17 @@ INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 
 
 	/* The following formulas can be well optimized.
-       I leave them in direct form for now (in case I've missed something).
-    */
+	   I leave them in direct form for now (in case I've missed something).
+	*/
 
 	/* High Hat (verified on real YM3812) */
 	env = volume_calc(SLOT7_1);
 	if( env < ENV_QUIET )
 	{
-
 		/* high hat phase generation:
-            phase = d0 or 234 (based on frequency only)
-            phase = 34 or 2d0 (based on noise)
-        */
+		    phase = d0 or 234 (based on frequency only)
+		    phase = 34 or 2d0 (based on noise)
+		*/
 
 		/* base frequency derived from operator 1 in channel 7 */
 		unsigned char bit7 = ((SLOT7_1->Cnt>>FREQ_SH)>>7)&1;
@@ -1078,7 +1086,7 @@ INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 				phase = 0xd0>>2;
 		}
 
-		chip->chanout[7] += op_calc(phase<<FREQ_SH, env, 0, SLOT7_1->wavetable) * 2;
+		chanout[7] += op_calc(phase<<FREQ_SH, env, 0, SLOT7_1->wavetable) * 2;
 	}
 
 	/* Snare Drum (verified on real YM3812) */
@@ -1099,13 +1107,13 @@ INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 		if (noise)
 			phase ^= 0x100;
 
-		chip->chanout[7] += op_calc(phase<<FREQ_SH, env, 0, SLOT7_2->wavetable) * 2;
+		chanout[7] += op_calc(phase<<FREQ_SH, env, 0, SLOT7_2->wavetable) * 2;
 	}
 
 	/* Tom Tom (verified on real YM3812) */
 	env = volume_calc(SLOT8_1);
 	if( env < ENV_QUIET )
-		chip->chanout[8] += op_calc(SLOT8_1->Cnt, env, 0, SLOT8_1->wavetable) * 2;
+		chanout[8] += op_calc(SLOT8_1->Cnt, env, 0, SLOT8_1->wavetable) * 2;
 
 	/* Top Cymbal (verified on real YM3812) */
 	env = volume_calc(SLOT8_2);
@@ -1132,7 +1140,7 @@ INLINE void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, unsigned int noise )
 		if (res2)
 			phase = 0x300;
 
-		chip->chanout[8] += op_calc(phase<<FREQ_SH, env, 0, SLOT8_2->wavetable) * 2;
+		chanout[8] += op_calc(phase<<FREQ_SH, env, 0, SLOT8_2->wavetable) * 2;
 	}
 
 }
@@ -1154,14 +1162,14 @@ static int init_tables(void)
 		/* we never reach (1<<16) here due to the (x+1) */
 		/* result fits within 16 bits at maximum */
 
-		n = (int)m;		/* 16 bits here */
-		n >>= 4;		/* 12 bits here */
-		if (n&1)		/* round to nearest */
+		n = (int)m;     /* 16 bits here */
+		n >>= 4;        /* 12 bits here */
+		if (n&1)        /* round to nearest */
 			n = (n>>1)+1;
 		else
 			n = n>>1;
 						/* 11 bits here (rounded) */
-		n <<= 1;		/* 12 bits here (as in real chip) */
+		n <<= 1;        /* 12 bits here (as in real chip) */
 		tl_tab[ x*2 + 0 ] = n;
 		tl_tab[ x*2 + 1 ] = ~tl_tab[ x*2 + 0 ]; /* this *is* different from OPL2 (verified on real YMF262) */
 
@@ -1186,19 +1194,19 @@ static int init_tables(void)
 	for (i=0; i<SIN_LEN; i++)
 	{
 		/* non-standard sinus */
-		m = sin( ((i*2)+1) * PI / SIN_LEN ); /* checked against the real chip */
+		m = sin( ((i*2)+1) * M_PI / SIN_LEN ); /* checked against the real chip */
 
 		/* we never reach zero here due to ((i*2)+1) */
 
 		if (m>0.0)
-			o = 8*log(1.0/m)/log(2);	/* convert to 'decibels' */
+			o = 8*log(1.0/m)/log(2.0);  /* convert to 'decibels' */
 		else
-			o = 8*log(-1.0/m)/log(2);	/* convert to 'decibels' */
+			o = 8*log(-1.0/m)/log(2.0); /* convert to 'decibels' */
 
 		o = o / (ENV_STEP/4);
 
 		n = (int)(2.0*o);
-		if (n&1)						/* round to nearest */
+		if (n&1)                        /* round to nearest */
 			n = (n>>1)+1;
 		else
 			n = n>>1;
@@ -1261,9 +1269,9 @@ static int init_tables(void)
 		/* output maximum in half the cycle and output minimum on the other half of cycle */
 
 		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[6*SIN_LEN+i] = 1;	/* negative */
+			sin_tab[6*SIN_LEN+i] = 1;   /* negative */
 		else
-			sin_tab[6*SIN_LEN+i] = 0;	/* positive */
+			sin_tab[6*SIN_LEN+i] = 0;   /* positive */
 
 		/* waveform 7:                 */
 		/*             |\____  |\____  */
@@ -1271,12 +1279,12 @@ static int init_tables(void)
 		/* output sawtooth waveform    */
 
 		if (i & (1<<(SIN_BITS-1)) )
-			x = ((SIN_LEN-1)-i)*16 + 1;	/* negative: from 8177 to 1 */
+			x = ((SIN_LEN-1)-i)*16 + 1; /* negative: from 8177 to 1 */
 		else
-			x = i*16;	/*positive: from 0 to 8176 */
+			x = i*16;   /*positive: from 0 to 8176 */
 
 		if (x > TL_TAB_LEN)
-			x = TL_TAB_LEN;	/* clip to the allowed range */
+			x = TL_TAB_LEN; /* clip to the allowed range */
 
 		sin_tab[7*SIN_LEN+i] = x;
 
@@ -1320,7 +1328,7 @@ static void OPL3_initalize(OPL3 *chip)
 	/* logerror("YMF262: freqbase=%f\n", chip->freqbase); */
 
 	/* Timer base time */
-	chip->TimerBase = 1.0 / ((double)chip->clock / (8.0*36) );
+	// chip->TimerBase = attotime::from_hz(chip->clock) * (8*36);
 
 	/* make fnumber -> increment counter table */
 	for( i=0 ; i < 1024 ; i++ )
@@ -1329,7 +1337,7 @@ static void OPL3_initalize(OPL3 *chip)
 		chip->fn_tab[i] = (UINT32)( (double)i * 64 * chip->freqbase * (1<<(FREQ_SH-10)) ); /* -10 because chip works with 10.10 fixed point, while we use 16.16 */
 #if 0
 		logerror("YMF262.C: fn_tab[%4i] = %08x (dec=%8i)\n",
-				 i, chip->fn_tab[i]>>6, chip->fn_tab[i]>>6 );
+					i, chip->fn_tab[i]>>6, chip->fn_tab[i]>>6 );
 #endif
 	}
 
@@ -1504,9 +1512,7 @@ INLINE void set_ksl_tl(OPL3 *chip,int slot,int v)
 	OPL3_CH   *CH   = &chip->P_CH[slot/2];
 	OPL3_SLOT *SLOT = &CH->SLOT[slot&1];
 
-	int ksl = v>>6; /* 0 / 1.5 / 3.0 / 6.0 dB/OCT */
-
-	SLOT->ksl = ksl ? 3-ksl : 31;
+	SLOT->ksl = ksl_shift[v >> 6];
 	SLOT->TL  = (v&0x3f)<<(ENV_BITS-1-7); /* 7 bits TL (bit 6 = always 0) */
 
 	if (chip->OPL3_mode & 1)
@@ -1610,11 +1616,11 @@ static void update_channels(OPL3 *chip, OPL3_CH *CH)
 {
 	/* update channel passed as a parameter and a channel at CH+=3; */
 	if (CH->extended)
-	{	/* we've just switched to combined 4 operator mode */
+	{   /* we've just switched to combined 4 operator mode */
 
 	}
 	else
-	{	/* we've just switched to normal 2 operator mode */
+	{   /* we've just switched to normal 2 operator mode */
 
 	}
 
@@ -1624,14 +1630,14 @@ static void update_channels(OPL3 *chip, OPL3_CH *CH)
 static void OPL3WriteReg(OPL3 *chip, int r, int v)
 {
 	OPL3_CH *CH;
+	signed int *chanout = chip->chanout;
 	unsigned int ch_offset = 0;
 	int slot;
 	int block_fnum;
 
 
 
-#ifdef LOG_CYM_FILE
-	if ((cymfile) && ((r&255)!=0) && (r!=255) )
+	if (LOG_CYM_FILE && (cymfile) && ((r&255)!=0) && (r!=255) )
 	{
 		if (r>0xff)
 			fputc( (unsigned char)0xff, cymfile );/*mark writes to second register set*/
@@ -1639,47 +1645,46 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		fputc( (unsigned char)r&0xff, cymfile );
 		fputc( (unsigned char)v, cymfile );
 	}
-#endif
 
 	if(r&0x100)
 	{
 		switch(r)
 		{
-		case 0x101:	/* test register */
+		case 0x101: /* test register */
 			return;
-		break;
-		case 0x104:	/* 6 channels enable */
+
+		case 0x104: /* 6 channels enable */
 			{
 				UINT8 prev;
 
-				CH = &chip->P_CH[0];	/* channel 0 */
+				CH = &chip->P_CH[0];    /* channel 0 */
 				prev = CH->extended;
 				CH->extended = (v>>0) & 1;
 				if(prev != CH->extended)
 					update_channels(chip, CH);
-				CH++;					/* channel 1 */
+				CH++;                   /* channel 1 */
 				prev = CH->extended;
 				CH->extended = (v>>1) & 1;
 				if(prev != CH->extended)
 					update_channels(chip, CH);
-				CH++;					/* channel 2 */
+				CH++;                   /* channel 2 */
 				prev = CH->extended;
 				CH->extended = (v>>2) & 1;
 				if(prev != CH->extended)
 					update_channels(chip, CH);
 
 
-				CH = &chip->P_CH[9];	/* channel 9 */
+				CH = &chip->P_CH[9];    /* channel 9 */
 				prev = CH->extended;
 				CH->extended = (v>>3) & 1;
 				if(prev != CH->extended)
 					update_channels(chip, CH);
-				CH++;					/* channel 10 */
+				CH++;                   /* channel 10 */
 				prev = CH->extended;
 				CH->extended = (v>>4) & 1;
 				if(prev != CH->extended)
 					update_channels(chip, CH);
-				CH++;					/* channel 11 */
+				CH++;                   /* channel 11 */
 				prev = CH->extended;
 				CH->extended = (v>>5) & 1;
 				if(prev != CH->extended)
@@ -1687,21 +1692,20 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 
 			}
 			return;
-		break;
-		case 0x105:	/* OPL3 extensions enable register */
 
-			chip->OPL3_mode = v&0x01;	/* OPL3 mode when bit0=1 otherwise it is OPL2 mode */
+		case 0x105: /* OPL3 extensions enable register */
+
+			chip->OPL3_mode = v&0x01;   /* OPL3 mode when bit0=1 otherwise it is OPL2 mode */
 
 			/* following behaviour was tested on real YMF262,
-            switching OPL3/OPL2 modes on the fly:
-             - does not change the waveform previously selected (unless when ....)
-             - does not update CH.A, CH.B, CH.C and CH.D output selectors (registers c0-c8) (unless when ....)
-             - does not disable channels 9-17 on OPL3->OPL2 switch
-             - does not switch 4 operator channels back to 2 operator channels
-            */
+			switching OPL3/OPL2 modes on the fly:
+			 - does not change the waveform previously selected (unless when ....)
+			 - does not update CH.A, CH.B, CH.C and CH.D output selectors (registers c0-c8) (unless when ....)
+			 - does not disable channels 9-17 on OPL3->OPL2 switch
+			 - does not switch 4 operator channels back to 2 operator channels
+			*/
 
 			return;
-		break;
 
 		default:
 			if (r < 0x120)
@@ -1709,7 +1713,7 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		break;
 		}
 
-		ch_offset = 9;	/* register page #2 starts from channel 9 (counting from 0) */
+		ch_offset = 9;  /* register page #2 starts from channel 9 (counting from 0) */
 	}
 
 	/* adjust bus to 8 bits */
@@ -1719,24 +1723,24 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 
 	switch(r&0xe0)
 	{
-	case 0x00:	/* 00-1f:control */
+	case 0x00:  /* 00-1f:control */
 		switch(r&0x1f)
 		{
-		case 0x01:	/* test register */
+		case 0x01:  /* test register */
 		break;
-		case 0x02:	/* Timer 1 */
+		case 0x02:  /* Timer 1 */
 			chip->T[0] = (256-v)*4;
 		break;
-		case 0x03:	/* Timer 2 */
+		case 0x03:  /* Timer 2 */
 			chip->T[1] = (256-v)*16;
 		break;
-		case 0x04:	/* IRQ clear / mask and Timer enable */
+		case 0x04:  /* IRQ clear / mask and Timer enable */
 			if(v&0x80)
-			{	/* IRQ flags clear */
+			{   /* IRQ flags clear */
 				OPL3_STATUS_RESET(chip,0x60);
 			}
 			else
-			{	/* set IRQ mask ,timer enable */
+			{   /* set IRQ mask ,timer enable */
 				UINT8 st1 = v & 1;
 				UINT8 st2 = (v>>1) & 1;
 
@@ -1747,20 +1751,20 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 				/* timer 2 */
 				if(chip->st[1] != st2)
 				{
-					double interval = st2 ? (double)chip->T[1]*chip->TimerBase : 0.0;
+					// attotime period = st2 ? chip->TimerBase * chip->T[1] : attotime::zero;
 					chip->st[1] = st2;
-					if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,1,interval);
+					// if (chip->timer_handler) (chip->timer_handler)(chip->TimerParam,1,period);
 				}
 				/* timer 1 */
 				if(chip->st[0] != st1)
 				{
-					double interval = st1 ? (double)chip->T[0]*chip->TimerBase : 0.0;
+					// attotime period = st1 ? chip->TimerBase * chip->T[0] : attotime::zero;
 					chip->st[0] = st1;
-					if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,0,interval);
+					// if (chip->timer_handler) (chip->timer_handler)(chip->TimerParam,0,period);
 				}
 			}
 		break;
-		case 0x08:	/* x,NTS,x,x, x,x,x,x */
+		case 0x08:  /* x,NTS,x,x, x,x,x,x */
 			chip->nts = v;
 		break;
 
@@ -1769,7 +1773,7 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		break;
 		}
 		break;
-	case 0x20:	/* am ON, vib ON, ksr, eg_type, mul */
+	case 0x20:  /* am ON, vib ON, ksr, eg_type, mul */
 		slot = slot_array[r&0x1f];
 		if(slot < 0) return;
 		set_mul(chip, slot + ch_offset*2, v);
@@ -1790,9 +1794,9 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		set_sl_rr(chip, slot + ch_offset*2, v);
 	break;
 	case 0xa0:
-		if (r == 0xbd)			/* am depth, vibrato depth, r,bd,sd,tom,tc,hh */
+		if (r == 0xbd)          /* am depth, vibrato depth, r,bd,sd,tom,tc,hh */
 		{
-			if (ch_offset != 0)	/* 0xbd register is present in set #1 only */
+			if (ch_offset != 0) /* 0xbd register is present in set #1 only */
 				return;
 
 			chip->lfo_am_depth = v & 0x80;
@@ -1848,11 +1852,11 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		CH = &chip->P_CH[(r&0x0f) + ch_offset];
 
 		if(!(r&0x10))
-		{	/* a0-a8 */
+		{   /* a0-a8 */
 			block_fnum  = (CH->block_fnum&0x1f00) | v;
 		}
 		else
-		{	/* b0-b8 */
+		{   /* b0-b8 */
 			block_fnum = ((v&0x1f)<<8) | (CH->block_fnum&0xff);
 
 			if (chip->OPL3_mode & 1)
@@ -1973,9 +1977,9 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 			/* if notesel == 0 -> lsb of kcode is bit 10 (MSB) of fnum  */
 			/* if notesel == 1 -> lsb of kcode is bit 9 (MSB-1) of fnum */
 			if (chip->nts&0x40)
-				CH->kcode |= (CH->block_fnum&0x100)>>8;	/* notesel == 1 */
+				CH->kcode |= (CH->block_fnum&0x100)>>8; /* notesel == 1 */
 			else
-				CH->kcode |= (CH->block_fnum&0x200)>>9;	/* notesel == 0 */
+				CH->kcode |= (CH->block_fnum&0x200)>>9; /* notesel == 0 */
 
 			if (chip->OPL3_mode & 1)
 			{
@@ -2078,23 +2082,23 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 			int base = ((r&0xf) + ch_offset) * 4;
 
 			/* OPL3 mode */
-			chip->pan[ base    ] = (v & 0x10) ? ~0 : 0;	/* ch.A */
-			chip->pan[ base +1 ] = (v & 0x20) ? ~0 : 0;	/* ch.B */
-			chip->pan[ base +2 ] = (v & 0x40) ? ~0 : 0;	/* ch.C */
-			chip->pan[ base +3 ] = (v & 0x80) ? ~0 : 0;	/* ch.D */
+			chip->pan[ base    ] = (v & 0x10) ? ~0 : 0; /* ch.A */
+			chip->pan[ base +1 ] = (v & 0x20) ? ~0 : 0; /* ch.B */
+			chip->pan[ base +2 ] = (v & 0x40) ? ~0 : 0; /* ch.C */
+			chip->pan[ base +3 ] = (v & 0x80) ? ~0 : 0; /* ch.D */
 		}
 		else
 		{
 			int base = ((r&0xf) + ch_offset) * 4;
 
 			/* OPL2 mode - always enabled */
-			chip->pan[ base    ] = ~0;		/* ch.A */
-			chip->pan[ base +1 ] = ~0;		/* ch.B */
-			chip->pan[ base +2 ] = ~0;		/* ch.C */
-			chip->pan[ base +3 ] = ~0;		/* ch.D */
+			chip->pan[ base    ] = ~0;      /* ch.A */
+			chip->pan[ base +1 ] = ~0;      /* ch.B */
+			chip->pan[ base +2 ] = ~0;      /* ch.C */
+			chip->pan[ base +3 ] = ~0;      /* ch.D */
 		}
 
-		chip->pan_ctrl_value[ (r&0xf) + ch_offset ] = v;	/* store control value for OPL3/OPL2 mode switching on the fly */
+		chip->pan_ctrl_value[ (r&0xf) + ch_offset ] = v;    /* store control value for OPL3/OPL2 mode switching on the fly */
 
 		CH->SLOT[SLOT1].FB  = (v>>1)&7 ? ((v>>1)&7) + 7 : 0;
 		CH->SLOT[SLOT1].CON = v&1;
@@ -2109,7 +2113,7 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 			case 9: case 10: case 11:
 				if (CH->extended)
 				{
-					UINT8 conn = (CH->SLOT[SLOT1].CON<<1) || ((CH+3)->SLOT[SLOT1].CON<<0);
+					UINT8 conn = (CH->SLOT[SLOT1].CON<<1) | ((CH+3)->SLOT[SLOT1].CON<<0);
 					switch(conn)
 					{
 					case 0:
@@ -2118,42 +2122,42 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 						CH->SLOT[SLOT1].connect = &chip->phase_modulation;
 						CH->SLOT[SLOT2].connect = &chip->phase_modulation2;
 						(CH+3)->SLOT[SLOT1].connect = &chip->phase_modulation;
-						(CH+3)->SLOT[SLOT2].connect = &chip->chanout[ chan_no + 3 ];
+						(CH+3)->SLOT[SLOT2].connect = &chanout[ chan_no + 3 ];
 					break;
 					case 1:
 						/* 1 -> 2 -\
-                           3 -> 4 -+- out */
+						   3 -> 4 -+- out */
 
 						CH->SLOT[SLOT1].connect = &chip->phase_modulation;
-						CH->SLOT[SLOT2].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT2].connect = &chanout[ chan_no ];
 						(CH+3)->SLOT[SLOT1].connect = &chip->phase_modulation;
-						(CH+3)->SLOT[SLOT2].connect = &chip->chanout[ chan_no + 3 ];
+						(CH+3)->SLOT[SLOT2].connect = &chanout[ chan_no + 3 ];
 					break;
 					case 2:
 						/* 1 -----------\
-                           2 -> 3 -> 4 -+- out */
+						   2 -> 3 -> 4 -+- out */
 
-						CH->SLOT[SLOT1].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT1].connect = &chanout[ chan_no ];
 						CH->SLOT[SLOT2].connect = &chip->phase_modulation2;
 						(CH+3)->SLOT[SLOT1].connect = &chip->phase_modulation;
-						(CH+3)->SLOT[SLOT2].connect = &chip->chanout[ chan_no + 3 ];
+						(CH+3)->SLOT[SLOT2].connect = &chanout[ chan_no + 3 ];
 					break;
 					case 3:
 						/* 1 ------\
-                           2 -> 3 -+- out
-                           4 ------/     */
-						CH->SLOT[SLOT1].connect = &chip->chanout[ chan_no ];
+						   2 -> 3 -+- out
+						   4 ------/     */
+						CH->SLOT[SLOT1].connect = &chanout[ chan_no ];
 						CH->SLOT[SLOT2].connect = &chip->phase_modulation2;
-						(CH+3)->SLOT[SLOT1].connect = &chip->chanout[ chan_no + 3 ];
-						(CH+3)->SLOT[SLOT2].connect = &chip->chanout[ chan_no + 3 ];
+						(CH+3)->SLOT[SLOT1].connect = &chanout[ chan_no + 3 ];
+						(CH+3)->SLOT[SLOT2].connect = &chanout[ chan_no + 3 ];
 					break;
 					}
 				}
 				else
 				{
 					/* 2 operators mode */
-					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chip->chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
-					CH->SLOT[SLOT2].connect = &chip->chanout[(r&0xf)+ch_offset];
+					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
+					CH->SLOT[SLOT2].connect = &chanout[(r&0xf)+ch_offset];
 				}
 			break;
 
@@ -2161,7 +2165,7 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 			case 12: case 13: case 14:
 				if ((CH-3)->extended)
 				{
-					UINT8 conn = ((CH-3)->SLOT[SLOT1].CON<<1) || (CH->SLOT[SLOT1].CON<<0);
+					UINT8 conn = ((CH-3)->SLOT[SLOT1].CON<<1) | (CH->SLOT[SLOT1].CON<<0);
 					switch(conn)
 					{
 					case 0:
@@ -2170,57 +2174,57 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 						(CH-3)->SLOT[SLOT1].connect = &chip->phase_modulation;
 						(CH-3)->SLOT[SLOT2].connect = &chip->phase_modulation2;
 						CH->SLOT[SLOT1].connect = &chip->phase_modulation;
-						CH->SLOT[SLOT2].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT2].connect = &chanout[ chan_no ];
 					break;
 					case 1:
 						/* 1 -> 2 -\
-                           3 -> 4 -+- out */
+						   3 -> 4 -+- out */
 
 						(CH-3)->SLOT[SLOT1].connect = &chip->phase_modulation;
-						(CH-3)->SLOT[SLOT2].connect = &chip->chanout[ chan_no - 3 ];
+						(CH-3)->SLOT[SLOT2].connect = &chanout[ chan_no - 3 ];
 						CH->SLOT[SLOT1].connect = &chip->phase_modulation;
-						CH->SLOT[SLOT2].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT2].connect = &chanout[ chan_no ];
 					break;
 					case 2:
 						/* 1 -----------\
-                           2 -> 3 -> 4 -+- out */
+						   2 -> 3 -> 4 -+- out */
 
-						(CH-3)->SLOT[SLOT1].connect = &chip->chanout[ chan_no - 3 ];
+						(CH-3)->SLOT[SLOT1].connect = &chanout[ chan_no - 3 ];
 						(CH-3)->SLOT[SLOT2].connect = &chip->phase_modulation2;
 						CH->SLOT[SLOT1].connect = &chip->phase_modulation;
-						CH->SLOT[SLOT2].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT2].connect = &chanout[ chan_no ];
 					break;
 					case 3:
 						/* 1 ------\
-                           2 -> 3 -+- out
-                           4 ------/     */
-						(CH-3)->SLOT[SLOT1].connect = &chip->chanout[ chan_no - 3 ];
+						   2 -> 3 -+- out
+						   4 ------/     */
+						(CH-3)->SLOT[SLOT1].connect = &chanout[ chan_no - 3 ];
 						(CH-3)->SLOT[SLOT2].connect = &chip->phase_modulation2;
-						CH->SLOT[SLOT1].connect = &chip->chanout[ chan_no ];
-						CH->SLOT[SLOT2].connect = &chip->chanout[ chan_no ];
+						CH->SLOT[SLOT1].connect = &chanout[ chan_no ];
+						CH->SLOT[SLOT2].connect = &chanout[ chan_no ];
 					break;
 					}
 				}
 				else
 				{
 					/* 2 operators mode */
-					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chip->chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
-					CH->SLOT[SLOT2].connect = &chip->chanout[(r&0xf)+ch_offset];
+					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
+					CH->SLOT[SLOT2].connect = &chanout[(r&0xf)+ch_offset];
 				}
 			break;
 
 			default:
 					/* 2 operators mode */
-					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chip->chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
-					CH->SLOT[SLOT2].connect = &chip->chanout[(r&0xf)+ch_offset];
+					CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
+					CH->SLOT[SLOT2].connect = &chanout[(r&0xf)+ch_offset];
 			break;
 			}
 		}
 		else
 		{
 			/* OPL2 mode - always 2 operators mode */
-			CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chip->chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
-			CH->SLOT[SLOT2].connect = &chip->chanout[(r&0xf)+ch_offset];
+			CH->SLOT[SLOT1].connect = CH->SLOT[SLOT1].CON ? &chanout[(r&0xf)+ch_offset] : &chip->phase_modulation;
+			CH->SLOT[SLOT2].connect = &chanout[(r&0xf)+ch_offset];
 		}
 	break;
 
@@ -2247,25 +2251,22 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 	}
 }
 
-#ifdef LOG_CYM_FILE
-static void cymfile_callback (int n)
+/*
+static TIMER_CALLBACK( cymfile_callback )
 {
 	if (cymfile)
 	{
 		fputc( (unsigned char)0, cymfile );
 	}
-}
-#endif
+}*/
 
 /* lock/unlock for common table */
-static int OPL3_LockTable(void)
+static int OPL3_LockTable(device_t *device)
 {
 	num_lock++;
 	if(num_lock>1) return 0;
 
 	/* first time */
-
-//	cur_chip = NULL;
 
 	if( !init_tables() )
 	{
@@ -2273,13 +2274,16 @@ static int OPL3_LockTable(void)
 		return -1;
 	}
 
-#ifdef LOG_CYM_FILE
-	cymfile = fopen("ymf262_.cym","wb");
-	if (cymfile)
-		timer_pulse ( TIME_IN_HZ(110), 0, cymfile_callback); /*110 Hz pulse timer*/
-	else
-		logerror("Could not create ymf262_.cym file\n");
+	if (LOG_CYM_FILE)
+	{
+#if 0
+		 cymfile = fopen("ymf262_.cym","wb");
+		if (cymfile)
+			device->machine().scheduler().timer_pulse ( attotime::from_hz(110), FUNC(cymfile_callback)); /*110 Hz pulse timer*/
+		else
+			logerror("Could not create ymf262_.cym file\n");
 #endif
+	}
 
 	return 0;
 }
@@ -2290,15 +2294,11 @@ static void OPL3_UnLockTable(void)
 	if(num_lock) return;
 
 	/* last time */
-
-//	cur_chip = NULL;
 	OPLCloseTable();
 
-#ifdef LOG_CYM_FILE
-	fclose (cymfile);
+	if (LOG_CYM_FILE)
+		fclose (cymfile);
 	cymfile = NULL;
-#endif
-
 }
 
 static void OPL3ResetChip(OPL3 *chip)
@@ -2308,8 +2308,8 @@ static void OPL3ResetChip(OPL3 *chip)
 	chip->eg_timer = 0;
 	chip->eg_cnt   = 0;
 
-	chip->noise_rng = 1;	/* noise shift register */
-	chip->nts       = 0;	/* note split */
+	chip->noise_rng = 1;    /* noise shift register */
+	chip->nts       = 0;    /* note split */
 	OPL3_STATUS_RESET(chip,0x60);
 
 	/* reset with register write */
@@ -2346,21 +2346,24 @@ static void OPL3ResetChip(OPL3 *chip)
 /* Create one of virtual YMF262 */
 /* 'clock' is chip clock in Hz  */
 /* 'rate'  is sampling rate  */
-static OPL3 *OPL3Create(int type, int clock, int rate)
+static OPL3 *OPL3Create(device_t *device, int clock, int rate, int type)
 {
 	OPL3 *chip;
 
-	if (OPL3_LockTable() ==-1) return NULL;
+	if (OPL3_LockTable(device) == -1) return NULL;
 
 	/* allocate memory block */
-	chip = (OPL3 *)malloc(sizeof(OPL3));
 
-	if (chip==NULL)
-		return NULL;
+    chip = (OPL3 *)malloc(sizeof(OPL3));
+    
+    if (chip==NULL)
+        return NULL;
+    
+    /* clear */
+    memset(chip, 0, sizeof(OPL3));
 
-	/* clear */
-	memset(chip, 0, sizeof(OPL3));
 
+	chip->device = device;
 	chip->type  = type;
 	chip->clock = clock;
 	chip->rate  = rate;
@@ -2377,15 +2380,17 @@ static OPL3 *OPL3Create(int type, int clock, int rate)
 static void OPL3Destroy(OPL3 *chip)
 {
 	OPL3_UnLockTable();
-	free(chip);
+    free(chip);
+    
+	// auto_free(chip->device->machine(), chip);
 }
 
 
 /* Optional handlers */
 
-static void OPL3SetTimerHandler(OPL3 *chip,OPL3_TIMERHANDLER TimerHandler,void *param)
+static void OPL3SetTimerHandler(OPL3 *chip,OPL3_TIMERHANDLER timer_handler,void *param)
 {
-	chip->TimerHandler   = TimerHandler;
+	chip->timer_handler   = timer_handler;
 	chip->TimerParam = param;
 }
 static void OPL3SetIRQHandler(OPL3 *chip,OPL3_IRQHANDLER IRQHandler,void *param)
@@ -2407,27 +2412,27 @@ static int OPL3Write(OPL3 *chip, int a, int v)
 
 	switch(a&3)
 	{
-	case 0:	/* address port 0 (register set #1) */
+	case 0: /* address port 0 (register set #1) */
 		chip->address = v;
 	break;
 
-	case 1:	/* data port - ignore A1 */
-	case 3:	/* data port - ignore A1 */
+	case 1: /* data port - ignore A1 */
+	case 3: /* data port - ignore A1 */
 		if(chip->UpdateHandler) chip->UpdateHandler(chip->UpdateParam,0);
 		OPL3WriteReg(chip,chip->address,v);
 	break;
 
-	case 2:	/* address port 1 (register set #2) */
+	case 2: /* address port 1 (register set #2) */
 
 		/* verified on real YMF262:
-         in OPL3 mode:
-           address line A1 is stored during *address* write and ignored during *data* write.
+		 in OPL3 mode:
+		   address line A1 is stored during *address* write and ignored during *data* write.
 
-         in OPL2 mode:
-           register set#2 writes go to register set#1 (ignoring A1)
-           verified on registers from set#2: 0x01, 0x04, 0x20-0xef
-           The only exception is register 0x05.
-        */
+		 in OPL2 mode:
+		   register set#2 writes go to register set#1 (ignoring A1)
+		   verified on registers from set#2: 0x01, 0x04, 0x20-0xef
+		   The only exception is register 0x05.
+		*/
 		if( chip->OPL3_mode & 1 )
 		{
 			/* OPL3 mode */
@@ -2439,7 +2444,7 @@ static int OPL3Write(OPL3 *chip, int a, int v)
 			if( v==5 )
 				chip->address = v | 0x100;
 			else
-				chip->address = v;	/* verified range: 0x01, 0x04, 0x20-0xef(set #2 becomes set #1 in opl2 mode) */
+				chip->address = v;  /* verified range: 0x01, 0x04, 0x20-0xef(set #2 becomes set #1 in opl2 mode) */
 		}
 	break;
 	}
@@ -2455,7 +2460,7 @@ static unsigned char OPL3Read(OPL3 *chip,int a)
 		return chip->status;
 	}
 
-	return 0x00;	/* verified on real YMF262 */
+	return 0x00;    /* verified on real YMF262 */
 }
 
 
@@ -2463,43 +2468,41 @@ static unsigned char OPL3Read(OPL3 *chip,int a)
 static int OPL3TimerOver(OPL3 *chip,int c)
 {
 	if( c )
-	{	/* Timer B */
+	{   /* Timer B */
 		OPL3_STATUS_SET(chip,0x20);
 	}
 	else
-	{	/* Timer A */
+	{   /* Timer A */
 		OPL3_STATUS_SET(chip,0x40);
 	}
 	/* reload timer */
-	if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,c,(double)chip->T[c]*chip->TimerBase);
+	// if (chip->timer_handler) (chip->timer_handler)(chip->TimerParam,c,chip->TimerBase * chip->T[c]);
 	return chip->status>>7;
 }
 
 
 
 
-#if (BUILD_YMF262)
-
-void * YMF262Init(int clock, int rate)
+void * ymf262_init(device_t *device, int clock, int rate)
 {
-	return OPL3Create(OPL3_TYPE_YMF262,clock,rate);
+	return OPL3Create(device,clock,rate,OPL3_TYPE_YMF262);
 }
 
-void YMF262Shutdown(void *chip)
+void ymf262_shutdown(void *chip)
 {
-	OPL3Destroy(chip);
+	OPL3Destroy((OPL3 *)chip);
 }
-void YMF262ResetChip(void *chip)
+void ymf262_reset_chip(void *chip)
 {
-	OPL3ResetChip(chip);
-}
-
-int YMF262Write(void *chip, int a, int v)
-{
-	return OPL3Write(chip, a, v);
+	OPL3ResetChip((OPL3 *)chip);
 }
 
-unsigned char YMF262Read(void *chip, int a)
+int ymf262_write(void *chip, int a, int v)
+{
+	return OPL3Write((OPL3 *)chip, a, v);
+}
+
+unsigned char ymf262_read(void *chip, int a)
 {
 	/* Note on status register: */
 
@@ -2510,24 +2513,24 @@ unsigned char YMF262Read(void *chip, int a)
 
 	/* YMF278(OPL4) returns bit2 in LOW and bit1 in HIGH state ??? info from manual - not verified */
 
-	return OPL3Read(chip, a);
+	return OPL3Read((OPL3 *)chip, a);
 }
-int YMF262TimerOver(void *chip, int c)
+int ymf262_timer_over(void *chip, int c)
 {
-	return OPL3TimerOver(chip, c);
+	return OPL3TimerOver((OPL3 *)chip, c);
 }
 
-void YMF262SetTimerHandler(void *chip, OPL3_TIMERHANDLER TimerHandler, void *param)
+void ymf262_set_timer_handler(void *chip, OPL3_TIMERHANDLER timer_handler, void *param)
 {
-	OPL3SetTimerHandler(chip, TimerHandler, param);
+	OPL3SetTimerHandler((OPL3 *)chip, timer_handler, param);
 }
-void YMF262SetIRQHandler(void *chip,OPL3_IRQHANDLER IRQHandler,void *param)
+void ymf262_set_irq_handler(void *chip,OPL3_IRQHANDLER IRQHandler,void *param)
 {
-	OPL3SetIRQHandler(chip, IRQHandler, param);
+	OPL3SetIRQHandler((OPL3 *)chip, IRQHandler, param);
 }
-void YMF262SetUpdateHandler(void *chip,OPL3_UPDATEHANDLER UpdateHandler,void *param)
+void ymf262_set_update_handler(void *chip,OPL3_UPDATEHANDLER UpdateHandler,void *param)
 {
-	OPL3SetUpdateHandler(chip, UpdateHandler, param);
+	OPL3SetUpdateHandler((OPL3 *)chip, UpdateHandler, param);
 }
 
 
@@ -2538,28 +2541,18 @@ void YMF262SetUpdateHandler(void *chip,OPL3_UPDATEHANDLER UpdateHandler,void *pa
 ** '**buffers' is table of 4 pointers to the buffers: CH.A, CH.B, CH.C and CH.D
 ** 'length' is the number of samples that should be generated
 */
-void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
+void ymf262_update_one(void *_chip, OPL3SAMPLE **buffers, int length)
 {
-	OPL3		*chip  = _chip;
-	UINT8		rhythm = chip->rhythm&0x20;
-
-	OPL3SAMPLE	*ch_a = buffers[0];
-	OPL3SAMPLE	*ch_b = buffers[1];
-	OPL3SAMPLE	*ch_c = buffers[2];
-	OPL3SAMPLE	*ch_d = buffers[3];
-
 	int i;
+	OPL3        *chip  = (OPL3 *)_chip;
+	signed int *chanout = chip->chanout;
+	UINT8       rhythm = chip->rhythm&0x20;
 
-#if 0
-	if( (void *)chip != cur_chip ){
-		cur_chip = (void *)chip;
-		/* rhythm slots */
-		SLOT7_1 = &chip->P_CH[7].SLOT[SLOT1];
-		SLOT7_2 = &chip->P_CH[7].SLOT[SLOT2];
-		SLOT8_1 = &chip->P_CH[8].SLOT[SLOT1];
-		SLOT8_2 = &chip->P_CH[8].SLOT[SLOT2];
-	}
-#endif
+	OPL3SAMPLE  *ch_a = buffers[0];
+	OPL3SAMPLE  *ch_b = buffers[1];
+	OPL3SAMPLE  *ch_c = buffers[2];
+	OPL3SAMPLE  *ch_d = buffers[3];
+
 	for( i=0; i < length ; i++ )
 	{
 		int a,b,c,d;
@@ -2568,31 +2561,29 @@ void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
 		advance_lfo(chip);
 
 		/* clear channel outputs */
-		memset(chip->chanout, 0, sizeof(signed int) * 18);
-
-//profiler_mark(PROFILER_USER1);
+		memset(chip->chanout, 0, sizeof(chip->chanout));
 
 #if 1
 	/* register set #1 */
-		chan_calc(chip, &chip->P_CH[0]);			/* extended 4op ch#0 part 1 or 2op ch#0 */
+		chan_calc(chip, &chip->P_CH[0]);            /* extended 4op ch#0 part 1 or 2op ch#0 */
 		if (chip->P_CH[0].extended)
-			chan_calc_ext(chip, &chip->P_CH[3]);	/* extended 4op ch#0 part 2 */
+			chan_calc_ext(chip, &chip->P_CH[3]);    /* extended 4op ch#0 part 2 */
 		else
-			chan_calc(chip, &chip->P_CH[3]);		/* standard 2op ch#3 */
+			chan_calc(chip, &chip->P_CH[3]);        /* standard 2op ch#3 */
 
 
-		chan_calc(chip, &chip->P_CH[1]);			/* extended 4op ch#1 part 1 or 2op ch#1 */
+		chan_calc(chip, &chip->P_CH[1]);            /* extended 4op ch#1 part 1 or 2op ch#1 */
 		if (chip->P_CH[1].extended)
-			chan_calc_ext(chip, &chip->P_CH[4]);	/* extended 4op ch#1 part 2 */
+			chan_calc_ext(chip, &chip->P_CH[4]);    /* extended 4op ch#1 part 2 */
 		else
-			chan_calc(chip, &chip->P_CH[4]);		/* standard 2op ch#4 */
+			chan_calc(chip, &chip->P_CH[4]);        /* standard 2op ch#4 */
 
 
-		chan_calc(chip, &chip->P_CH[2]);			/* extended 4op ch#2 part 1 or 2op ch#2 */
+		chan_calc(chip, &chip->P_CH[2]);            /* extended 4op ch#2 part 1 or 2op ch#2 */
 		if (chip->P_CH[2].extended)
-			chan_calc_ext(chip, &chip->P_CH[5]);	/* extended 4op ch#2 part 2 */
+			chan_calc_ext(chip, &chip->P_CH[5]);    /* extended 4op ch#2 part 2 */
 		else
-			chan_calc(chip, &chip->P_CH[5]);		/* standard 2op ch#5 */
+			chan_calc(chip, &chip->P_CH[5]);        /* standard 2op ch#5 */
 
 
 		if(!rhythm)
@@ -2601,7 +2592,7 @@ void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
 			chan_calc(chip, &chip->P_CH[7]);
 			chan_calc(chip, &chip->P_CH[8]);
 		}
-		else		/* Rhythm part */
+		else        /* Rhythm part */
 		{
 			chan_calc_rhythm(chip, &chip->P_CH[0], (chip->noise_rng>>0)&1 );
 		}
@@ -2628,18 +2619,12 @@ void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
 			chan_calc(chip, &chip->P_CH[14]);
 
 
-        /* channels 15,16,17 are fixed 2-operator channels only */
+		/* channels 15,16,17 are fixed 2-operator channels only */
 		chan_calc(chip, &chip->P_CH[15]);
 		chan_calc(chip, &chip->P_CH[16]);
 		chan_calc(chip, &chip->P_CH[17]);
 #endif
-//profiler_mark(PROFILER_END);
 
-
-
-//profiler_mark(PROFILER_USER2);
-		{
-		signed int *chanout = chip->chanout;
 		/* accumulator register set #1 */
 		a =  chanout[0] & chip->pan[0];
 		b =  chanout[0] & chip->pan[1];
@@ -2721,7 +2706,6 @@ void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
 		c += chanout[17] & chip->pan[70];
 		d += chanout[17] & chip->pan[71];
 #endif
-		}
 		a >>= FINAL_SH;
 		b >>= FINAL_SH;
 		c >>= FINAL_SH;
@@ -2745,10 +2729,8 @@ void YMF262UpdateOne(void *_chip, OPL3SAMPLE **buffers, int length)
 		ch_b[i] = b;
 		ch_c[i] = c;
 		ch_d[i] = d;
-//profiler_mark(PROFILER_END);
 
 		advance(chip);
 	}
 
 }
-#endif /* BUILD_YMF262 */

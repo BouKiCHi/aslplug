@@ -26,7 +26,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-03-09"
+#define NEZ_VER "2015-03-23"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -482,6 +482,7 @@ void usage(void)
     " -z        : Set N163 mode\n"
     "\n"
     " -9        : Set sound log mode to S98V3\n"
+    " -u        : S98 rough tempo mode\n"
     " -r file   : Record a sound log\n"
     " -b        : Record a sound log without sound\n"
     "\n"
@@ -553,6 +554,7 @@ int audio_main(int argc, char *argv[])
 
     int turbo_mode = 0;
     int use_fmgen = 0;
+    int rough_mode = 0;
 
 #ifdef _WIN32   
     freopen("CON", "wt", stdout);
@@ -581,7 +583,7 @@ int audio_main(int argc, char *argv[])
     debug = 0;
     pcm.volume = 1.0f;
     
-    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwag")) != -1)
+    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwagu")) != -1)
     {
         switch (opt) 
         {
@@ -620,6 +622,9 @@ int audio_main(int argc, char *argv[])
                 break;
             case 'v':
                 sscanf(optarg, "%f", &pcm.volume);
+                break;
+            case 'u':
+                rough_mode = 1;
                 break;
             case 'd':
                 break;
@@ -698,6 +703,9 @@ int audio_main(int argc, char *argv[])
                 log_mode = LOG_MODE_S98;
             
             log_ctx = CreateLOG(logfile, log_mode);
+            
+            if (rough_mode)
+                SetRoughModeLOG(log_ctx, 1000);
         }
         
         nezctx->log_ctx = log_ctx;
