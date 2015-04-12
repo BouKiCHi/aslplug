@@ -21,6 +21,6 @@
 #endif
 
 #define logerror(x,y,z)
-typedef signed int stream_sample_t;
+// typedef signed int stream_sample_t;
 
 #endif	/* __DRIVER_H__ */
