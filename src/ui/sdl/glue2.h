@@ -14,5 +14,6 @@
 void glue2_mem_free();
 int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, int songno);
 void glue2_set_exec_path(const char *path);
+void glue2_set_driver_path(const char *path);
 
 #endif

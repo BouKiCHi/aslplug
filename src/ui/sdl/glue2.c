@@ -47,6 +47,7 @@ int _kssnrt_len = 81;
 // メモリポインタ
 byte *glue_mem_ptr = NULL;
 char glue_exec_path[1024] = "";
+char glue_driver_path[1024] = "";
 
 // ファイルサイズの取得
 long glue2_get_filesize(const char *file)
@@ -135,21 +136,31 @@ int glue2_read_file(byte *mem, long size, const char *file)
     return 0;
 }
 
-// パスを作成する
+
+// セパレート文字を検出する
+char *glue2_get_seppos(char *dest)
+{
+    int sep_chr = PATH_SEP_W32;
+    char *sep = strrchr(dest, sep_chr);
+    
+    if (!sep)
+    {
+        sep_chr = PATH_SEP;
+        sep = strrchr(dest, sep_chr);
+    }
+
+    return sep;
+
+}
+
+// ファイル名からパスを作成する
 void glue2_make_path(char *dest, const char *dir,const char *name)
 {
     strcpy(dest, dir);
 	
-	int sep_chr = PATH_SEP_W32;
-		
-    char *sep = strrchr(dest, sep_chr);
+    char *sep = glue2_get_seppos(dest);
     
-    if (!sep)
-	{
-		sep_chr = PATH_SEP;
-		sep = strrchr(dest, sep_chr);
-	}
-	
+    // セパレート文字がない場合は文字列にセパレートと名前を追加する
 	if (!sep) 
 	{
 		sep = dest + strlen(dest);
@@ -157,9 +168,25 @@ void glue2_make_path(char *dest, const char *dir,const char *name)
 	}
 	else
 	{
-	    sprintf(sep,"%c%s", sep_chr, name);	
+	    sprintf(sep + 1,"%s", name);
 	}
 }
+
+// ディレクトリ名からパスを作成する
+void glue2_make_dirpath(char *dest, const char *dir,const char *name)
+{
+    strcpy(dest, dir);
+    char *sep = glue2_get_seppos(dest);
+    
+    int sep_chr = PATH_DEFSEP;
+
+    if (sep)
+        sep_chr = sep[0];
+    
+    sep = dest + strlen(dest);
+    sprintf(sep,"%c%s", sep_chr, name);
+}
+
 
 // 実行ファイルのパスをコピーする
 void glue2_set_exec_path(const char *path)
@@ -167,10 +194,25 @@ void glue2_set_exec_path(const char *path)
 	strcpy(glue_exec_path, path);
 }
 
+// ドライバパスをコピーする
+void glue2_set_driver_path(const char *path)
+{
+	strcpy(glue_driver_path, path);
+}
+
+
 // ファイルサイズの取得とパスの作成
 long glue2_getpath_min(char *path, const char *dir, char *name, int min_size)
 {
     long size = -1;
+
+    // 曲ファイルと同じディレクトリのドライバを開く
+    glue2_make_path(path, dir, name);
+    size = glue2_get_filesize(path);
+    
+    // サイズがmin_size以上ならドライバとみなす
+    if (size >= min_size)
+        return size;
 
     // 実行ファイルと同じディレクトリのドライバを開く
     if (glue_exec_path[0])
@@ -182,15 +224,19 @@ long glue2_getpath_min(char *path, const char *dir, char *name, int min_size)
         if (size >= min_size)
             return size;
     }
-    // 曲ファイルと同じディレクトリのドライバを開く
-    glue2_make_path(path, dir, name);
-    size = glue2_get_filesize(path);
     
-    // サイズがmin_size以上ならドライバとみなす
-    if (size >= min_size)
-        return size;
-
-    // カレントディレクトリ
+    // ドライバパスのドライバを開く
+    if (glue_driver_path[0])
+    {
+        glue2_make_dirpath(path, glue_driver_path, name);
+        size = glue2_get_filesize(path);
+    
+        // サイズがmin_size以上ならドライバとみなす
+        if (size >= min_size)
+            return size;
+    }
+    
+    // カレントディレクトリから読み込む
     strcpy(path, name);
     size = glue2_get_filesize(path);
 

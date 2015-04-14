@@ -26,7 +26,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-03-23"
+#define NEZ_VER "2015-04-15"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -470,30 +470,31 @@ void usage(void)
     printf(
     "\n"
     " Options ...\n"
-    " -s rate   : Set playback rate\n"
-    " -n no     : Set song number\n"
-    " -v vol    : Set volume(def. 1.0)\n"
-    " -l n      : Set song length (n secs)\n"
-    " -q dir    : Set driver's path\n"
+    " -s / --rate <rate>   : Set playback rate\n"
+    " -v / --vol <vol>     : Set volume(def. 1.0)\n"
+    " -l / --len <n>       : Set song length (n secs)\n"
+    " -n <no>      : Set song number\n"
+    " -q <dir>     : Set driver's path\n"
     "\n"
-    " -o file   : Generate an Wave file(PCM)\n"
-    " -p        : NULL PCM mode.\n"
+    " -o <file>    : Generate an Wave file(PCM)\n"
+    " -p           : NULL PCM mode.\n"
     "\n"
-    " -z        : Set N163 mode\n"
+    " -z           : Set N163 mode\n"
     "\n"
-    " -9        : Set sound log mode to S98V3\n"
-    " -u        : S98 rough tempo mode\n"
-    " -r file   : Record a sound log\n"
-    " -b        : Record a sound log without sound\n"
+    " -9 / --s98   : Set sound log mode to S98V3\n"
+    " -u / --rough : S98 rough tempo mode (default)\n"
+    " --fine       : S98 fine tempo mode\n"
+    " -r <file>    : Record a sound log\n"
+    " -b           : Record a sound log without sound\n"
     "\n"
 #ifdef USE_FMGEN
-    " -g        : Use FMGEN for OPM\n"
+    " -g          : Use FMGEN for OPM\n"
 #endif
-    " -a        : Force turbo CPU mode\n"
-    " -x        : Set strict mode\n"
-    " -w        : Set verbose mode\n"
+    " -a          : Force turbo CPU mode\n"
+    " -x          : Set strict mode\n"
+    " -w          : Set verbose mode\n"
     "\n"
-    " -h        : Help (this)\n"
+    " -h / --help : Help (this)\n"
     "\n"
     );
 }
@@ -554,7 +555,7 @@ int audio_main(int argc, char *argv[])
 
     int turbo_mode = 0;
     int use_fmgen = 0;
-    int rough_mode = 0;
+    int rough_mode = 1;
 
 #ifdef _WIN32   
     freopen("CON", "wt", stdout);
@@ -583,10 +584,26 @@ int audio_main(int argc, char *argv[])
     debug = 0;
     pcm.volume = 1.0f;
     
-    while ((opt = getopt(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwagu")) != -1)
+    struct option long_opts[] = {
+     {"fine", 0, NULL, 0},
+     {"rough", 0, NULL, 'u'},
+     {"rate", 1, NULL, 's'},
+     {"len", 1, NULL,  'l'},
+     {"vol", 1, NULL, 'v'},
+     {"s98", 0, NULL, '9'},
+     {"help", 0, NULL, 'h'},
+     {0, 0, 0, 0}
+    };
+    
+    int opt_idx = 0;
+    
+    while ((opt = getopt_long(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwagu", long_opts, &opt_idx)) != -1)
     {
         switch (opt) 
         {
+        	case 0:
+        		rough_mode = 0;
+        	break;
             case 'a':
                 turbo_mode = 1;
                 break;
@@ -654,6 +671,9 @@ int audio_main(int argc, char *argv[])
     if (rate < 8000)
         rate = 8000;
     
+    if (drvpath)
+        glue2_set_driver_path(drvpath);
+
     glue2_set_exec_path(argv[0]);
     
     if (audio_init(rate))
@@ -705,7 +725,13 @@ int audio_main(int argc, char *argv[])
             log_ctx = CreateLOG(logfile, log_mode);
             
             if (rough_mode)
+            {
                 SetRoughModeLOG(log_ctx, 1000);
+            } 
+            else
+            {
+            	printf("Fine Log Mode\n");
+            }
         }
         
         nezctx->log_ctx = log_ctx;
