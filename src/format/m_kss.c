@@ -1196,7 +1196,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         if (THIS_->ext2 & EXT2_OPL3)
         {
 #ifdef USE_OPL3
-            THIS_->sndp[SND_OPL3] = OPL3SoundAlloc();
+            THIS_->sndp[SND_OPL3] = OPL3SoundAlloc(pNezPlay->use_gmc);
             if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
 #else
             printf("Warning: USE_OPL3 is not defined\n");
@@ -1206,7 +1206,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         if (THIS_->ext2 & EXT2_OPM)
         {
 #ifdef USE_FMGEN
-            if (pNezPlay->use_fmgen)
+            if (!pNezPlay->use_gmc && pNezPlay->use_fmgen)
             {
                 THIS_->sndp[SND_OPM] = OPM_FMGen_SoundAlloc();
                 if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
@@ -1217,9 +1217,9 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 #endif
             {
 #ifdef USE_OPM
-                THIS_->sndp[SND_OPM] = OPMSoundAlloc();
+                THIS_->sndp[SND_OPM] = OPMSoundAlloc(pNezPlay->use_gmc, 0);
                 if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
-                THIS_->sndp[SND_OPM2] = OPMSoundAlloc();
+                THIS_->sndp[SND_OPM2] = OPMSoundAlloc(pNezPlay->use_gmc, 1);
                 if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
 #endif
             }

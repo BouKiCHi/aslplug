@@ -2,10 +2,11 @@
 #include "s_opm.h"
 #include "s_logtbl.h"
 
-
 #include "ym2151/ym2151.h"
 
 #include <stdio.h>
+
+#include "gmcdrv.h"
 
 #define CPS_SHIFT 18
 #define CPS_ENVSHIFT 12
@@ -28,7 +29,10 @@ typedef struct
 	int opm_addr;
 	void *opm_ctx;
 	char *mask;
-	
+    
+    int use_gmc;
+    int map_opm;
+    
 } OPMSOUND;
 
 
@@ -81,8 +85,13 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->opm_addr, v);
 
-
-			YM2151WriteReg( sndp->opm_ctx , sndp->opm_addr, v);
+            
+            if (sndp->use_gmc)
+            {
+                gimic_write(sndp->map_opm, sndp->opm_addr, v);
+            }
+            
+			YM2151WriteReg(sndp->opm_ctx, sndp->opm_addr, v);
 		break;
 	}
 }
@@ -94,7 +103,7 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
 	
 	// printf("clk:%d freq:%d\n", clock, freq);
 	
-    if ( sndp->opm_ctx )
+    if (sndp->opm_ctx)
     {
         YM2151Shutdown( sndp->opm_ctx );
         sndp->opm_ctx = NULL;
@@ -102,6 +111,12 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     
     sndp->opm_ctx = YM2151Init(1, bc, freq);
     YM2151ResetChip(sndp->opm_ctx);
+    
+    if (sndp->use_gmc)
+    {
+        gimic_reset(sndp->map_opm);
+        gimic_setPLL(sndp->map_opm, bc);
+    }
 		
     if (sndp->mask)
         YM2151SetMask(sndp->opm_ctx, sndp->mask);
@@ -134,7 +149,7 @@ static void sndrelease(void *p)
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
-KMIF_SOUND_DEVICE *OPMSoundAlloc(void)
+KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
 {
 	OPMSOUND *sndp;
 	sndp = (OPMSOUND *)(XMALLOC(sizeof(OPMSOUND)));
@@ -153,5 +168,11 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(void)
 	sndp->kmif.setinst = setinst;
     // sndp->kmif.setmask = setmask;
 	
+    if (use_gmc)
+    {
+        sndp->use_gmc = 1;
+        sndp->map_opm = gimic_getmodule(GMCDRV_OPM, count);
+    }    
+    
 	return &sndp->kmif;
 }

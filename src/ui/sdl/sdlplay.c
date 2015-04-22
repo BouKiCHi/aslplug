@@ -8,6 +8,8 @@
 #include <getopt.h>
 #include "SDL.h"
 
+#include "gmcdrv.h"
+
 #include <signal.h>
 #define USE_SDL
 
@@ -26,7 +28,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-04-15"
+#define NEZ_VER "2015-04-22"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -294,6 +296,9 @@ static void audio_loop(int freq, int len)
     int total_frames;
 
     // len = 5;
+    
+    if (!nezctx)
+        return;
 
     fade_init();
     
@@ -326,11 +331,9 @@ static void audio_loop(int freq, int len)
             SDL_Delay(1);
         }
     
-        if (nezctx)
-        {
-	        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
-            audio_volume(pcm.buffer + pcm.write, PCM_BLOCK, pcm.volume);            
-        }
+        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
+        audio_volume(pcm.buffer + pcm.write, PCM_BLOCK, pcm.volume);
+    
         // RenderNSF(pcm.buffer + pcm.write, PCM_BLOCK);
                 
         if (fade_is_running())
@@ -376,23 +379,93 @@ static void audio_loop(int freq, int len)
 
 }
 
+// audio_rt_out : データをリアルタイム出力する
+// freq : 再生周波数
+// len : 長さ(秒)
+static void audio_rt_out(int freq , int len)
+{
+    int sec;
+    int frames, total_frames;
+
+    double left_len = 0;
+    
+    Uint32 old_ticks = SDL_GetTicks();
+   
+    sec = frames = total_frames = 0;
+    
+    if (!nezctx)
+        return;
+    
+    if (!debug)
+        audio_info(sec, len);
+    
+    do
+    {
+        // 1バイト未満なら待つ
+        if (left_len < 1)
+        {
+            // 10ms経過待ち
+            while((SDL_GetTicks() - old_ticks) < 10)
+            {
+                SDL_Delay(1);
+            }
+        
+            int new_ticks = SDL_GetTicks();
+        
+            int ms = (new_ticks - old_ticks);
+            old_ticks = new_ticks;
+        
+            left_len += ((double)freq / 1000) * ms;
+        }
+        
+        // レンダリングするバイト数を決定する
+        int render_len = (int)left_len;
+        
+        if (render_len > PCM_BLOCK)
+            render_len = PCM_BLOCK;
+        
+        NEZRender(nezctx, pcm.buffer, render_len);
+        
+        left_len -= render_len;
+        
+        frames += PCM_BLOCK;
+        total_frames += PCM_BLOCK;
+        
+        /* 今までのフレーム数が一秒以上なら秒数カウントを進める */
+        while(frames >= freq)
+        {
+            frames -= freq;
+            sec++;
+            
+            if (!debug)
+                audio_info(sec, len);
+        }
+
+    }while(sec < len && !pcm.stop);
+    
+    
+    if (!debug)
+        printf("\n");
+
+}
+
 
 // audio_loop_file : 音声をデータ化する
 // freq : 再生周波数
 // len : 長さ(秒)
-static void audio_loop_file(const char *file, int freq , int len )
+static void audio_loop_file(const char *file, int freq , int len)
 {
     FILE *fp = NULL;
 
     int sec;
-    
-    int frames;
-    int total_frames;
+    int frames, total_frames;
 
+    if (!nezctx)
+        return;
+    
     // len = 5;
 
     fade_init();
-    
     
     sec = frames = total_frames = 0;
     
@@ -413,11 +486,8 @@ static void audio_loop_file(const char *file, int freq , int len )
     
     do
     {
-        if (nezctx)
-        {
-	        NEZRender(nezctx, pcm.buffer, PCM_BLOCK);
-            audio_volume(pcm.buffer, PCM_BLOCK, pcm.volume);
-        }
+        NEZRender(nezctx, pcm.buffer, PCM_BLOCK);
+        audio_volume(pcm.buffer, PCM_BLOCK, pcm.volume);
         
         if (fade_is_running())
             fade_stereo (pcm.buffer, PCM_BLOCK);
@@ -444,8 +514,6 @@ static void audio_loop_file(const char *file, int freq , int len )
                     fade_start(freq, 1);
             }
         }
-        
-
 
     }while( sec < len && !pcm.stop );
     
@@ -472,11 +540,14 @@ void usage(void)
     " Options ...\n"
     " -s / --rate <rate>   : Set playback rate\n"
     " -v / --vol <vol>     : Set volume(def. 1.0)\n"
-    " -l / --len <n>       : Set song length (n secs)\n"
+    " -l / --len <n|mm:ss> : Set song length (n secs)\n"
+    "\n"
+    " --rt         : RealTime output for real device.\n"
+    "\n"
     " -n <no>      : Set song number\n"
     " -q <dir>     : Set driver's path\n"
     "\n"
-    " -o <file>    : Generate an Wave file(PCM)\n"
+    " -o <file>    : Generate an WAV file(PCM)\n"
     " -p           : NULL PCM mode.\n"
     "\n"
     " -z           : Set N163 mode\n"
@@ -552,7 +623,8 @@ int audio_main(int argc, char *argv[])
     int s98mode = 0;
     int n163mode = 0;
     int strictmode = 0;
-
+    
+    int rt_mode = 0;
     int turbo_mode = 0;
     int use_fmgen = 0;
     int rough_mode = 1;
@@ -586,6 +658,7 @@ int audio_main(int argc, char *argv[])
     
     struct option long_opts[] = {
      {"fine", 0, NULL, 0},
+     {"rt", 0, NULL, 1},
      {"rough", 0, NULL, 'u'},
      {"rate", 1, NULL, 's'},
      {"len", 1, NULL,  'l'},
@@ -604,6 +677,9 @@ int audio_main(int argc, char *argv[])
         	case 0:
         		rough_mode = 0;
         	break;
+            case 1:
+                rt_mode = 1;
+            break;
             case 'a':
                 turbo_mode = 1;
                 break;
@@ -647,6 +723,7 @@ int audio_main(int argc, char *argv[])
                 break;
             case 'o':
                 pcmfile = optarg;
+                nosound = 1;
                 break;
             case 'l':
                 len = get_length(optarg);
@@ -681,6 +758,8 @@ int audio_main(int argc, char *argv[])
         printf("Failed to initialize audio hardware\n");
         return 1;
     }
+    
+    gimic_init();
     
     LOGCTX *log_ctx = NULL;
     
@@ -734,6 +813,10 @@ int audio_main(int argc, char *argv[])
             }
         }
         
+        if (rt_mode)
+            printf("RealTime output mode\n");
+        
+        nezctx->use_gmc = rt_mode;
         nezctx->log_ctx = log_ctx;
         
         // ファイルの読み出し
@@ -751,10 +834,18 @@ int audio_main(int argc, char *argv[])
             printf("Freq = %d, SongNo = %d\n", rate, songno);
         
         // ループ実行
-        if (nosound || pcmfile)
-            audio_loop_file(pcmfile, rate, len); // 音なし
+        if (rt_mode)
+        {
+            // リアルタイム実行(音なし)
+            audio_rt_out(rate, len);
+        }
         else
-            audio_loop(rate, len); // 音出力
+        {
+            if (nosound)
+                audio_loop_file(pcmfile, rate, len); // 音なし
+            else
+                audio_loop(rate, len); // 音出力
+        }
         
         glue2_mem_free();
         
@@ -765,6 +856,7 @@ int audio_main(int argc, char *argv[])
             break;
     }
     
+    gimic_free();
     audio_free();
     
     PRNDBG("NEZDelete\n");

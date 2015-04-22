@@ -8,6 +8,8 @@
 
 #include <stdio.h>
 
+#include "gmcdrv.h"
+
 typedef struct
 {
 	KMIF_SOUND_DEVICE kmif;
@@ -19,6 +21,9 @@ typedef struct
 	void *chip_ctx;
 	char *mask;
     Int32 volume;
+    
+    int use_gmc;
+    int map_opl3;
 
 } OPL3SOUND;
 
@@ -67,7 +72,7 @@ static Uint32 sndread(void *p, Uint32 a)
 {
 	OPL3SOUND *sndp = (OPL3SOUND *)(p);
     
-    return ymf262_read(sndp->chip_ctx,a);
+    return ymf262_read(sndp->chip_ctx, a);
 }
 
 static void sndwrite(void *p, Uint32 a, Uint32 v)
@@ -79,6 +84,11 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
         // data
         if (sndp->kmif.logwrite)
             sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->chip_addr, v);
+        
+        if (sndp->use_gmc)
+        {
+            gimic_write(sndp->map_opl3, sndp->chip_addr, v);
+        }
     }
     else
     {
@@ -108,6 +118,11 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     
     sndp->chip_ctx = ymf262_init(NULL, bc, freq);
     ymf262_reset_chip(sndp->chip_ctx);
+    
+    if (sndp->use_gmc)
+    {
+        gimic_reset(sndp->map_opl3);
+    }
 		
     // if (sndp->mask)
     //    YM2151SetMask(sndp->chip_ctx, sndp->mask);
@@ -146,7 +161,7 @@ static void sndrelease(void *p)
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
-KMIF_SOUND_DEVICE *OPL3SoundAlloc(void)
+KMIF_SOUND_DEVICE *OPL3SoundAlloc(int use_gmc)
 {
 	OPL3SOUND *sndp;
 	sndp = (OPL3SOUND *)(XMALLOC(sizeof(OPL3SOUND)));
@@ -169,7 +184,12 @@ KMIF_SOUND_DEVICE *OPL3SoundAlloc(void)
         sndrelease(sndp);
         return 0;
     }
-
+    
+    if (use_gmc)
+    {
+        sndp->use_gmc = 1;
+        sndp->map_opl3 = gimic_getmodule(GMCDRV_OPL3, 0);
+    }
     
 	return &sndp->kmif;
 }

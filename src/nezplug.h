@@ -33,6 +33,7 @@ typedef struct NEZPLAY_TAG {
     
     int turbo;
     int use_fmgen;
+    int use_gmc;
     
 } NEZ_PLAY;
 

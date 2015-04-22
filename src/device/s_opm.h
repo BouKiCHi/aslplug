@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-KMIF_SOUND_DEVICE *OPMSoundAlloc(void);
+KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count);
 
 #ifdef __cplusplus
 }
