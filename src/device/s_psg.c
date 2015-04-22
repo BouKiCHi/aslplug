@@ -2,6 +2,7 @@
 #include "divfix.h"
 #include "s_logtbl.h"
 #include "s_psg.h"
+#include "gmcdrv.h"
 
 #define DCFIX 0/*8*/
 #define ANAEX 0
@@ -74,6 +75,11 @@ typedef struct {
 	} common;
 	Uint8 type;
 	Uint8 regs[0x10];
+    
+    int use_gmc;
+    int map_psg;
+    int map_type;
+    
 } PSGSOUND;
 
 const static Int8 env_pulse[] = 
@@ -170,7 +176,7 @@ const static Uint32 voltbl[2][32] = {
 	   V(0x17), V(0x16), V(0x15),V(0x14),V(0x13), V(0x12), V(0x11), V(0x10),
 	   V(0x0f), V(0x0e), V(0x0d),V(0x0c),V(0x0b), V(0x0a), V(0x09), V(0x08),
 	   V(0x07), V(0x06), V(0x05),V(0x04),V(0x03), V(0x02), V(0x01), V(0x00),
-//1 : PSG_TYPE_YM2149 : SSG (YM2149‚È‚Ç‚ÌAYAMAHA‚ÌPSGŒİŠ·Œn)
+//1 : PSG_TYPE_YM2149 : SSG (YM2149ãªã©ã®ã€YAMAHAã®PSGäº’æ›ç³»)
 #undef V
 #define V(a) (((a * (1 << (LOG_BITS - 1))) / 2) << 1)
 	LOG_KEYOFF, V(0x1e), V(0x1d),V(0x1c),V(0x1b), V(0x1a), V(0x19), V(0x18),
@@ -215,7 +221,7 @@ __inline static Int32 PSGSoundEnvelopeStep(PSGSOUND *sndp)
 	Uint32 spd;
 	spd = (sndp->envelope.regs[1] << 8) + sndp->envelope.regs[0];
 
-	if (!spd) spd = 1; // 0‚Ì‚Í1‚Æ“¯‚¶“®ì‚É‚È‚é 
+	if (!spd) spd = 1; // 0ã®æ™‚ã¯1ã¨åŒã˜å‹•ä½œã«ãªã‚‹ 
 
 	spd <<= CPS_ENVSHIFT;
 	sndp->envelope.cycles += sndp->envelope.cps;
@@ -443,6 +449,11 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
             
+            if (sndp->use_gmc)
+            {
+                gimic_write(sndp->map_psg, sndp->common.adr, v);
+            }
+
 			sndwritereg(sndp, sndp->common.adr, v);
 			break;
 		case 2:
@@ -489,9 +500,21 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
 	PSGSoundSquareReset(&sndp->square[1], clock, freq);
 	PSGSoundSquareReset(&sndp->square[2], clock, freq);
 	MSXSoundDaReset(&sndp->da, clock, freq);
-	if (sndp->type == PSG_TYPE_AY_3_8910)
-	{
-		sndp->envelope.adrmask = 0x1e;
+    
+    if (sndp->use_gmc)
+    {
+        gimic_reset(sndp->map_psg);
+        
+        if (sndp->map_type == GMCDRV_OPNA)
+        {
+            gimic_setPLL(sndp->map_psg, 7987200);
+            gimic_setSSGvol(sndp->map_psg, 63);   
+        }
+    }
+    
+    if (sndp->type == PSG_TYPE_AY_3_8910)
+    {
+        sndp->envelope.adrmask = 0x1e;
 	}
 	else
 	{
@@ -515,7 +538,7 @@ static void sndrelease(void *ctx)
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
-//‚±‚±‚©‚çƒŒƒWƒXƒ^ƒrƒ…ƒA[İ’è
+//ã“ã“ã‹ã‚‰ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 static PSGSOUND *sndpr;
 Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
 Uint32 (*ioview_ioread_DEV_MSX)(Uint32 a);
@@ -525,9 +548,9 @@ static Uint32 ioview_ioread_bf(Uint32 a){
 static Uint32 ioview_ioread_bf2(Uint32 a){
 	if(a==0x0)return sndpr->common.daenable;else return 0x100;
 }
-//‚±‚±‚Ü‚ÅƒŒƒWƒXƒ^ƒrƒ…ƒA[İ’è
+//ã“ã“ã¾ã§ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 
-KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
+KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type, int use_gmc)
 {
 	PSGSOUND *sndp;
 	sndp = XMALLOC(sizeof(PSGSOUND));
@@ -542,16 +565,31 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 	sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
+    
 	sndp->logtbl = LogTableAddRef();
 	if (!sndp->logtbl)
 	{
 		sndrelease(sndp);
 		return 0;
 	}
-	//‚±‚±‚©‚çƒŒƒWƒXƒ^ƒrƒ…ƒA[İ’è
+    
+    if (use_gmc)
+    {
+        sndp->use_gmc = 1;
+        sndp->map_type = GMCDRV_OPN3L;
+        sndp->map_psg = gimic_getchip(sndp->map_type, 0);
+        
+        if (sndp->map_psg < 0)
+        {
+            sndp->map_type = GMCDRV_OPNA;
+            sndp->map_psg = gimic_getchip(sndp->map_type, 0);
+        }
+    }
+    
+	//ã“ã“ã‹ã‚‰ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 	sndpr = sndp;
 	ioview_ioread_DEV_AY8910 = ioview_ioread_bf;
 	ioview_ioread_DEV_MSX = ioview_ioread_bf2;
-	//‚±‚±‚Ü‚ÅƒŒƒWƒXƒ^ƒrƒ…ƒA[İ’è
+	//ã“ã“ã¾ã§ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ“ãƒ¥ã‚¢ãƒ¼è¨­å®š
 	return &sndp->kmif;
 }

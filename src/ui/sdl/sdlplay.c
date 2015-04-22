@@ -542,7 +542,7 @@ void usage(void)
     " -v / --vol <vol>     : Set volume(def. 1.0)\n"
     " -l / --len <n|mm:ss> : Set song length (n secs)\n"
     "\n"
-    " --rt         : RealTime output for real device.\n"
+    " --rt         : RealTime output for real device\n"
     "\n"
     " -n <no>      : Set song number\n"
     " -q <dir>     : Set driver's path\n"

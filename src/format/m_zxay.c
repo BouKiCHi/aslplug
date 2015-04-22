@@ -358,8 +358,8 @@ static Uint32 load(NEZ_PLAY *pNezPlay, ZXAY *THIS_, Uint8 *pData, Uint32 uSize)
 	SONGINFO_SetExtendDevice(pNezPlay->song, 0);
 	SONGINFO_SetChannel(pNezPlay->song, 1);
 
-	THIS_->sndp = PSGSoundAlloc(PSG_TYPE_AY_3_8910);
-	THIS_->amstrad_sndp = PSGSoundAlloc(PSG_TYPE_YM2149);
+	THIS_->sndp = PSGSoundAlloc(PSG_TYPE_AY_3_8910, pNezPlay->use_gmc);
+	THIS_->amstrad_sndp = PSGSoundAlloc(PSG_TYPE_YM2149, pNezPlay->use_gmc);
 	if (!THIS_->sndp || !THIS_->amstrad_sndp) return NESERR_SHORTOFMEMORY;
 	return NESERR_NOERROR;
 }

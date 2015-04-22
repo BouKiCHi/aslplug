@@ -5,6 +5,8 @@ enum {
 	GMCDRV_NONE = 0,
 	GMCDRV_OPL3 = 1,
 	GMCDRV_OPM = 2,
+	GMCDRV_OPN3L = 3,
+    GMCDRV_OPNA = 4,
 };
 
 #ifdef __cplusplus
@@ -15,8 +17,8 @@ extern "C" {
 int gimic_init();
 void gimic_free();
 
-// マップ番号を返す。存在しない場合 = -1
-int gimic_getmodule(int type, int count);
+// チップのマップ番号を返す。存在しない場合 = -1
+int gimic_getchip(int type, int count);
 
 void gimic_reset(int mno);
 

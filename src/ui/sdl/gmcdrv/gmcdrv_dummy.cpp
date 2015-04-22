@@ -20,7 +20,7 @@ void gimic_free()
 {
 }
 
-int gimic_getmodule(int type, int count)
+int gimic_getchip(int type, int count)
 {
 	return -1;
 }

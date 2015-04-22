@@ -1163,9 +1163,9 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 			THIS_->synthmode = SYNTHMODE_MSX;
 		}
 		if(MSXPSGType){
-			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_YM2149);
+			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_YM2149, pNezPlay->use_gmc);
 		}else{
-			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910);
+			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910, pNezPlay->use_gmc);
 		}
 		if (!THIS_->sndp[SND_PSG]) return NESERR_SHORTOFMEMORY;
         

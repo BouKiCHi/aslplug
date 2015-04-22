@@ -108,7 +108,7 @@ void FME7SoundInstall(NEZ_PLAY* pNezPlay)
 	XMEMSET(psgs, 0, sizeof(PSGSOUND));
 	((NSFNSF*)pNezPlay->nsf)->psgs = psgs;
 
-	psgs->psgp = PSGSoundAlloc(PSG_TYPE_YM2149); //エンベロープ31段階あったんでYM2149系でしょう。
+	psgs->psgp = PSGSoundAlloc(PSG_TYPE_YM2149, pNezPlay->use_gmc); //エンベロープ31段階あったんでYM2149系でしょう。
 	if (!psgs->psgp) return;
 
 	LogTableInitialize();

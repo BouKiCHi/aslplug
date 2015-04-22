@@ -171,7 +171,7 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
     if (use_gmc)
     {
         sndp->use_gmc = 1;
-        sndp->map_opm = gimic_getmodule(GMCDRV_OPM, count);
+        sndp->map_opm = gimic_getchip(GMCDRV_OPM, count);
     }    
     
 	return &sndp->kmif;

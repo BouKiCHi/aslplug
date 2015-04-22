@@ -24,9 +24,9 @@ struct GMCDRV
 };
 
 // 最大モジュール数
-#define MAX_GMCMOD 4
+#define MAX_GMCMOD 8
 
-static GMCDRV gmcdrv[4];
+static GMCDRV gmcdrv[MAX_GMCMOD];
 static int gmcdrv_count = 0;
 
 
@@ -92,6 +92,34 @@ static void FreeDLL()
 //
 //
 
+static int gimic_check_devname(IGimic *gimic, IRealChip *chip,
+            const char *devname, const char *gmc_id, int chiptype)
+{
+    if (strcmp(devname, gmc_id) == 0)
+    {
+        // 表示
+        ::printf("Added:%s\n", devname);
+        
+        
+        // インターフェースの設定
+        int pos = gmcdrv_count;
+        
+        gmcdrv[pos].gimic = gimic;
+        gmcdrv[pos].chip = chip;
+        gmcdrv[pos].type = chiptype;
+        chip->reset();
+        
+        gmcdrv_count++;
+    }
+    // 最大個数に達した場合は終了
+
+    if (gmcdrv_count >= MAX_GMCMOD)
+        return -1;
+    
+    return 0;
+}
+
+// 初期化する
 int gimic_init()
 {
 	int i = 0;
@@ -124,59 +152,31 @@ int gimic_init()
 		Devinfo info;
 		gimic->getModuleInfo( &info );
 		
-		// モジュール名の表示
-		char buf[256];
+		// モジュール名の文字列化
+		char devname[256];
         int len = sizeof(info.Devname);
-        strncpy(buf, info.Devname, len);
-        buf[len] = 0x00;
+        strncpy(devname, info.Devname, len);
+        devname[len] = 0x00;
         
-        ::printf("Module:%s\n", buf);
+        ::printf("Module:%s\n", devname);
         
         // GMC-OPL3
-        if ( strncmp( info.Devname, "GMC-OPL3", sizeof(info.Devname) ) == 0 ) 
-        {
-        	// 表示
-        	::printf("Added:OPL3\n");
-
-        	
-        	// インターフェースの設定
-        	int pos = gmcdrv_count;
-
-        	gmcdrv[pos].gimic = gimic;
-        	gmcdrv[pos].chip = chip;
-			gmcdrv[pos].type = GMCDRV_OPL3;
-			chip->reset();
-			
-			// 最大個数に達した場合は終了
-			if (gmcdrv_count < MAX_GMCMOD)
-				gmcdrv_count++;
-			else
-				break;
-		}
+        if (gimic_check_devname(gimic, chip, devname, "GMC-OPL3", GMCDRV_OPL3) < 0)
+            break;
         
         // GMC-OPM
-        if ( strncmp( info.Devname, "GMC-OPM", sizeof(info.Devname) ) == 0 )
-        {
-            // 表示
-            ::printf("Added:OPM\n");
-            
-            
-            // インターフェースの設定
-            int pos = gmcdrv_count;
-            
-            gmcdrv[pos].gimic = gimic;
-            gmcdrv[pos].chip = chip;
-            gmcdrv[pos].type = GMCDRV_OPM;
-            chip->reset();
-            
-            // 最大個数に達した場合は終了
-            if (gmcdrv_count < MAX_GMCMOD)
-                gmcdrv_count++;
-            else
-                break;
-        }
+        if (gimic_check_devname(gimic, chip, devname, "GMC-OPM", GMCDRV_OPM) < 0)
+            break;
 
-	}
+        // GMC-OPN3L
+        if (gimic_check_devname(gimic, chip, devname, "GMC-OPN3L", GMCDRV_OPN3L) < 0)
+            break;
+
+        // GMC-OPNA
+        if (gimic_check_devname(gimic, chip, devname, "GMC-OPNA", GMCDRV_OPNA) < 0)
+            break;
+
+    }
 	
 	// チップが存在しなかった
 	if (gmcdrv_count == 0) 
@@ -185,13 +185,22 @@ int gimic_init()
 	return 0;
 }
 
+// 開放する
 void gimic_free()
 {
+    int i;
+    for(i = 0; i < gmcdrv_count; i++)
+    {
+        gmcdrv[i].chip->reset();
+    }
+    
     FreeDLL();
+
+    gmcdrv_count = 0;
 }
 
 // count個目のチップを得る
-int gimic_getmodule(int type, int count)
+int gimic_getchip(int type, int count)
 {
 	int i;
 	for(i = 0; i < gmcdrv_count; i++)
