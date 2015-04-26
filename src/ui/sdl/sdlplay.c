@@ -28,7 +28,7 @@ NEZ_PLAY *nezctx = NULL;
 int nsf_verbose = 0;
 int debug = 0;
 
-#define NEZ_VER "2015-04-22"
+#define NEZ_VER "2015-04-23"
 #define PRGNAME "NEZPLAY_ASL"
 
 #define PCM_BLOCK 512
@@ -428,8 +428,8 @@ static void audio_rt_out(int freq , int len)
         
         left_len -= render_len;
         
-        frames += PCM_BLOCK;
-        total_frames += PCM_BLOCK;
+        frames += render_len;
+        total_frames += render_len;
         
         /* 今までのフレーム数が一秒以上なら秒数カウントを進める */
         while(frames >= freq)
