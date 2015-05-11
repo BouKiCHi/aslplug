@@ -92,6 +92,7 @@ static void FreeDLL()
 //
 //
 
+// デバイス名の確認と追加
 static int gimic_check_devname(IGimic *gimic, IRealChip *chip,
             const char *devname, const char *gmc_id, int chiptype)
 {
@@ -178,7 +179,7 @@ int gimic_init()
 
     }
 	
-	// チップが存在しなかった
+	// 追加できるチップが存在しなかった
 	if (gmcdrv_count == 0) 
 		return -1;
     
@@ -199,7 +200,13 @@ void gimic_free()
     gmcdrv_count = 0;
 }
 
-// count個目のチップを得る
+// デバイス数を得る
+int gimic_getcount(void)
+{
+    return gmcdrv_count;
+}
+
+// typeのチップのcount個目のidを得る
 int gimic_getchip(int type, int count)
 {
 	int i;
@@ -216,6 +223,7 @@ int gimic_getchip(int type, int count)
 	return -1;
 }
 
+// リセットする
 void gimic_reset(int mno)
 {
 	if (mno < 0)
@@ -224,6 +232,7 @@ void gimic_reset(int mno)
 	gmcdrv[mno].chip->reset();
 }
 
+// 書き込む
 void gimic_write(int mno, int addr, int data)
 {
 	if (mno < 0)
@@ -232,6 +241,7 @@ void gimic_write(int mno, int addr, int data)
 	gmcdrv[mno].chip->out(addr, data);
 }
 
+// 読み出す
 int gimic_read(int mno, int addr)
 {
 	if (mno < 0)
@@ -240,7 +250,7 @@ int gimic_read(int mno, int addr)
 	return gmcdrv[mno].chip->in(addr);
 }
 
-
+// PLLの周波数設定
 void gimic_setPLL(int mno, int clock)
 {
 	if (mno < 0)
@@ -249,6 +259,7 @@ void gimic_setPLL(int mno, int clock)
 	gmcdrv[mno].gimic->setPLLClock( clock );
 }
 
+// SSGボリュームの設定
 void gimic_setSSGvol(int mno, int vol)
 {
 	if (mno < 0)

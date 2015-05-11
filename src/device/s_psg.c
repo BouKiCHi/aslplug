@@ -2,7 +2,10 @@
 #include "divfix.h"
 #include "s_logtbl.h"
 #include "s_psg.h"
+
+#ifdef USE_GMCDRV
 #include "gmcdrv.h"
+#endif
 
 #define DCFIX 0/*8*/
 #define ANAEX 0
@@ -448,11 +451,13 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
 		case 1:
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
-            
+
+#ifdef USE_GMCDRV
             if (sndp->use_gmc)
             {
                 gimic_write(sndp->map_psg, sndp->common.adr, v);
             }
+#endif
 
 			sndwritereg(sndp, sndp->common.adr, v);
 			break;
@@ -501,6 +506,7 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
 	PSGSoundSquareReset(&sndp->square[2], clock, freq);
 	MSXSoundDaReset(&sndp->da, clock, freq);
     
+#ifdef USE_GMCDRV
     if (sndp->use_gmc)
     {
         gimic_reset(sndp->map_psg);
@@ -511,6 +517,7 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
             gimic_setSSGvol(sndp->map_psg, 63);   
         }
     }
+#endif
     
     if (sndp->type == PSG_TYPE_AY_3_8910)
     {
@@ -573,6 +580,7 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type, int use_gmc)
 		return 0;
 	}
     
+#ifdef USE_GMCDRV
     if (use_gmc)
     {
         sndp->use_gmc = 1;
@@ -585,6 +593,7 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type, int use_gmc)
             sndp->map_psg = gimic_getchip(sndp->map_type, 0);
         }
     }
+#endif
     
 	//ここからレジスタビュアー設定
 	sndpr = sndp;

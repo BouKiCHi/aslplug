@@ -11,6 +11,7 @@
 //
 //
 
+// 初期化と開放
 int gimic_init()
 {
 	return 0;
@@ -19,6 +20,13 @@ int gimic_init()
 void gimic_free()
 {
 }
+
+// 認識デバイス数を得る
+int gimic_getcount(void)
+{
+    return 0;
+}
+
 
 int gimic_getchip(int type, int count)
 {

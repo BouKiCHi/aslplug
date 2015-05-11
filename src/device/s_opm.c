@@ -6,7 +6,9 @@
 
 #include <stdio.h>
 
+#ifdef USE_GMCDRV
 #include "gmcdrv.h"
+#endif
 
 #define CPS_SHIFT 18
 #define CPS_ENVSHIFT 12
@@ -49,7 +51,7 @@ static void sndsynth(void *p, Int32 *dest)
 	bufp[0] = buf;
 	bufp[1] = buf+1;
 
-    YM2151UpdateOne(sndp->opm_ctx,bufp,1);
+    YM2151UpdateOne(sndp->opm_ctx, bufp, 1);
     dest[0] += (buf[0] * VOL_OPM);
     dest[1] += (buf[1] * VOL_OPM);
 }
@@ -65,9 +67,10 @@ static void sndvolume(void *p, Int32 volume)
 
 static Uint32 sndread(void *p, Uint32 a)
 {
+    OPMSOUND *sndp = (OPMSOUND *)(p);
 	// printf("a:%04x\n",a);
 
-	return 0;
+	return YM2151ReadStatus(sndp->opm_ctx);
 }
 
 static void sndwrite(void *p, Uint32 a, Uint32 v)
@@ -85,11 +88,12 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->opm_addr, v);
 
-            
+#ifdef USE_GMCDRV
             if (sndp->use_gmc)
             {
                 gimic_write(sndp->map_opm, sndp->opm_addr, v);
             }
+#endif
             
 			YM2151WriteReg(sndp->opm_ctx, sndp->opm_addr, v);
 		break;
@@ -112,12 +116,14 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     sndp->opm_ctx = YM2151Init(1, bc, freq);
     YM2151ResetChip(sndp->opm_ctx);
     
+#ifdef USE_GMCDRV
     if (sndp->use_gmc)
     {
         gimic_reset(sndp->map_opm);
         gimic_setPLL(sndp->map_opm, bc);
     }
-		
+#endif
+
     if (sndp->mask)
         YM2151SetMask(sndp->opm_ctx, sndp->mask);
 }
@@ -147,6 +153,14 @@ static void sndrelease(void *p)
 }
 */
 
+static void setirq(void *p, void (*irq)(int))
+{
+    OPMSOUND *sndp = (OPMSOUND *)(p);
+    
+    YM2151SetIrqHandler(sndp->opm_ctx, irq);
+}
+
+
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
@@ -155,7 +169,7 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
 	sndp = (OPMSOUND *)(XMALLOC(sizeof(OPMSOUND)));
 	if (!sndp) return 0;
 
-	sndp = (OPMSOUND *)(XMEMSET(sndp,0,sizeof(OPMSOUND)));
+	sndp = (OPMSOUND *)(XMEMSET(sndp, 0, sizeof(OPMSOUND)));
 
 
 	sndp->kmif.ctx = sndp;
@@ -166,13 +180,17 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
 	sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
+    sndp->kmif.setirq = setirq;
+    
     // sndp->kmif.setmask = setmask;
 	
+#ifdef USE_GMCDRV
     if (use_gmc)
     {
         sndp->use_gmc = 1;
         sndp->map_opm = gimic_getchip(GMCDRV_OPM, count);
-    }    
+    }
+#endif
     
 	return &sndp->kmif;
 }

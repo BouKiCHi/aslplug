@@ -198,10 +198,7 @@ typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
 
-#define INLINE
-
-
-INLINE void write_dword(byte *p,dword v)
+void write_dword(byte *p,dword v)
 {
     p[0] = v & 0xff;
     p[1] = (v>>8) & 0xff;
@@ -209,7 +206,7 @@ INLINE void write_dword(byte *p,dword v)
     p[3] = (v>>24) & 0xff;
 }
 
-INLINE void write_word(byte *p,word v)
+void write_word(byte *p,word v)
 {
     p[0] = v & 0xff;
     p[1] = (v>>8) & 0xff;
@@ -387,6 +384,7 @@ static void audio_rt_out(int freq , int len)
     int sec;
     int frames, total_frames;
 
+    // 経過秒数に対するサンプル数
     double left_len = 0;
     
     Uint32 old_ticks = SDL_GetTicks();
@@ -401,7 +399,7 @@ static void audio_rt_out(int freq , int len)
     
     do
     {
-        // 1バイト未満なら待つ
+        // 生成可能サンプル数が1バイト未満なら待つ
         if (left_len < 1)
         {
             // 10ms経過待ち
@@ -426,6 +424,7 @@ static void audio_rt_out(int freq , int len)
         
         NEZRender(nezctx, pcm.buffer, render_len);
         
+        // 進めたサンプル分を引く
         left_len -= render_len;
         
         frames += render_len;
@@ -527,6 +526,39 @@ static void audio_loop_file(const char *file, int freq , int len)
         printf("\n");
 }
 
+#define NLG_NORMAL 1
+#define NLG_SAMEPATH 2
+
+#define NLG_EXT ".NLG"
+#define S98_EXT ".S98"
+
+int audio_check_nlgmode(const char *file)
+{
+    char *p = strrchr(file, '.');
+    if (!p)
+        return 0;
+    
+    if (strcasecmp(p, NLG_EXT) == 0)
+        return 1;
+    
+    return 0;
+}
+
+
+// 時間表記を秒数に変換する
+int get_length(const char *str)
+{
+    if (strchr(str, ':') == NULL)
+        return atoi(optarg);
+    else
+    {
+        int min = 0, sec = 0;
+        sscanf(str,"%d:%d", &min, &sec);
+        return (min * 60) + sec;
+    }
+}
+
+
 //
 // usage
 //
@@ -570,39 +602,7 @@ void usage(void)
     );
 }
 
-
-#define NLG_NORMAL 1
-#define NLG_SAMEPATH 2
-
-#define NLG_EXT ".NLG"
-#define S98_EXT ".S98"
-
-int audio_check_nlgmode(const char *file)
-{
-    char *p = strrchr(file, '.');
-    if (!p)
-        return 0;
-    
-    if (strcasecmp(p, NLG_EXT) == 0)
-        return 1;
-    
-    return 0;
-}
-
-
-// 時間表記を秒数に変換する
-int get_length(const char *str)
-{
-    if (strchr(str, ':') == NULL)
-        return atoi(optarg);
-    else
-    {
-        int min = 0, sec = 0;
-        sscanf(str,"%d:%d", &min, &sec);
-        return (min * 60) + sec;
-    }
-}
-
+// メイン処理
 int audio_main(int argc, char *argv[])
 {
     char log_path[NSF_FNMAX];
@@ -656,6 +656,7 @@ int audio_main(int argc, char *argv[])
     debug = 0;
     pcm.volume = 1.0f;
     
+    // 長いオプション
     struct option long_opts[] = {
      {"fine", 0, NULL, 0},
      {"rt", 0, NULL, 1},

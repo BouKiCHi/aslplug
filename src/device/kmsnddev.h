@@ -18,6 +18,8 @@ typedef void (*FUNC_SETINST)(void *ctx, Uint32 n, void *p, Uint32 l);
 
 typedef void (*FUNC_LOGWRITE)(void *ctx, int log_id, int a, int v);
 
+typedef void (*FUNC_SETIRQ)(void *ctx, void (*irqfunc)(int));
+
 typedef struct {
 	void *ctx;
     FUNC_RELEASE release;
@@ -29,25 +31,15 @@ typedef struct {
     FUNC_SETINST setinst;
     FUNC_LOGWRITE logwrite;
     
+    FUNC_SETIRQ setirq;
+    
     int log_id;
     void *log_ctx;
     
-//	void (*reset)(void *ctx, Uint32 clock, Uint32 freq);
-	// void (*synth)(void *ctx, Int32 *p);
-	// void (*volume)(void *ctx, Int32 v);
-	// void (*write)(void *ctx, Uint32 a, Uint32 v);
-	// Uint32 (*read)(void *ctx, Uint32 a);
-	// void (*setinst)(void *ctx, Uint32 n, void *p, Uint32 l);
-#if 0
-	void (*setrate)(void *ctx, Uint32 clock, Uint32 freq);
-	void (*getinfo)(void *ctx, KMCH_INFO *cip, );
-	void (*volume2)(void *ctx, Uint8 *volp, Uint32 numch);
-	/* 0x00(mute),0x70(x1/2),0x80(x1),0x90(x2) */
-#endif
 } KMIF_SOUND_DEVICE;
 
-//ƒ`ƒƒƒ“ƒlƒ‹ƒ}ƒXƒN—p
-enum{//‡”Ô‚ğ•Ï‚¦‚½‚ç‹°‚ë‚µ‚¢‚±‚Æ‚É‚È‚é
+//ãƒãƒ£ãƒ³ãƒãƒ«ãƒã‚¹ã‚¯ç”¨
+enum{//é †ç•ªã‚’å¤‰ãˆãŸã‚‰æã‚ã—ã„ã“ã¨ã«ãªã‚‹
 	DEV_2A03_SQ1, // 0
 	DEV_2A03_SQ2,
 	DEV_2A03_TR,

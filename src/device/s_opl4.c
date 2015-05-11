@@ -8,7 +8,9 @@
 
 #include <stdio.h>
 
+#ifdef USE_GMCDRV
 #include "gmcdrv.h"
+#endif
 
 typedef struct
 {
@@ -17,7 +19,8 @@ typedef struct
 
 	Uint8 type;
 	
-	int chip_addr;
+	int addr[2];
+	
 	void *chip_ctx;
 	char *mask;
     Int32 volume;
@@ -81,22 +84,31 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
     
     if (a & 1)
     {
+    	int addr = 0x00;
+    	if (a & 2)
+    		addr = sndp->addr[1] | 0x100;
+    	else
+    		addr = sndp->addr[0];
+    	
         // data
         if (sndp->kmif.logwrite)
-            sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->chip_addr, v);
+            sndp->kmif.logwrite(
+            	sndp->kmif.log_ctx, sndp->kmif.log_id, addr, v);
         
+#ifdef USE_GMCDRV
         if (sndp->use_gmc)
         {
-            gimic_write(sndp->map_opl3, sndp->chip_addr, v);
+            gimic_write(sndp->map_opl3, addr, v);
         }
+#endif
     }
     else
     {
         // address
         if (a & 2)
-            sndp->chip_addr = v | 0x100;
+            sndp->addr[1] = v;
         else
-            sndp->chip_addr = v;
+            sndp->addr[0] = v;
     }
 
     ymf262_write(sndp->chip_ctx, a & 3, v);
@@ -119,10 +131,12 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     sndp->chip_ctx = ymf262_init(NULL, bc, freq);
     ymf262_reset_chip(sndp->chip_ctx);
     
+#ifdef USE_GMCDRV
     if (sndp->use_gmc)
     {
         gimic_reset(sndp->map_opl3);
     }
+#endif
 		
     // if (sndp->mask)
     //    YM2151SetMask(sndp->chip_ctx, sndp->mask);
@@ -185,11 +199,13 @@ KMIF_SOUND_DEVICE *OPL3SoundAlloc(int use_gmc)
         return 0;
     }
     
+#ifdef USE_GMCDRV
     if (use_gmc)
     {
         sndp->use_gmc = 1;
         sndp->map_opl3 = gimic_getchip(GMCDRV_OPL3, 0);
     }
+#endif
     
 	return &sndp->kmif;
 }
