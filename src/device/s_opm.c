@@ -32,7 +32,6 @@ typedef struct
 	void *opm_ctx;
 	char *mask;
     
-    int use_gmc;
     int map_opm;
     
 } OPMSOUND;
@@ -89,13 +88,11 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->opm_addr, v);
 
 #ifdef USE_GMCDRV
-            if (sndp->use_gmc)
-            {
+            if (sndp->kmif.output_device & OUT_EXT)
                 gimic_write(sndp->map_opm, sndp->opm_addr, v);
-            }
 #endif
-            
-			YM2151WriteReg(sndp->opm_ctx, sndp->opm_addr, v);
+            if (sndp->kmif.output_device & OUT_INT)
+            	YM2151WriteReg(sndp->opm_ctx, sndp->opm_addr, v);
 		break;
 	}
 }
@@ -117,11 +114,8 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     YM2151ResetChip(sndp->opm_ctx);
     
 #ifdef USE_GMCDRV
-    if (sndp->use_gmc)
-    {
-        gimic_reset(sndp->map_opm);
-        gimic_setPLL(sndp->map_opm, bc);
-    }
+    gimic_reset(sndp->map_opm);
+    gimic_setPLL(sndp->map_opm, bc);
 #endif
 
     if (sndp->mask)
@@ -163,7 +157,7 @@ static void setirq(void *p, void (*irq)(int))
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
-KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
+KMIF_SOUND_DEVICE *OPMSoundAlloc(int count)
 {
 	OPMSOUND *sndp;
 	sndp = (OPMSOUND *)(XMALLOC(sizeof(OPMSOUND)));
@@ -185,11 +179,7 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int use_gmc, int count)
     // sndp->kmif.setmask = setmask;
 	
 #ifdef USE_GMCDRV
-    if (use_gmc)
-    {
-        sndp->use_gmc = 1;
-        sndp->map_opm = gimic_getchip(GMCDRV_OPM, count);
-    }
+    sndp->map_opm = gimic_getchip(GMCDRV_OPM, count);
 #endif
     
 	return &sndp->kmif;

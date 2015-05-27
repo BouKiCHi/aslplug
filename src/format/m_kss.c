@@ -1163,12 +1163,13 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 			THIS_->synthmode = SYNTHMODE_MSX;
 		}
 		if(MSXPSGType){
-			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_YM2149, pNezPlay->use_gmc);
+			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_YM2149);
 		}else{
-			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910, pNezPlay->use_gmc);
+			THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910);
 		}
-		if (!THIS_->sndp[SND_PSG]) return NESERR_SHORTOFMEMORY;
         
+		if (!THIS_->sndp[SND_PSG])
+            return NESERR_SHORTOFMEMORY;
         
 		//ここからダンプ設定
 		dump_DEV_AY8910 = dump_DEV_AY8910_bf;
@@ -1196,7 +1197,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         if (THIS_->ext2 & EXT2_OPL3)
         {
 #ifdef USE_OPL3
-            THIS_->sndp[SND_OPL3] = OPL3SoundAlloc(pNezPlay->use_gmc);
+            THIS_->sndp[SND_OPL3] = OPL3SoundAlloc();
             if (!THIS_->sndp[SND_OPL3]) return NESERR_SHORTOFMEMORY;
 #else
             printf("Warning: USE_OPL3 is not defined\n");
@@ -1217,9 +1218,9 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 #endif
             {
 #ifdef USE_OPM
-                THIS_->sndp[SND_OPM] = OPMSoundAlloc(pNezPlay->use_gmc, 0);
+                THIS_->sndp[SND_OPM] = OPMSoundAlloc(0);
                 if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
-                THIS_->sndp[SND_OPM2] = OPMSoundAlloc(pNezPlay->use_gmc, 1);
+                THIS_->sndp[SND_OPM2] = OPMSoundAlloc(1);
                 if (!THIS_->sndp[SND_OPM2]) return NESERR_SHORTOFMEMORY;
 #endif
             }
@@ -1230,7 +1231,23 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 
         }
 
+        int flags = OUT_INT;
+        if (pNezPlay->use_gmc)
+            flags |= OUT_EXT;
         
+        // 出力フラグ設定
+        if (THIS_->sndp[SND_PSG])
+            THIS_->sndp[SND_PSG]->output_device = flags;
+
+        if (THIS_->sndp[SND_OPL3])
+            THIS_->sndp[SND_OPL3]->output_device = flags;
+
+        if (THIS_->sndp[SND_OPM])
+            THIS_->sndp[SND_OPM]->output_device = flags;
+
+        if (THIS_->sndp[SND_OPM2])
+            THIS_->sndp[SND_OPM2]->output_device = flags;
+
         
         // ログ出力
         if (pNezPlay->log_ctx)

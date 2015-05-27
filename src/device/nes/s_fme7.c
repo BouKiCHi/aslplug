@@ -108,7 +108,7 @@ void FME7SoundInstall(NEZ_PLAY* pNezPlay)
 	XMEMSET(psgs, 0, sizeof(PSGSOUND));
 	((NSFNSF*)pNezPlay->nsf)->psgs = psgs;
 
-	psgs->psgp = PSGSoundAlloc(PSG_TYPE_YM2149, pNezPlay->use_gmc); //ƒGƒ“ƒxƒ[ƒv31’iŠK‚ ‚Á‚½‚ñ‚ÅYM2149Œn‚Å‚µ‚å‚¤B
+	psgs->psgp = PSGSoundAlloc(PSG_TYPE_YM2149); //ã‚¨ãƒ³ãƒ™ãƒ­ãƒ¼ãƒ—31æ®µéšŽã‚ã£ãŸã‚“ã§YM2149ç³»ã§ã—ã‚‡ã†ã€‚
 	if (!psgs->psgp) return;
 
 	LogTableInitialize();

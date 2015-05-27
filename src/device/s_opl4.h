@@ -9,7 +9,7 @@ extern "C" {
     
 #define BASECLOCK_OPL3 14318180
 
-KMIF_SOUND_DEVICE *OPL3SoundAlloc(int use_gmc);
+KMIF_SOUND_DEVICE *OPL3SoundAlloc(void);
 
 #ifdef __cplusplus
 }

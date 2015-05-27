@@ -33,10 +33,17 @@ typedef struct {
     
     FUNC_SETIRQ setirq;
     
+    int output_device;
+    
     int log_id;
     void *log_ctx;
     
 } KMIF_SOUND_DEVICE;
+    
+
+// internal and/or external
+#define OUT_INT (1<<0)
+#define OUT_EXT (1<<1)
 
 //チャンネルマスク用
 enum{//順番を変えたら恐ろしいことになる
@@ -134,6 +141,7 @@ enum{//順番を変えたら恐ろしいことになる
 	DEV_MAX,
 };
 
+    
 extern Uint8 chmask[0x200];
 
 #ifdef __cplusplus

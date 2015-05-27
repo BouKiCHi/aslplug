@@ -96,10 +96,8 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             	sndp->kmif.log_ctx, sndp->kmif.log_id, addr, v);
         
 #ifdef USE_GMCDRV
-        if (sndp->use_gmc)
-        {
+        if (sndp->kmif.output_device & OUT_EXT)
             gimic_write(sndp->map_opl3, addr, v);
-        }
 #endif
     }
     else
@@ -111,7 +109,8 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             sndp->addr[0] = v;
     }
 
-    ymf262_write(sndp->chip_ctx, a & 3, v);
+    if (sndp->kmif.output_device & OUT_INT)
+        ymf262_write(sndp->chip_ctx, a & 3, v);
 }
 
 static void sndreset(void *p, Uint32 clock, Uint32 freq)
@@ -175,7 +174,7 @@ static void sndrelease(void *p)
 
 static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
-KMIF_SOUND_DEVICE *OPL3SoundAlloc(int use_gmc)
+KMIF_SOUND_DEVICE *OPL3SoundAlloc(void)
 {
 	OPL3SOUND *sndp;
 	sndp = (OPL3SOUND *)(XMALLOC(sizeof(OPL3SOUND)));
@@ -200,11 +199,7 @@ KMIF_SOUND_DEVICE *OPL3SoundAlloc(int use_gmc)
     }
     
 #ifdef USE_GMCDRV
-    if (use_gmc)
-    {
-        sndp->use_gmc = 1;
-        sndp->map_opl3 = gimic_getchip(GMCDRV_OPL3, 0);
-    }
+    sndp->map_opl3 = gimic_getchip(GMCDRV_OPL3, 0);
 #endif
     
 	return &sndp->kmif;

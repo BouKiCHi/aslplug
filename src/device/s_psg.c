@@ -79,7 +79,6 @@ typedef struct {
 	Uint8 type;
 	Uint8 regs[0x10];
     
-    int use_gmc;
     int map_psg;
     int map_type;
     
@@ -453,13 +452,12 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
 
 #ifdef USE_GMCDRV
-            if (sndp->use_gmc)
-            {
+            if (sndp->kmif.output_device & OUT_EXT)
                 gimic_write(sndp->map_psg, sndp->common.adr, v);
-            }
 #endif
 
-			sndwritereg(sndp, sndp->common.adr, v);
+            if (sndp->kmif.output_device & OUT_INT)
+                sndwritereg(sndp, sndp->common.adr, v);
 			break;
 		case 2:
 			sndp->common.daenable = v&1;
@@ -507,15 +505,12 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
 	MSXSoundDaReset(&sndp->da, clock, freq);
     
 #ifdef USE_GMCDRV
-    if (sndp->use_gmc)
+    gimic_reset(sndp->map_psg);
+    
+    if (sndp->map_type == GMCDRV_OPNA)
     {
-        gimic_reset(sndp->map_psg);
-        
-        if (sndp->map_type == GMCDRV_OPNA)
-        {
-            gimic_setPLL(sndp->map_psg, 7987200);
-            gimic_setSSGvol(sndp->map_psg, 63);   
-        }
+        gimic_setPLL(sndp->map_psg, 7987200);
+        gimic_setSSGvol(sndp->map_psg, 63);   
     }
 #endif
     
@@ -557,7 +552,7 @@ static Uint32 ioview_ioread_bf2(Uint32 a){
 }
 //ここまでレジスタビュアー設定
 
-KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type, int use_gmc)
+KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 {
 	PSGSOUND *sndp;
 	sndp = XMALLOC(sizeof(PSGSOUND));
@@ -581,17 +576,13 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type, int use_gmc)
 	}
     
 #ifdef USE_GMCDRV
-    if (use_gmc)
+    sndp->map_type = GMCDRV_OPN3L;
+    sndp->map_psg = gimic_getchip(sndp->map_type, 0);
+    
+    if (sndp->map_psg < 0)
     {
-        sndp->use_gmc = 1;
-        sndp->map_type = GMCDRV_OPN3L;
+        sndp->map_type = GMCDRV_OPNA;
         sndp->map_psg = gimic_getchip(sndp->map_type, 0);
-        
-        if (sndp->map_psg < 0)
-        {
-            sndp->map_type = GMCDRV_OPNA;
-            sndp->map_psg = gimic_getchip(sndp->map_type, 0);
-        }
     }
 #endif
     
