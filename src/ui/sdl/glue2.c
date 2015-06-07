@@ -382,6 +382,8 @@ int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
     // NEZ本体にメモリなどを渡す
     NEZLoad(ctx, glue_mem_ptr, (Uint)size);
     
+    memset(glue_mem_ptr, 0, size);
+    
     NEZSetFrequency(ctx, freq);
     NEZSetChannel(ctx, ch);
     
@@ -389,6 +391,10 @@ int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
         NEZSetSongNo(ctx, songno);
     
     NEZReset(ctx);
+
+    // メモリを開放する
+    glue2_mem_free();
+
     
     return 0;
 }

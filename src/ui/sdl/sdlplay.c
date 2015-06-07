@@ -21,15 +21,18 @@
 
 #include "log.h"
 
-NEZ_PLAY *nezctx = NULL;
+struct {
+    NEZ_PLAY *ctx;
+    NEZ_PLAY *ctx2;
+    int verbose;
+    int debug;
+} player;
 
 
 #define NSF_FNMAX 1024
-int nsf_verbose = 0;
-int debug = 0;
 
-#define NEZ_VER "2015-04-23"
-#define PRGNAME "NEZPLAY_ASL"
+#define PRG_VER "2015-06-07"
+#define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
 #define PCM_NUM_BLOCKS 16
@@ -59,11 +62,13 @@ static struct pcm_struct
     int file_mode;
     
     float volume;
+    float mixvol;
     
     short buffer[PCM_BUFFER_LEN];
+    short mixbuf[PCM_BLOCK_SIZE];
 } pcm;
 
-#define PRNDBG(xx) if (nsf_verbose) printf(xx)
+#define PRNDBG(xx) if (player.verbose) printf(xx)
 
 #include "fade.h"
 
@@ -248,9 +253,9 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
 
 static void audio_info(int sec, int len)
 {
-    if (! debug )
+    if (!player.debug)
     {
-        if (nsf_verbose)
+        if (player.verbose)
             printf("\rTime : %02d:%02d / %02d:%02d o:%5d u:%5d c:%5d w:%6d p:%6d",
                    sec / 60, sec % 60,
                    len / 60, len % 60,
@@ -272,13 +277,57 @@ static void audio_volume(short *data, int len, float volume)
     int i = 0;
     for (i = 0; i < len * 2; i++)
     {
-        float s = ((float)data[i]) * volume;
-        if (s < -0x8000)
-            s = -0x8000;
+        double s = 0;
+
+        s = ((double)data[i]) * volume;
+        
+        if (s < -0x7fff)
+            s = -0x7fff;
         if (s > 0x7fff)
             s = 0x7fff;
+        
         data[i] = (short)s;
     }
+}
+
+// audio_mix : サンプル加算
+static void audio_mix(short *dest, short *in, int len, float volume)
+{
+    // stereo
+    int i = 0;
+    for (i = 0; i < len * 2; i++)
+    {
+        double s = 0;
+        
+        s = ((double)in[i] * volume);
+
+        if (s < -0x7fff)
+            s = -0x7fff;
+        if (s > 0x7fff)
+            s = 0x7fff;
+        
+        dest[i] += s;
+    }
+}
+
+
+// サンプル生成をする
+static void audio_make_samples(short *buf, int len)
+{
+    NEZRender(player.ctx, buf, len);
+    audio_volume(buf, len, pcm.volume);
+    
+    // サブチャンネル
+    if (player.ctx2)
+    {
+        NEZRender(player.ctx2, pcm.mixbuf, len);
+        audio_mix(buf, pcm.mixbuf, len, pcm.mixvol);
+    }
+    
+    // フェード機能
+    if (fade_is_running())
+        fade_stereo(buf, len);
+
 }
 
 
@@ -294,7 +343,7 @@ static void audio_loop(int freq, int len)
 
     // len = 5;
     
-    if (!nezctx)
+    if (!player.ctx)
         return;
 
     fade_init();
@@ -309,7 +358,7 @@ static void audio_loop(int freq, int len)
         return;
     }
 
-    if (!debug)
+    if (!player.debug)
         audio_info(sec, len);
     
     do
@@ -328,13 +377,9 @@ static void audio_loop(int freq, int len)
             SDL_Delay(1);
         }
     
-        NEZRender(nezctx, pcm.buffer + pcm.write, PCM_BLOCK);
-        audio_volume(pcm.buffer + pcm.write, PCM_BLOCK, pcm.volume);
-    
-        // RenderNSF(pcm.buffer + pcm.write, PCM_BLOCK);
-                
-        if (fade_is_running())
-            fade_stereo(pcm.buffer + pcm.write, PCM_BLOCK);
+        // サンプル生成
+        audio_make_samples(pcm.buffer + pcm.write, PCM_BLOCK);
+
 
         pcm.write += PCM_BLOCK_SIZE;
         pcm.count += PCM_BLOCK_SIZE;
@@ -351,7 +396,7 @@ static void audio_loop(int freq, int len)
             frames -= freq;
             sec++;
             
-            if (!debug)
+            if (!player.debug)
                 audio_info(sec, len);
             
             /* フェーダーを起動する */
@@ -365,7 +410,7 @@ static void audio_loop(int freq, int len)
 
     }while(sec < len && !pcm.stop );
     
-    if (!debug)
+    if (!player.debug)
         printf("\n");
     
     PRNDBG("Stopping...\n");
@@ -391,10 +436,10 @@ static void audio_rt_out(int freq , int len)
    
     sec = frames = total_frames = 0;
     
-    if (!nezctx)
+    if (!player.ctx)
         return;
     
-    if (!debug)
+    if (!player.debug)
         audio_info(sec, len);
     
     do
@@ -422,7 +467,7 @@ static void audio_rt_out(int freq , int len)
         if (render_len > PCM_BLOCK)
             render_len = PCM_BLOCK;
         
-        NEZRender(nezctx, pcm.buffer, render_len);
+        NEZRender(player.ctx, pcm.buffer, render_len);
         
         // 進めたサンプル分を引く
         left_len -= render_len;
@@ -436,14 +481,14 @@ static void audio_rt_out(int freq , int len)
             frames -= freq;
             sec++;
             
-            if (!debug)
+            if (!player.debug)
                 audio_info(sec, len);
         }
 
     }while(sec < len && !pcm.stop);
     
     
-    if (!debug)
+    if (!player.debug)
         printf("\n");
 
 }
@@ -459,7 +504,7 @@ static void audio_loop_file(const char *file, int freq , int len)
     int sec;
     int frames, total_frames;
 
-    if (!nezctx)
+    if (!player.ctx)
         return;
     
     // len = 5;
@@ -480,16 +525,14 @@ static void audio_loop_file(const char *file, int freq , int len)
     
     audio_write_wav_header(fp, freq, 0);
     
-    if (!debug)
+    if (!player.debug)
         audio_info(sec, len);
     
     do
     {
-        NEZRender(nezctx, pcm.buffer, PCM_BLOCK);
-        audio_volume(pcm.buffer, PCM_BLOCK, pcm.volume);
         
-        if (fade_is_running())
-            fade_stereo (pcm.buffer, PCM_BLOCK);
+        audio_make_samples(pcm.buffer, PCM_BLOCK);
+        
         
         if (fp)
             fwrite(pcm.buffer, PCM_BLOCK_BYTES, 1, fp);
@@ -503,7 +546,7 @@ static void audio_loop_file(const char *file, int freq , int len)
             frames -= freq;
             sec++;
             
-            if (!debug)
+            if (!player.debug)
                 audio_info(sec, len);
             
             /* フェーダーを起動する */
@@ -522,7 +565,7 @@ static void audio_loop_file(const char *file, int freq , int len)
     if (fp)
         fclose(fp);
     
-    if (!debug)
+    if (!player.debug)
         printf("\n");
 }
 
@@ -565,7 +608,7 @@ int get_length(const char *str)
 void usage(void)
 {
     printf(
-    "Usage %s [ options ...] <file>\n", PRGNAME);
+    "Usage %s [ options ...] <file>\n", PRG_NAME);
     
     printf(
     "\n"
@@ -576,7 +619,7 @@ void usage(void)
     "\n"
     " --rt         : RealTime output for real device\n"
     "\n"
-    " -n <no>      : Set song number\n"
+    " -n <num>      : Set song number\n"
     " -q <dir>     : Set driver's path\n"
     "\n"
     " -o <file>    : Generate an WAV file(PCM)\n"
@@ -590,6 +633,11 @@ void usage(void)
     " -r <file>    : Record a sound log\n"
     " -b           : Record a sound log without sound\n"
     "\n"
+    " --sub <file> : Sub slot song file\n"
+    " --subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
+    " --subnum <num> : Set song number for Sub slot\n"
+    "\n"
+
 #ifdef USE_FMGEN
     " -g          : Use FMGEN for OPM\n"
 #endif
@@ -610,12 +658,16 @@ int audio_main(int argc, char *argv[])
     char *drvpath = NULL;
     char *logfile = NULL;
     char *pcmfile = NULL;
+
+    char *subfile = NULL;
+    
     int opt;
     
     int rate   = 44100;
     int vol    = -1;
     int len    = 360;
     int songno = -1;
+    int songno_sub = -1;
     
     int log_mode = 0;
     int nosound = 0;
@@ -628,7 +680,12 @@ int audio_main(int argc, char *argv[])
     int turbo_mode = 0;
     int use_fmgen = 0;
     int rough_mode = 1;
+    
+    int result = 0;
 
+    // 初期化
+    memset(&player, 0, sizeof(player));
+    
 #ifdef _WIN32   
     freopen("CON", "wt", stdout);
     freopen("CON", "wt", stderr);
@@ -640,10 +697,10 @@ int audio_main(int argc, char *argv[])
     signal(SIGINT, audio_sig_handle);
     
     printf(
-        "NEZPLAY on SDL Version %s\n"
+        "%s on SDL Version %s\n"
         "Built at %s\n"
         "Ctrl-C to stop\n"
-           , NEZ_VER, __DATE__);
+           , PRG_NAME, PRG_VER, __DATE__);
 
 	// SetNSFExecPath(argv[0]);
 	
@@ -653,13 +710,18 @@ int audio_main(int argc, char *argv[])
         return 0;
     }
     
-    debug = 0;
+    player.debug = 0;
     pcm.volume = 1.0f;
+    pcm.mixvol = 1.0f;
     
     // 長いオプション
     struct option long_opts[] = {
      {"fine", 0, NULL, 0},
      {"rt", 0, NULL, 1},
+     {"sub", 1, NULL, 2},
+     {"subvol", 1, NULL, 3},
+     {"subnum", 1, NULL, 4},
+
      {"rough", 0, NULL, 'u'},
      {"rate", 1, NULL, 's'},
      {"len", 1, NULL,  'l'},
@@ -675,11 +737,20 @@ int audio_main(int argc, char *argv[])
     {
         switch (opt) 
         {
-        	case 0:
+        	case 0: // fineモード
         		rough_mode = 0;
         	break;
-            case 1:
+            case 1: // RealTime
                 rt_mode = 1;
+            break;
+            case 2: // sub slot
+                subfile = optarg;
+            break;
+            case 3: // mix volume
+                sscanf(optarg, "%f", &pcm.mixvol);
+                break;
+            case 4: // subnum
+                songno_sub = atoi(optarg);
             break;
             case 'a':
                 turbo_mode = 1;
@@ -733,11 +804,11 @@ int audio_main(int argc, char *argv[])
                 strictmode = 1;
                 break;
             case 'w':
-                nsf_verbose = 1;
+                player.verbose = 1;
                 break;
             case 't':
                 // NESAudioSetDebug(1);
-                debug = 1;
+                player.debug = 1;
                 break;
             case 'h':
             default:
@@ -764,9 +835,9 @@ int audio_main(int argc, char *argv[])
     
     LOGCTX *log_ctx = NULL;
     
-    nezctx = NEZNew();
-    nezctx->turbo = turbo_mode;
-    nezctx->use_fmgen = use_fmgen;
+    player.ctx = NEZNew();
+    player.ctx->turbo = turbo_mode;
+    player.ctx->use_fmgen = use_fmgen;
     
     pcm.on = 1;
     
@@ -817,21 +888,41 @@ int audio_main(int argc, char *argv[])
         if (rt_mode)
             printf("RealTime output mode\n");
         
-        nezctx->use_gmc = rt_mode;
-        nezctx->log_ctx = log_ctx;
+        player.ctx->use_gmc = rt_mode;
+        player.ctx->log_ctx = log_ctx;
+        
+        
+        printf("File:%s\n", playfile);
         
         // ファイルの読み出し
-        if (glue2_load_file(nezctx, playfile, rate, 2, vol, songno) < 0)
+        if (glue2_load_file(player.ctx, playfile, rate, 2, vol, songno) < 0)
         {
             printf("File open error : %s\n", playfile);
+            result = 1;
             
-            glue2_mem_free();
-            CloseLOG(log_ctx);
+            goto err_end;
+        }
+        
+        // サブファイルがある場合
+        if (subfile)
+        {
+            printf("Subfile:%s\n", subfile);
+
+            player.ctx2 = NEZNew();
+            player.ctx2->turbo = turbo_mode;
+            player.ctx2->use_fmgen = use_fmgen;
             
-            return 0;
+            // ファイルの読み出し
+            if (glue2_load_file(player.ctx2, subfile, rate, 2, vol, songno_sub) < 0)
+            {
+                printf("File open error : %s\n", subfile);
+                result = 1;
+
+                goto err_end;
+            }
         }
 
-        if (!debug)
+        if (!player.debug)
             printf("Freq = %d, SongNo = %d\n", rate, songno);
         
         // ループ実行
@@ -856,21 +947,35 @@ int audio_main(int argc, char *argv[])
         if (pcm.stop)
             break;
     }
+
+err_end:
+    if (log_ctx)
+    {
+        CloseLOG(log_ctx);
+        log_ctx = NULL;
+    }
     
     gimic_free();
     audio_free();
     
-    PRNDBG("NEZDelete\n");
+    PRNDBG("delete\n");
 
-    if (nezctx)
+    if (player.ctx2)
     {
-	    NEZDelete(nezctx);
-	    nezctx = NULL;
+        NEZDelete(player.ctx2);
+        player.ctx2 = NULL;
+    }
+
+    
+    if (player.ctx)
+    {
+	    NEZDelete(player.ctx);
+	    player.ctx = NULL;
     }
 
     PRNDBG("done\n");
 
-    return 0;
+    return result;
 }
 
 // disable SDLmain for win32 console app

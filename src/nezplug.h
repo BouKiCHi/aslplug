@@ -34,6 +34,12 @@ typedef struct NEZPLAY_TAG {
     int turbo;
     int use_fmgen;
     int use_gmc;
+
+    Int32 output2[2];
+    Int32 audio_filter;
+    
+    int LowPassFilterLevel;
+    int lowlevel;
     
 } NEZ_PLAY;
 
