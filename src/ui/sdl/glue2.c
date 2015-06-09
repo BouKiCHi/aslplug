@@ -8,7 +8,10 @@
 
 // for stat
 #include <sys/stat.h>
-#include "nezplug.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -121,16 +124,46 @@ void glue2_make_kss_header(
     glue2_write_byte(mem + 0x0f, ext_chip);
 }
 
-// ファイルの読み出し
-int glue2_read_file(byte *mem, long size, const char *file)
+
+// ファイルの読み出し(posまでスキップ)
+int glue2_read_file_pos(byte *mem, long size, const char *file, int pos)
 {
     FILE *fp = fopen(file, "rb");
     
     if (!fp)
         return -1;
     
+    if (pos > 0)
+    {
+        fseek(fp, pos, SEEK_SET);
+        size -= pos;
+    }
+    
     fread(mem, size, 1, fp);
+    
+    fclose(fp);
+    
+    return 0;
+}
 
+
+// ファイルの読み出し
+int glue2_read_file(byte *mem, long size, const char *file)
+{
+    return glue2_read_file_pos(mem, size, file, 0);
+}
+
+
+// ファイルの書き出し
+int glue2_write_file(byte *mem, long size, const char *file)
+{
+    FILE *fp = fopen(file, "wb");
+    
+    if (!fp)
+        return -1;
+
+    fwrite(mem, size, 1, fp);
+    
     fclose(fp);
     
     return 0;
@@ -153,8 +186,28 @@ char *glue2_get_seppos(char *dest)
 
 }
 
+
+// ファイル名を拡張子を変更してコピーする
+void glue2_change_ext(char *dest, const char *file, const char *ext)
+{
+    strcpy(dest, file);
+    
+    char *sep = strrchr(dest, '.');
+    
+    // セパレート文字がない場合は拡張子を追加する
+    if (!sep)
+    {
+        strcat(dest, ext);
+    }
+    else
+    {
+        strcpy(sep, ext);
+    }
+}
+
+
 // ファイル名からパスを作成する
-void glue2_make_path(char *dest, const char *dir,const char *name)
+void glue2_make_path(char *dest, const char *dir, const char *name)
 {
     strcpy(dest, dir);
 	
@@ -274,20 +327,20 @@ int glue2_read_mdr_song(const char *file)
     if (song_size & 0x3fff)
         song_banks++;
     
-
+    // メモリの確保
     glue_mem_ptr = malloc(size);
     memset(glue_mem_ptr, 0, size);
     
     // ヘッダ作成
     glue2_make_kss_header(
         glue_mem_ptr,
-        0x4000,
-        (int)drv_size,
-        0x4000,
-        0x4003,
-        0x04,
-        (int)song_banks,
-        0x20, // 独自拡張モード
+        0x4000, // ロードアドレス
+        (int)drv_size, // データサイズ
+        0x4000, // 初期化アドレス
+        0x4003, // 再生アドレス
+        0x04, // 開始バンク
+        (int)song_banks, // 終了バンク
+        0x20, // EXT 拡張モード
         0x81 // EXT2
     );
 
@@ -344,18 +397,142 @@ int glue2_read_nrd_song(const char *file)
 }
 
 
-// ファイルの読み込み
-int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, int songno)
+
+/*****************
+ MGS
+ ******************/
+
+// from mgs2kss
+static const unsigned char mgsdrv_init[0x100] =
 {
-    // TODO:ファイル拡張子の確認
-    // イメージの作成
+    /* FORCE FMPAC RYTHM MUTE */
+    0x3E,0x0E,      /* LD A,0EH */
+    0xD3,0x7C,      /* OUT(C),A */
+    0x3E,0x20,      /* LD A,020H */
+    0xD3,0x7D,      /* OUT(C),A */
     
+    /* INIT */
+    0xCD,0x10,0x60, /* CALL 06010H */
+    0x3E,0x01,      /* LD A,1 */
+    0xDD,0x77,0x00, /* LD (IX+0), A */
+    0xDD,0x77,0x01, /* LD (IX+1), A */
+    
+    /* SAVE POINTER TO WORK AREA */
+    0xDD,0x22,0xF0,0x7F, /* LD (07FF0H),IX */
+    
+    /* FORCE ACTIVATE SCC(MEGAROM MODE) */
+    0xAF,           /* XOR A */
+    0x32, 0xFE,0xBF,/* LD (0BFFEH), A */
+    0x3E, 0x3F,     /* LD A, 03FH */
+    0x32, 0x00,0x90,/* LD (09000H), A */
+    
+    /* PLAY */
+    0x11,0x00,0x02, /* LD DE,0200H */
+    0x06,0xFF,      /* LD B,0FFH */
+    0x60,           /* LD H,B */
+    0x68,           /* LD L,B */
+    0xCD,0x16,0x60, /* CALL 06016H */
+    
+    /* INIT FLAG */
+    0x3E,0x7F,      /* LD  A,07FH */
+    0xD3,0x40,      /* OUT (040H),A ; SEL EXT I/O */
+    0xAF,           /* XOR A */
+    0xD3,0x41,      /* OUT (041H),A ; STOP FLAG  */
+    0xD3,0x42,      /* OUT (042H),A ; LOOP COUNT */
+    0xD3,0x43,
+    0xD3,0x44,
+    
+    0xC9            /* RET */
+} ;
+
+// from mgs2kss
+static const unsigned char mgsdrv_play[0x100] =
+{
+    0xCD, 0x1F, 0x60,       /* CALL 0601FH */
+    0xDD, 0x2A, 0xF0, 0x7F, /* LD IX,(07FF0H) */
+    0xDD, 0x7E, 0x08,       /* LD A,(IX+8) ; */
+    0xFE, 0x00,             /* CP A,0 */
+    0x20, 0x04,             /* JR NZ,+04 */
+    0x3E, 0x01,
+    0xD3, 0x41,             /* OUT (041H),A */
+    0xDD, 0x7E, 0x05,       /* LD A,(IX+5) ; LOOP COUNTER */
+    0xD3, 0x42,             /* OUT (042H),A */
+    0xDD, 0x7E, 10,         /* LD A,(IX+10) ; @m ADDRESS(L) */
+    0xD3, 0x43,             /* OUT (043H),A */
+    0xDD, 0x7E, 11,         /* LD A,(IX+11) ; @m ADDRESS(H) */
+    0xD3, 0x44,             /* OUT (044H),A */
+    0xAF,                   /* XOR A */
+    0xDD,0x77,10,           /* LD (IX+10), A */
+    0xDD,0x77,11,           /* LD (IX+11), A */
+    0xC9                    /* RET */
+} ;
+
+
+// MGSを結合する
+int glue2_read_mgs_song(const char *file)
+{
+    
+    char *drv_name = "MGSDRV.COM";
+    char drv_path[1024];
+    
+    // ドライバファイルパスとサイズの取得
+    long drv_size = glue2_getpath(drv_path, file, drv_name);
+    
+    // 曲ファイルのサイズを取得
+    long song_size = glue2_get_filesize(file);
+    
+    // サイズがおかしい
+    if (song_size < 0 || drv_size < 0)
+        return -1;
+    
+    // ドライバの先頭 0x6000
+    // 初期化ルーチンの先頭 0x8000
+    // 初期化ルーチンのサイズ 0x200
+    // 0xF0 = ヘッダ開始アドレス
+    long size = 0x8000 + 0x200 - 0xF0;
+    
+    // メモリ確保
+    glue_mem_ptr = malloc(size);
+    memset(glue_mem_ptr, 0, size);
+    
+    // ヘッダ作成
+    glue2_make_kss_header(
+          glue_mem_ptr,
+          0x100, // ロードアドレス
+          (int)size, // データサイズ
+          0x8000, // 初期化アドレス
+          0x8100, // 再生アドレス
+          0x00, // 開始バンク
+          0x00, // 終了バンク
+          0x01, // EXT 拡張モード OPLL
+          0x00 // EXT2
+          );
+    
+    // ファイル読み込み
+    // MGSDRVは0x0dだけスキップする
+    glue2_read_file_pos(glue_mem_ptr + (0x6000 - 0xF0), drv_size, drv_path, 0x0D);
+    glue2_read_file(glue_mem_ptr + (0x200 - 0xF0), song_size, file);
+    
+    // ルーチンのコピー
+    memcpy(glue_mem_ptr + (0x8000 - 0xF0), mgsdrv_init, sizeof(mgsdrv_init));
+    memcpy(glue_mem_ptr + (0x8100 - 0xF0), mgsdrv_play, sizeof(mgsdrv_play));
+
+    
+    return (int)size;
+}
+
+
+//////////////////
+// ファイルの読み込み
+long glue2_load_file_body(const char *file)
+{
+    // イメージの作成
     glue2_mem_free();
     
     long size = 0;
     
     // 拡張子の検出
-    char *ext = strrchr(file,'.');
+    char *ext = strrchr(file, '.');
     
     // 拡張子の確認
     if (ext && strcasecmp(ext, ".mdr") == 0)
@@ -370,12 +547,49 @@ int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
         size = glue2_read_nrd_song(file);
     }
     else
+    if (ext && strcasecmp(ext, ".mgs") == 0)
+    {
+        // MGSファイルを読み出す
+        size = glue2_read_mgs_song(file);
+    }
+    else
     {
         // 通常イメージ
         size = glue2_read_normal_image(file);
     }
-    
+
     // サイズが異常(エラー)
+    if (size < 0)
+        return -1;
+    
+    return size;
+}
+
+// ファイルの作成
+int glue2_make_binary(const char *infile, const char *outfile)
+{
+    long size = 0;
+    
+    size = glue2_load_file_body(infile);
+    
+    if (size < 0)
+        return -1;
+
+    glue2_write_file(glue_mem_ptr, size, outfile);
+    
+    return 0;
+}
+
+
+#ifndef NOUSE_NEZ
+
+// ファイルの読み込み
+int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, int songno)
+{
+    long size = 0;
+    
+    size = glue2_load_file_body(file);
+    
     if (size < 0)
         return -1;
     
@@ -394,7 +608,8 @@ int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, 
 
     // メモリを開放する
     glue2_mem_free();
-
     
     return 0;
 }
+
+#endif
