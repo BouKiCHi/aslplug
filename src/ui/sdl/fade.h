@@ -28,7 +28,8 @@ static void fade_start( int rate , int sec )
 	
 }
 
-static void fade_stereo ( short *data , int len )
+// フェードアウト本体
+static void fade_stereo(short *data, int len)
 {
 	// stereo
 	int i = 0;
@@ -51,9 +52,10 @@ static void fade_stereo ( short *data , int len )
 	}
 }
 
-static int fade_is_running ( void )
+// フェードアウト実行中であれば1
+static int fade_is_running(void)
 {
-	if ( fade.count > 0 || fade.volume == 0 )
+	if (fade.count > 0 || fade.volume == 0)
 		return 1;
 	
 	return 0;

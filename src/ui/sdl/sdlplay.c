@@ -70,7 +70,6 @@ static struct pcm_struct
 
 #define PRNDBG(xx) if (player.verbose) printf(xx)
 
-#include "fade.h"
 
 #ifndef WIN32
 void _sleep(int val)
@@ -270,68 +269,8 @@ static void audio_info(int sec, int len)
     fflush(stdout);
 }
 
-// audio_volume : 音量増幅
-static void audio_volume(short *data, int len, float volume)
-{
-    // stereo
-    int i = 0;
-    for (i = 0; i < len * 2; i++)
-    {
-        double s = 0;
 
-        s = ((double)data[i]) * volume;
-        
-        if (s < -0x7fff)
-            s = -0x7fff;
-        if (s > 0x7fff)
-            s = 0x7fff;
-        
-        data[i] = (short)s;
-    }
-}
-
-// audio_mix : サンプル加算
-static void audio_mix(short *dest, short *in, int len, float volume)
-{
-    // stereo
-    int i = 0;
-    for (i = 0; i < len * 2; i++)
-    {
-        double s = 0;
-        
-        s = ((double)in[i] * volume);
-
-        if (s < -0x7fff)
-            s = -0x7fff;
-        if (s > 0x7fff)
-            s = 0x7fff;
-        
-        dest[i] += s;
-    }
-}
-
-
-// サンプル生成をする
-static void audio_make_samples(short *buf, int len)
-{
-    NEZRender(player.ctx, buf, len);
-    audio_volume(buf, len, pcm.volume);
-    
-    // サブチャンネル
-    if (player.ctx2)
-    {
-        NEZRender(player.ctx2, pcm.mixbuf, len);
-        audio_mix(buf, pcm.mixbuf, len, pcm.mixvol);
-    }
-    
-    // フェード機能
-    if (fade_is_running())
-        fade_stereo(buf, len);
-
-}
-
-
-// audio_loop : 再生時にループする
+// audio_loop : SDLオーディオへの出力
 // freq : 再生周波数
 // len : 長さ(秒)
 static void audio_loop(int freq, int len)
@@ -340,13 +279,10 @@ static void audio_loop(int freq, int len)
     
     int frames;
     int total_frames;
+    
+    int update_info = 1;
 
     // len = 5;
-    
-    if (!player.ctx)
-        return;
-
-    fade_init();
     
     sec = 
     frames =
@@ -357,12 +293,15 @@ static void audio_loop(int freq, int len)
         SDL_PauseAudio(1);
         return;
     }
-
-    if (!player.debug)
-        audio_info(sec, len);
     
     do
     {
+        if (!player.debug && update_info)
+        {
+            audio_info(sec, len);
+            update_info = 0;
+        }
+        
         __sync_synchronize();
         // 書き込み可能になるのを待つ
         while(pcm.count > PCM_WAIT_SIZE)
@@ -378,8 +317,7 @@ static void audio_loop(int freq, int len)
         }
     
         // サンプル生成
-        audio_make_samples(pcm.buffer + pcm.write, PCM_BLOCK);
-
+        glue2_make_samples(pcm.buffer + pcm.write, PCM_BLOCK);
 
         pcm.write += PCM_BLOCK_SIZE;
         pcm.count += PCM_BLOCK_SIZE;
@@ -391,19 +329,21 @@ static void audio_loop(int freq, int len)
         total_frames += PCM_BLOCK;
         
         /* 今までのフレーム数が一秒以上なら秒数カウントを進める */
-        while(frames >= freq)
+        if (frames >= freq)
         {
-            frames -= freq;
-            sec++;
-            
-            if (!player.debug)
-                audio_info(sec, len);
-            
-            /* フェーダーを起動する */
-            if ( sec >= ( len - 3 ) )
+            update_info = 1;
+
+            while(frames >= freq)
             {
-                if (!fade_is_running())
-                    fade_start(freq, 1);
+                frames -= freq;
+                sec++;
+            }
+            
+            
+            /* 3秒前ならフェーダーを起動する */
+            if (sec >= ( len - 3 ))
+            {
+                glue2_start_fade();
             }
         }
 
@@ -424,10 +364,12 @@ static void audio_loop(int freq, int len)
 // audio_rt_out : データをリアルタイム出力する
 // freq : 再生周波数
 // len : 長さ(秒)
-static void audio_rt_out(int freq , int len)
+static void audio_rt_out(int freq, int len)
 {
     int sec;
     int frames, total_frames;
+    
+    int update_info = 1;
 
     // 経過秒数に対するサンプル数
     double left_len = 0;
@@ -439,11 +381,17 @@ static void audio_rt_out(int freq , int len)
     if (!player.ctx)
         return;
     
-    if (!player.debug)
-        audio_info(sec, len);
-    
     do
     {
+        // 情報出力
+        if (update_info)
+        {
+            if (!player.debug)
+                audio_info(sec, len);
+
+            update_info = 0;
+        }
+        
         // 生成可能サンプル数が1バイト未満なら待つ
         if (left_len < 1)
         {
@@ -481,8 +429,7 @@ static void audio_rt_out(int freq , int len)
             frames -= freq;
             sec++;
             
-            if (!player.debug)
-                audio_info(sec, len);
+            update_info = 1;
         }
 
     }while(sec < len && !pcm.stop);
@@ -503,13 +450,10 @@ static void audio_loop_file(const char *file, int freq , int len)
 
     int sec;
     int frames, total_frames;
-
-    if (!player.ctx)
-        return;
+    
+    int update_info = 1;
     
     // len = 5;
-
-    fade_init();
     
     sec = frames = total_frames = 0;
     
@@ -525,14 +469,18 @@ static void audio_loop_file(const char *file, int freq , int len)
     
     audio_write_wav_header(fp, freq, 0);
     
-    if (!player.debug)
-        audio_info(sec, len);
-    
     do
     {
+        if (update_info)
+        {
+            if (!player.debug)
+                audio_info(sec, len);
+            
+            update_info = 0;
+        }
         
-        audio_make_samples(pcm.buffer, PCM_BLOCK);
-        
+
+        glue2_make_samples(pcm.buffer, PCM_BLOCK);
         
         if (fp)
             fwrite(pcm.buffer, PCM_BLOCK_BYTES, 1, fp);
@@ -541,23 +489,23 @@ static void audio_loop_file(const char *file, int freq , int len)
         total_frames += PCM_BLOCK;
         
         /* 今までのフレーム数が一秒以上なら秒数カウントを進める */
-        while(frames >= freq)
+        if (frames >= freq)
         {
-            frames -= freq;
-            sec++;
+            while(frames >= freq)
+            {
+                frames -= freq;
+                sec++;
+            }
             
-            if (!player.debug)
-                audio_info(sec, len);
+            update_info = 1;
+            
             
             /* フェーダーを起動する */
             if (sec >= (len - 3))
-            {
-                if (!fade_is_running())
-                    fade_start(freq, 1);
-            }
+                glue2_start_fade();
         }
 
-    }while( sec < len && !pcm.stop );
+    }while(sec < len && !pcm.stop);
     
     audio_write_wav_header(fp, freq,
         total_frames * PCM_CH * PCM_BYTE_PER_SAMPLE);
@@ -664,7 +612,6 @@ int audio_main(int argc, char *argv[])
     int opt;
     
     int rate   = 44100;
-    int vol    = -1;
     int len    = 360;
     int songno = -1;
     int songno_sub = -1;
@@ -743,10 +690,10 @@ int audio_main(int argc, char *argv[])
             case 1: // RealTime
                 rt_mode = 1;
             break;
-            case 2: // sub slot
+            case 2: // サブスロット ファイル
                 subfile = optarg;
             break;
-            case 3: // mix volume
+            case 3: // サブスロット　合成音量
                 sscanf(optarg, "%f", &pcm.mixvol);
                 break;
             case 4: // subnum
@@ -761,7 +708,7 @@ int audio_main(int argc, char *argv[])
             case '9':
                 s98mode = 1;
                 break;
-            case 'q':
+            case 'q': // ドライバパス
                 drvpath = optarg;
                 break;
             case 'b':
@@ -776,24 +723,24 @@ int audio_main(int argc, char *argv[])
             case 'p':
                 nosound = 1;
                 break;
-            case 'z':
+            case 'z': // N163モード
                 n163mode = 1;
             break;
-            case 's':
+            case 's': // サンプリング周波数
                 rate = atoi(optarg);
                 break;
-            case 'n':
+            case 'n': // 曲選択
                 songno = atoi(optarg);
                 break;
-            case 'v':
+            case 'v': // volume
                 sscanf(optarg, "%f", &pcm.volume);
                 break;
-            case 'u':
+            case 'u': // ラフモード
                 rough_mode = 1;
                 break;
-            case 'd':
+            case 'd': // デバッグ
                 break;
-            case 'o':
+            case 'o': // PCMファイル出力
                 pcmfile = optarg;
                 nosound = 1;
                 break;
@@ -817,12 +764,18 @@ int audio_main(int argc, char *argv[])
         }
     }
     
+    // サンプリング周波数の下限
     if (rate < 8000)
         rate = 8000;
     
+    // ドライバパスの設定
     if (drvpath)
+    {
+        printf("DriverPath:%s\n", drvpath);
         glue2_set_driver_path(drvpath);
-
+    }
+    
+    // 実行パスの設定
     glue2_set_exec_path(argv[0]);
     
     if (audio_init(rate))
@@ -831,13 +784,16 @@ int audio_main(int argc, char *argv[])
         return 1;
     }
     
+    // C86初期化
     c86x_init();
     
+    // glue2初期化
+    glue2_init();
+
+    struct glue2_setting gs;
+    memset(&gs, 0, sizeof(gs));
+
     LOGCTX *log_ctx = NULL;
-    
-    player.ctx = NEZNew();
-    player.ctx->turbo = turbo_mode;
-    player.ctx->use_fmgen = use_fmgen;
     
     pcm.on = 1;
     
@@ -887,15 +843,27 @@ int audio_main(int argc, char *argv[])
         
         if (rt_mode)
             printf("RealTime output mode\n");
+
         
-        player.ctx->use_gmc = rt_mode;
-        player.ctx->log_ctx = log_ctx;
+        // 最低限必要な設定
+        gs.freq = rate;
+        gs.ch = 2;
+        gs.songno = songno;
+        gs.vol = pcm.volume;
         
+        // オプショナル
+        gs.turbo = turbo_mode;
+        gs.use_fmgen = use_fmgen;
+
+        // その他
+        gs.use_gmc = rt_mode;
+        gs.log_ctx = log_ctx;
         
         printf("File:%s\n", playfile);
         
+        
         // ファイルの読み出し
-        if (glue2_load_file(player.ctx, playfile, rate, 2, vol, songno) < 0)
+        if (glue2_load_file(playfile, 0, &gs) < 0)
         {
             printf("File open error : %s\n", playfile);
             result = 1;
@@ -908,12 +876,12 @@ int audio_main(int argc, char *argv[])
         {
             printf("Subfile:%s\n", subfile);
 
-            player.ctx2 = NEZNew();
-            player.ctx2->turbo = turbo_mode;
-            player.ctx2->use_fmgen = use_fmgen;
+            
+            gs.songno = songno_sub;
+            gs.vol = pcm.mixvol;
             
             // ファイルの読み出し
-            if (glue2_load_file(player.ctx2, subfile, rate, 2, vol, songno_sub) < 0)
+            if (glue2_load_file(subfile, 1, &gs) < 0)
             {
                 printf("File open error : %s\n", subfile);
                 result = 1;
@@ -957,24 +925,9 @@ err_end:
     
     c86x_free();
     audio_free();
+
+    glue2_free();
     
-    PRNDBG("delete\n");
-
-    if (player.ctx2)
-    {
-        NEZDelete(player.ctx2);
-        player.ctx2 = NULL;
-    }
-
-    
-    if (player.ctx)
-    {
-	    NEZDelete(player.ctx);
-	    player.ctx = NULL;
-    }
-
-    PRNDBG("done\n");
-
     return result;
 }
 

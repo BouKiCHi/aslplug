@@ -25,7 +25,9 @@ typedef unsigned short word;
 #define PATH_DEFSEP PATH_SEP
 #endif
 
+#include "fade.h"
 
+#define MAX_GLUE2_TRACK 2
 
 // KSSNRT
 unsigned char _kssnrt_bin[]=
@@ -46,11 +48,62 @@ unsigned char _kssnrt_bin[]=
 int _kssnrt_len = 81;
 
 
+#define PCM_BLOCK_SIZE 8192
+
+struct struct_glue2_main
+{
+#ifdef NOUSE_NEZ
+    void *ctx[MAX_GLUE2_TRACK];
+#else
+    NEZ_PLAY *ctx[MAX_GLUE2_TRACK];
+#endif
+    struct glue2_setting setting[MAX_GLUE2_TRACK];
+    
+    short mixbuf[PCM_BLOCK_SIZE];
+    
+} g2;
+
 
 // メモリポインタ
 byte *glue_mem_ptr = NULL;
 char glue_exec_path[1024] = "";
 char glue_driver_path[1024] = "";
+
+
+// 初期化
+void glue2_init(void)
+{
+    memset(&g2, sizeof(g2), 0);
+}
+
+// 終了
+void glue2_free(void)
+{
+#ifndef NOUSE_NEZ
+    int i = 0;
+    
+    for(i = 0; i < MAX_GLUE2_TRACK; i++)
+    {
+        if (g2.ctx[i])
+        {
+            NEZDelete(g2.ctx[i]);
+            g2.ctx[i] = NULL;
+        }
+    }
+#endif
+}
+
+
+// フェード開始
+void glue2_start_fade(void)
+{
+    if (fade_is_running())
+        return;
+    
+    if (g2.ctx[0])
+        fade_start(g2.setting[0].freq, 1);
+}
+
 
 // ファイルサイズの取得
 long glue2_get_filesize(const char *file)
@@ -64,7 +117,7 @@ long glue2_get_filesize(const char *file)
 }
 
 // イメージ用メモリの開放
-void glue2_mem_free()
+void glue2_mem_free(void)
 {
     if (glue_mem_ptr)
     {
@@ -396,8 +449,6 @@ int glue2_read_nrd_song(const char *file)
     return (int)size;
 }
 
-
-
 /*****************
  MGS
  ******************/
@@ -565,7 +616,7 @@ long glue2_load_file_body(const char *file)
     return size;
 }
 
-// ファイルの作成
+// バッファよりファイルの作成
 int glue2_make_binary(const char *infile, const char *outfile)
 {
     long size = 0;
@@ -581,35 +632,138 @@ int glue2_make_binary(const char *infile, const char *outfile)
 }
 
 
+// 音量増幅
+static void glue2_audio_volume(short *data, int len, float volume)
+{
+    // stereo
+    int i = 0;
+    for (i = 0; i < len * 2; i++)
+    {
+        double s = 0;
+        
+        s = ((double)data[i]) * volume;
+        
+        if (s < -0x7fff)
+            s = -0x7fff;
+        if (s > 0x7fff)
+            s = 0x7fff;
+        
+        data[i] = (short)s;
+    }
+}
+
+// サンプル加算合成
+static void glue2_audio_mix(short *dest, short *in, int len, float volume)
+{
+    // stereo
+    int i = 0;
+    for (i = 0; i < len * 2; i++)
+    {
+        double s = 0;
+        
+        s = ((double)in[i] * volume);
+        
+        if (s < -0x7fff)
+            s = -0x7fff;
+        if (s > 0x7fff)
+            s = 0x7fff;
+        
+        dest[i] += s;
+    }
+}
+
+// サンプル生成
+void glue2_make_samples(short *buf, int len)
+{
+#ifdef NOUSE_NEZ
+    memset(buf, 0, len * 4);
+    return;
+#else
+    
+    NEZRender(g2.ctx[0], buf, len);
+    glue2_audio_volume(buf, len, g2.setting[0].vol);
+    
+    // サブチャンネル
+    if (g2.ctx[1])
+    {
+        NEZRender(g2.ctx[1], g2.mixbuf, len);
+        glue2_audio_mix(buf, g2.mixbuf, len, g2.setting[1].vol);
+    }
+    
+    // フェード機能
+    if (fade_is_running())
+        fade_stereo(buf, len);
+#endif
+    
+}
+
+
 #ifndef NOUSE_NEZ
 
 // ファイルの読み込み
-int glue2_load_file(NEZ_PLAY *ctx, const char *file, int freq, int ch, int vol, int songno)
+int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
 {
     long size = 0;
+    
+    if (track >= MAX_GLUE2_TRACK)
+        return -1;
+    
+    // NEZ本体を初期化する
+    if (!g2.ctx[track])
+    {
+        NEZ_PLAY *tmp_ctx = NEZNew();
+        
+        if (!tmp_ctx)
+            return -1;
+        
+        g2.ctx[track] = tmp_ctx;
+    }
+
+    // 設定を保存する
+    g2.setting[track] = *gs;
+
+    // コンテキストに1部を受け渡す
+    g2.ctx[track]->use_gmc = gs->use_gmc;
+    g2.ctx[track]->log_ctx = gs->log_ctx;
+    g2.ctx[track]->turbo = gs->turbo;
+    g2.ctx[track]->use_fmgen = gs->use_fmgen;
     
     size = glue2_load_file_body(file);
     
     if (size < 0)
         return -1;
     
+    gs->track_id = track;
+    
     // NEZ本体にメモリなどを渡す
-    NEZLoad(ctx, glue_mem_ptr, (Uint)size);
+    NEZLoad(g2.ctx[track], glue_mem_ptr, (Uint)size);
     
     memset(glue_mem_ptr, 0, size);
     
-    NEZSetFrequency(ctx, freq);
-    NEZSetChannel(ctx, ch);
+    NEZSetFrequency(g2.ctx[track], gs->freq);
+    NEZSetChannel(g2.ctx[track], gs->ch);
     
-    if (songno >= 0)
-        NEZSetSongNo(ctx, songno);
+    if (gs->songno >= 0)
+        NEZSetSongNo(g2.ctx[track], gs->songno);
     
-    NEZReset(ctx);
+    NEZReset(g2.ctx[track]);
+    
+    fade_init();
 
     // メモリを開放する
     glue2_mem_free();
     
     return 0;
 }
+
+void glue2_close(int track)
+{
+    if (g2.ctx[track])
+    {
+        NEZDelete(g2.ctx[track]);
+        g2.ctx[track] = NULL;
+    }
+}
+
 
 #endif
