@@ -65,6 +65,7 @@ void CloseLOG(LOGCTX *ctx)
     }
 }
 
+// S98のIDに変換する
 static int convS98Type(int type)
 {
     switch(type)

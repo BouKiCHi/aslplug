@@ -20,7 +20,7 @@ static void fade_init ()
 	fade.volume = 1;
 }
 
-static void fade_start( int rate , int sec )
+static void fade_start(int rate, int sec)
 {
 	fade.count = rate * sec;
 	fade.step = ((float)1)/fade.count;

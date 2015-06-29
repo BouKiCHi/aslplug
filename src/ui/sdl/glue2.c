@@ -101,7 +101,7 @@ void glue2_start_fade(void)
         return;
     
     if (g2.ctx[0])
-        fade_start(g2.setting[0].freq, 1);
+        fade_start(g2.setting[0].freq, 3);
 }
 
 
@@ -672,14 +672,12 @@ static void glue2_audio_mix(short *dest, short *in, int len, float volume)
     }
 }
 
+#ifndef NOUSE_NEZ
+
+
 // サンプル生成
 void glue2_make_samples(short *buf, int len)
 {
-#ifdef NOUSE_NEZ
-    memset(buf, 0, len * 4);
-    return;
-#else
-    
     NEZRender(g2.ctx[0], buf, len);
     glue2_audio_volume(buf, len, g2.setting[0].vol);
     
@@ -693,12 +691,8 @@ void glue2_make_samples(short *buf, int len)
     // フェード機能
     if (fade_is_running())
         fade_stereo(buf, len);
-#endif
-    
 }
 
-
-#ifndef NOUSE_NEZ
 
 // ファイルの読み込み
 int glue2_load_file(const char *file, int track, struct glue2_setting *gs)

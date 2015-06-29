@@ -27,27 +27,45 @@ struct glue2_setting
     void *log_ctx;
 };
 
+// 初期化
 void glue2_init(void);
+// 終了
 void glue2_free(void);
 
+
+// メモリ開放
 void glue2_mem_free(void);
+
+// 実行パスの設定
 void glue2_set_exec_path(const char *path);
+
+// ドライバパスの設定
 void glue2_set_driver_path(const char *path);
 
+
+// 拡張子をextに変更する
+// ext = ".abc"
 void glue2_change_ext(char *dest, const char *file, const char *ext);
+
+// バイナリ出力生成
 int glue2_make_binary(const char *infile, const char *outfile);
 
 // フェードアウト開始
 void glue2_start_fade(void);
 
-// サンプル生成
-void glue2_make_samples(short *buf, int len);
+
 
 #ifndef NOUSE_NEZ
 
 #include "nezplug.h"
 
+// サンプル生成 / len = フレーム数
+void glue2_make_samples(short *buf, int len);
+
+// ファイル読み出し
 int glue2_load_file(const char *file, int track, struct glue2_setting *gs);
+
+// ファイルクローズ
 void glue2_close(int track);
 
 #endif

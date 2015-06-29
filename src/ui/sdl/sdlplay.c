@@ -31,7 +31,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2015-06-09"
+#define PRG_VER "2015-06-30"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
@@ -339,16 +339,15 @@ static void audio_loop(int freq, int len)
                 sec++;
             }
             
-            
-            /* 3秒前ならフェーダーを起動する */
-            if (sec >= ( len - 3 ))
+            /* 終了より3秒以内であればフェーダーを起動する */
+            if (sec >= (len - 3))
             {
                 glue2_start_fade();
             }
         }
 
 
-    }while(sec < len && !pcm.stop );
+    }while(sec < len && !pcm.stop);
     
     if (!player.debug)
         printf("\n");
@@ -415,7 +414,7 @@ static void audio_rt_out(int freq, int len)
         if (render_len > PCM_BLOCK)
             render_len = PCM_BLOCK;
         
-        NEZRender(player.ctx, pcm.buffer, render_len);
+        glue2_make_samples(pcm.buffer, render_len);
         
         // 進めたサンプル分を引く
         left_len -= render_len;
@@ -629,6 +628,9 @@ int audio_main(int argc, char *argv[])
     int rough_mode = 1;
     
     int result = 0;
+    
+    float volume_main = 1;
+    float volume_sub = 1;
 
     // 初期化
     memset(&player, 0, sizeof(player));
@@ -658,8 +660,6 @@ int audio_main(int argc, char *argv[])
     }
     
     player.debug = 0;
-    pcm.volume = 1.0f;
-    pcm.mixvol = 1.0f;
     
     // 長いオプション
     struct option long_opts[] = {
@@ -694,7 +694,7 @@ int audio_main(int argc, char *argv[])
                 subfile = optarg;
             break;
             case 3: // サブスロット　合成音量
-                sscanf(optarg, "%f", &pcm.mixvol);
+                sscanf(optarg, "%f", &volume_sub);
                 break;
             case 4: // subnum
                 songno_sub = atoi(optarg);
@@ -732,8 +732,8 @@ int audio_main(int argc, char *argv[])
             case 'n': // 曲選択
                 songno = atoi(optarg);
                 break;
-            case 'v': // volume
-                sscanf(optarg, "%f", &pcm.volume);
+            case 'v': // メイン音量
+                sscanf(optarg, "%f", &volume_main);
                 break;
             case 'u': // ラフモード
                 rough_mode = 1;
@@ -744,7 +744,7 @@ int audio_main(int argc, char *argv[])
                 pcmfile = optarg;
                 nosound = 1;
                 break;
-            case 'l':
+            case 'l': // 曲の長さ
                 len = get_length(optarg);
                 break;
             case 'x':
@@ -806,10 +806,13 @@ int audio_main(int argc, char *argv[])
         // ログモードの設定
         if (log_mode)
         {
+            // 拡張子
             char *log_ext = NLG_EXT;
+            
             if (s98mode)
                 log_ext = S98_EXT;
-            
+
+            // 同じディレクトリに出力
             if (log_mode == NLG_SAMEPATH)
             {
                 strcpy(log_path, playfile);
@@ -849,7 +852,7 @@ int audio_main(int argc, char *argv[])
         gs.freq = rate;
         gs.ch = 2;
         gs.songno = songno;
-        gs.vol = pcm.volume;
+        gs.vol = volume_main;
         
         // オプショナル
         gs.turbo = turbo_mode;
@@ -859,7 +862,7 @@ int audio_main(int argc, char *argv[])
         gs.use_gmc = rt_mode;
         gs.log_ctx = log_ctx;
         
-        printf("File:%s\n", playfile);
+        printf("File : %s\n", playfile);
         
         
         // ファイルの読み出し
@@ -874,11 +877,11 @@ int audio_main(int argc, char *argv[])
         // サブファイルがある場合
         if (subfile)
         {
-            printf("Subfile:%s\n", subfile);
+            printf("Subfile : %s\n", subfile);
 
             
             gs.songno = songno_sub;
-            gs.vol = pcm.mixvol;
+            gs.vol = volume_sub;
             
             // ファイルの読み出し
             if (glue2_load_file(subfile, 1, &gs) < 0)
