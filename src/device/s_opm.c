@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 
-#ifdef USE_GMCDRV
+#ifdef USE_C86XDRV
 #include "gmcdrv.h"
 #endif
 
@@ -87,9 +87,9 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->opm_addr, v);
 
-#ifdef USE_GMCDRV
+#ifdef USE_C86XDRV
             if (sndp->kmif.output_device & OUT_EXT)
-                gimic_write(sndp->map_opm, sndp->opm_addr, v);
+                c86x_write(sndp->map_opm, sndp->opm_addr, v);
 #endif
             if (sndp->kmif.output_device & OUT_INT)
             	YM2151WriteReg(sndp->opm_ctx, sndp->opm_addr, v);
@@ -113,9 +113,9 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     sndp->opm_ctx = YM2151Init(1, bc, freq);
     YM2151ResetChip(sndp->opm_ctx);
     
-#ifdef USE_GMCDRV
-    gimic_reset(sndp->map_opm);
-    gimic_setPLL(sndp->map_opm, bc);
+#ifdef USE_C86XDRV
+    c86x_reset(sndp->map_opm);
+    c86x_setPLL(sndp->map_opm, bc);
 #endif
 
     if (sndp->mask)
@@ -178,8 +178,8 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int count)
     
     // sndp->kmif.setmask = setmask;
 	
-#ifdef USE_GMCDRV
-    sndp->map_opm = gimic_getchip(GMCDRV_OPM, count);
+#ifdef USE_C86XDRV
+    sndp->map_opm = c86x_getchip(C86XDRV_OPM, count);
 #endif
     
 	return &sndp->kmif;

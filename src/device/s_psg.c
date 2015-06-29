@@ -3,7 +3,7 @@
 #include "s_logtbl.h"
 #include "s_psg.h"
 
-#ifdef USE_GMCDRV
+#ifdef USE_C86XDRV
 #include "gmcdrv.h"
 #endif
 
@@ -451,9 +451,9 @@ static void sndwrite(void *ctx, Uint32 a, Uint32 v)
             if (sndp->kmif.logwrite)
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
 
-#ifdef USE_GMCDRV
+#ifdef USE_C86XDRV
             if (sndp->kmif.output_device & OUT_EXT)
-                gimic_write(sndp->map_psg, sndp->common.adr, v);
+                c86x_write(sndp->map_psg, sndp->common.adr, v);
 #endif
 
             if (sndp->kmif.output_device & OUT_INT)
@@ -504,13 +504,13 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
 	PSGSoundSquareReset(&sndp->square[2], clock, freq);
 	MSXSoundDaReset(&sndp->da, clock, freq);
     
-#ifdef USE_GMCDRV
-    gimic_reset(sndp->map_psg);
+#ifdef USE_C86XDRV
+    c86x_reset(sndp->map_psg);
     
-    if (sndp->map_type == GMCDRV_OPNA)
+    if (sndp->map_type == C86XDRV_OPNA)
     {
-        gimic_setPLL(sndp->map_psg, 7987200);
-        gimic_setSSGvol(sndp->map_psg, 63);   
+        c86x_setPLL(sndp->map_psg, 7987200);
+        c86x_setSSGvol(sndp->map_psg, 63);   
     }
 #endif
     
@@ -575,14 +575,14 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 		return 0;
 	}
     
-#ifdef USE_GMCDRV
-    sndp->map_type = GMCDRV_OPN3L;
-    sndp->map_psg = gimic_getchip(sndp->map_type, 0);
+#ifdef USE_C86XDRV
+    sndp->map_type = C86XDRV_OPN3L;
+    sndp->map_psg = c86x_getchip(sndp->map_type, 0);
     
     if (sndp->map_psg < 0)
     {
-        sndp->map_type = GMCDRV_OPNA;
-        sndp->map_psg = gimic_getchip(sndp->map_type, 0);
+        sndp->map_type = C86XDRV_OPNA;
+        sndp->map_psg = c86x_getchip(sndp->map_type, 0);
     }
 #endif
     

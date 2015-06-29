@@ -608,7 +608,7 @@ int get_length(const char *str)
 void usage(void)
 {
     printf(
-    "Usage %s [ options ...] <file>\n", PRG_NAME);
+    "Usage %s [options ...] <file>\n", PRG_NAME);
     
     printf(
     "\n"
@@ -619,7 +619,7 @@ void usage(void)
     "\n"
     " --rt         : RealTime output for real device\n"
     "\n"
-    " -n <num>      : Set song number\n"
+    " -n <num>     : Set song number\n"
     " -q <dir>     : Set driver's path\n"
     "\n"
     " -o <file>    : Generate an WAV file(PCM)\n"
@@ -633,7 +633,7 @@ void usage(void)
     " -r <file>    : Record a sound log\n"
     " -b           : Record a sound log without sound\n"
     "\n"
-    " --sub <file> : Sub slot song file\n"
+    " --sub <file>   : Sub slot song file\n"
     " --subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
     " --subnum <num> : Set song number for Sub slot\n"
     "\n"
@@ -831,7 +831,7 @@ int audio_main(int argc, char *argv[])
         return 1;
     }
     
-    gimic_init();
+    c86x_init();
     
     LOGCTX *log_ctx = NULL;
     
@@ -955,7 +955,7 @@ err_end:
         log_ctx = NULL;
     }
     
-    gimic_free();
+    c86x_free();
     audio_free();
     
     PRNDBG("delete\n");

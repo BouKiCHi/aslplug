@@ -1,5 +1,5 @@
 /*
- GIMIC driver for nezplay asl
+ C86 driver for nezplay asl
  2015-04-22 ver 0.11
  m88 GIMIC対応版のソースを多いに参考にさせていただきましたが、
  BSDライセンスということで一つよろしくお願いいたします。BouKiCHi
@@ -15,7 +15,7 @@
 static HMODULE			g_mod = 0;
 static IRealChipBase	*g_chipbase = 0;
 
-struct GMCDRV
+struct C86XDRV
 {
 	IGimic *gimic;
 	IRealChip *chip;
@@ -26,8 +26,8 @@ struct GMCDRV
 // 最大モジュール数
 #define MAX_GMCMOD 8
 
-static GMCDRV gmcdrv[MAX_GMCMOD];
-static int gmcdrv_count = 0;
+static C86XDRV c86xdrv[MAX_GMCMOD];
+static int c86x_count = 0;
 
 
 // DLLの呼び出し
@@ -93,7 +93,7 @@ static void FreeDLL()
 //
 
 // デバイス名の確認と追加
-static int gimic_check_devname(IGimic *gimic, IRealChip *chip,
+static int c86x_check_devname(IGimic *gimic, IRealChip *chip,
             const char *devname, const char *gmc_id, int chiptype)
 {
     if (strcmp(devname, gmc_id) == 0)
@@ -103,41 +103,39 @@ static int gimic_check_devname(IGimic *gimic, IRealChip *chip,
         
         
         // インターフェースの設定
-        int pos = gmcdrv_count;
+        int pos = c86x_count;
         
-        gmcdrv[pos].gimic = gimic;
-        gmcdrv[pos].chip = chip;
-        gmcdrv[pos].type = chiptype;
+        c86xdrv[pos].gimic = gimic;
+        c86xdrv[pos].chip = chip;
+        c86xdrv[pos].type = chiptype;
         chip->reset();
         
-        gmcdrv_count++;
+        c86x_count++;
     }
     // 最大個数に達した場合は終了
 
-    if (gmcdrv_count >= MAX_GMCMOD)
+    if (c86x_count >= MAX_GMCMOD)
         return -1;
     
     return 0;
 }
 
 // 初期化する
-int gimic_init()
+int c86x_init()
 {
 	int i = 0;
-
-    ::printf("gimic_init()\n");
 
 	if (!LoadDLL())
 		return -1;
 		
 	// 初期化
-	gmcdrv_count = 0;
-	memset(gmcdrv, 0, sizeof(gmcdrv));
+	c86x_count = 0;
+	memset(c86xdrv, 0, sizeof(c86xdrv));
 	
 	// チップの個数を得る
 	int numOfChips = g_chipbase->getNumberOfChip();
 
-    ::printf("numOfChips:%d\n", numOfChips);
+    // ::printf("numOfChips:%d\n", numOfChips);
     
     // チップの個数分、繰り返す
 	for (i = 0; i < numOfChips; i++) 
@@ -159,60 +157,60 @@ int gimic_init()
         strncpy(devname, info.Devname, len);
         devname[len] = 0x00;
         
-        ::printf("Module:%s\n", devname);
+        // ::printf("Module:%s\n", devname);
         
         // GMC-OPL3
-        if (gimic_check_devname(gimic, chip, devname, "GMC-OPL3", GMCDRV_OPL3) < 0)
+        if (c86x_check_devname(gimic, chip, devname, "GMC-OPL3", C86XDRV_OPL3) < 0)
             break;
         
         // GMC-OPM
-        if (gimic_check_devname(gimic, chip, devname, "GMC-OPM", GMCDRV_OPM) < 0)
+        if (c86x_check_devname(gimic, chip, devname, "GMC-OPM", C86XDRV_OPM) < 0)
             break;
 
         // GMC-OPN3L
-        if (gimic_check_devname(gimic, chip, devname, "GMC-OPN3L", GMCDRV_OPN3L) < 0)
+        if (c86x_check_devname(gimic, chip, devname, "GMC-OPN3L", C86XDRV_OPN3L) < 0)
             break;
 
         // GMC-OPNA
-        if (gimic_check_devname(gimic, chip, devname, "GMC-OPNA", GMCDRV_OPNA) < 0)
+        if (c86x_check_devname(gimic, chip, devname, "GMC-OPNA", C86XDRV_OPNA) < 0)
             break;
 
     }
 	
 	// 追加できるチップが存在しなかった
-	if (gmcdrv_count == 0) 
+	if (c86x_count == 0) 
 		return -1;
     
 	return 0;
 }
 
 // 開放する
-void gimic_free()
+void c86x_free()
 {
     int i;
-    for(i = 0; i < gmcdrv_count; i++)
+    for(i = 0; i < c86x_count; i++)
     {
-        gmcdrv[i].chip->reset();
+        c86xdrv[i].chip->reset();
     }
     
     FreeDLL();
 
-    gmcdrv_count = 0;
+    c86x_count = 0;
 }
 
 // デバイス数を得る
-int gimic_getcount(void)
+int c86x_getcount(void)
 {
-    return gmcdrv_count;
+    return c86x_count;
 }
 
 // typeのチップのcount個目のidを得る
-int gimic_getchip(int type, int count)
+int c86x_getchip(int type, int count)
 {
 	int i;
-	for(i = 0; i < gmcdrv_count; i++)
+	for(i = 0; i < c86x_count; i++)
 	{
-		if (gmcdrv[i].type == type)
+		if (c86xdrv[i].type == type)
         {
             if (count > 0)
                 count--;
@@ -224,47 +222,47 @@ int gimic_getchip(int type, int count)
 }
 
 // リセットする
-void gimic_reset(int mno)
+void c86x_reset(int mno)
 {
 	if (mno < 0)
 		return;
 
-	gmcdrv[mno].chip->reset();
+	c86xdrv[mno].chip->reset();
 }
 
 // 書き込む
-void gimic_write(int mno, int addr, int data)
+void c86x_write(int mno, int addr, int data)
 {
 	if (mno < 0)
 		return;
 	
-	gmcdrv[mno].chip->out(addr, data);
+	c86xdrv[mno].chip->out(addr, data);
 }
 
 // 読み出す
-int gimic_read(int mno, int addr)
+int c86x_read(int mno, int addr)
 {
 	if (mno < 0)
 		return 0x00;
 	
-	return gmcdrv[mno].chip->in(addr);
+	return c86xdrv[mno].chip->in(addr);
 }
 
 // PLLの周波数設定
-void gimic_setPLL(int mno, int clock)
+void c86x_setPLL(int mno, int clock)
 {
 	if (mno < 0)
 	return;
 	
-	gmcdrv[mno].gimic->setPLLClock( clock );
+	c86xdrv[mno].gimic->setPLLClock( clock );
 }
 
 // SSGボリュームの設定
-void gimic_setSSGvol(int mno, int vol)
+void c86x_setSSGvol(int mno, int vol)
 {
 	if (mno < 0)
 	return;
 	
-	gmcdrv[mno].gimic->setSSGVolume( vol );
+	c86xdrv[mno].gimic->setSSGVolume( vol );
 }
 
