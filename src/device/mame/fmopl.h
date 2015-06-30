@@ -20,6 +20,8 @@ typedef signed short	INT16;   /* signed 16bit   */
 typedef signed int		INT32;   /* signed 32bit   */
 #endif
 
+typedef signed int stream_sample_t;
+
 typedef stream_sample_t OPLSAMPLE;
 /*
 #if (OPL_SAMPLE_BITS==16)
