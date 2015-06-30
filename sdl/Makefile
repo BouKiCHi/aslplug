@@ -14,6 +14,9 @@ else
 include Makefile.unix
 endif
 
+include Makefile.inc
+
+
 #
 # common
 #
@@ -31,8 +34,6 @@ LIBNEZ = libnez.a
 LIBS = $(SDL_LIBS)
 SLIBS = $(SDL_SLIBS)
 CFLAGS += $(SDL_CFLAGS)
-
-SRCDIR = src
 
 #
 # directory for library
@@ -73,7 +74,7 @@ kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
 #
 
 MAINDIR   = .
-BASEDIR = ..
+
 
 LOGDIR = log
 GLUEDIR = glue
