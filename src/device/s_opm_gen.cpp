@@ -2,7 +2,7 @@
 
 #include "kmsnddev.h"
 #include "s_opm_gen.h"
-#include "opm.h"
+#include "fmgen/opm.h"
 
 #include <stdio.h>
 

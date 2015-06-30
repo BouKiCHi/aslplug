@@ -18,8 +18,8 @@
 #define USE_INLINEMMC 0
 #define USE_USERPOINTER 1
 #define External __inline static
-#include "kmz80/kmevent.h"
-#include "km6502/km6280m.h"
+#include "../cpu/kmz80/kmevent.h"
+#include "../cpu/km6502/km6280m.h"
 
 #define SHIFT_CPS 15
 #define HES_BASECYCLES (21477270)

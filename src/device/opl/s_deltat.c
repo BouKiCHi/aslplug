@@ -1,6 +1,6 @@
-#include "kmsnddev.h"
-#include "divfix.h"
-#include "s_logtbl.h"
+#include "../kmsnddev.h"
+#include "device/divfix.h"
+#include "../s_logtbl.h"
 #include "s_deltat.h"
 
 #define CPS_SHIFT 16

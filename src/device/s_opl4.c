@@ -3,8 +3,8 @@
 #include "s_opl4.h"
 #include "s_logtbl.h"
 
-#include "driver.h"
-#include "ymf262.h"
+#include "mame/driver.h"
+#include "mame/ymf262.h"
 
 #include <stdio.h>
 

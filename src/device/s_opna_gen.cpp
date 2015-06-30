@@ -4,7 +4,7 @@
 
 #include "s_opna_gen.h"
 
-#include "opna.h"
+#include "fmgen/opna.h"
 
 #include <stdio.h>
 

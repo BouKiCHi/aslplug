@@ -145,7 +145,13 @@ OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
 
 LIBNEZ := $(OBJDIR)/$(LIBNEZ)
 
-CFLAGS += $(addprefix -I$(SRCDIR)/,$(LIBDIRS))
+#
+# include
+#
+
+CFLAGS += -I$(SRCDIR)
+
+# CFLAGS += $(addprefix -I$(SRCDIR)/,$(LIBDIRS))
 CFLAGS += $(addprefix -I$(BASEDIR)/,$(DIRS))
 CFLAGS += -I$(MAINDIR)
 CFLAGS += -I$(SRCDIR)
@@ -183,6 +189,10 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 
 $(LIBNEZ) : $(OBJDIR) $(LIBOBJS)
 	$(AR) rcs $@ $(LIBOBJS)
+
+#
+# Make object directory
+#
 
 $(OBJDIR) :
 	mkdir -p $(OBJDIR)

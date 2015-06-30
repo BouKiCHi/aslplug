@@ -13,9 +13,9 @@
 */
 
 
-#include "kmsnddev.h"
-#include "divfix.h"
-#include "s_logtbl.h"
+#include "../kmsnddev.h"
+#include "device/divfix.h"
+#include "../s_logtbl.h"
 #include "s_opltbl.h"
 #include "s_opl.h"
 #include "s_deltat.h"

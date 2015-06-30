@@ -15,7 +15,7 @@
 #define External __inline static
 
 #include "m_nsf.h"
-#include "km6502/km2a03m.h"
+#include "../cpu/km6502/km2a03m.h"
 
 static void NES6502BreakPoint(NEZ_PLAY *pNezPlay, Uint A)
 {

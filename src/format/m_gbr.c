@@ -7,7 +7,7 @@
 #include "device/s_dmg.h"
 #include "device/divfix.h"
 
-#include "kmz80/kmz80.h"
+#include "../cpu/kmz80/kmz80.h"
 #include <stdio.h>
 #define SHIFT_CPS 15
 

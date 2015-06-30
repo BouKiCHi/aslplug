@@ -8,7 +8,7 @@
 #include "device/s_psg.h"
 #include "device/divfix.h"
 
-#include "kmz80/kmz80.h"
+#include "../cpu/kmz80/kmz80.h"
 
 #define IRQ_PATCH 2
 

@@ -14,7 +14,7 @@
 #include "device/s_opm_gen.h"
 
 
-#include "kmz80/kmz80.h"
+#include "../cpu/kmz80/kmz80.h"
 
 #include <stdio.h>
 

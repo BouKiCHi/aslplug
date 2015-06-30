@@ -1,12 +1,44 @@
 #ifndef NESTYPES_H__
 #define NESTYPES_H__
 
+// システムのヘッダが優先される
+#ifdef WIN32
+#include <malloc.h>
+#include <memory.h>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
+
+#ifndef WIN32
+
+#include <stdlib.h>
+#define XSLEEP(t)
+//#define XSLEEP(t)		_sleep(t)
+
+#else
+
+// #include <windows.h>
+#include <stdlib.h>
+
+#undef THIS_ // for MinGW32
+#define XSLEEP(t)
+#endif
+
+#define XMALLOC(s)		malloc(s)
+#define XREALLOC(p,s)	realloc(p,s)
+#define XFREE(p)		free(p)
+#define XMEMCPY(d,s,n)	memcpy(d,s,n)
+#define XMEMSET(d,c,n)	memset(d,c,n)
+
 #if defined(_MSC_VER)
 #define NEVER_REACH __assume(0);
 #elif defined(__BORLANDC__)
 #define __fastcall __msfastcall
 #elif defined(__GNUC__)
+#ifndef __inline
 #define __inline		__inline__
+#endif
 #ifndef __fastcall
 #define __fastcall
 #endif
@@ -37,30 +69,5 @@ typedef unsigned long	Uint64;
 typedef unsigned short	Uint16;
 #endif
 
-#ifdef WIN32
-#include <malloc.h>
-#include <memory.h>
-#else
-#include <stdlib.h>
-#include <string.h>
-#endif
-
-
-#ifndef WIN32
-#include <stdlib.h>
-#define XSLEEP(t)
-//#define XSLEEP(t)		_sleep(t)
-#else
-// #include <windows.h>
-#include <stdlib.h>
-
-#undef THIS_ // for MinGW32
-#define XSLEEP(t)		
-#endif
-#define XMALLOC(s)		malloc(s)
-#define XREALLOC(p,s)	realloc(p,s)
-#define XFREE(p)		free(p)
-#define XMEMCPY(d,s,n)	memcpy(d,s,n)
-#define XMEMSET(d,c,n)	memset(d,c,n)
-
 #endif /* NESTYPES_H__ */
+

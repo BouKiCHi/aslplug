@@ -4,7 +4,7 @@
 *
 ******************************************************************************/
 
-#include "kmsnddev.h"
+#include "../kmsnddev.h"
 
 #include <stdio.h>
 #include <stdlib.h>

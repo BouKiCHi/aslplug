@@ -1,5 +1,5 @@
 #include "kmsnddev.h"
-#include "divfix.h"
+#include "device/divfix.h"
 #include "s_hes.h"
 #include "s_logtbl.h"
 

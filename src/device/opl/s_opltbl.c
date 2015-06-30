@@ -1,9 +1,9 @@
-#include "../nestypes.h"
-#include "s_logtbl.h"
+#include "../../nestypes.h"
+#include "../s_logtbl.h"
 #include "s_opltbl.h"
 
-// https://docs.google.com/Doc?docid=0Aeywjj51RsmGZGQ4a3FuOWZfMTNjcWprZjRncA&hl=en&pli=1 ‚©‚çæ‚Á‚Ä‚«‚½B
-// ‚æ‚­‚±‚ñ‚È‚±‚Æ‚Å‚«‚é‚È‚ŸEEE
+// https://docs.google.com/Doc?docid=0Aeywjj51RsmGZGQ4a3FuOWZfMTNjcWprZjRncA&hl=en&pli=1 ã‹ã‚‰å–ã£ã¦ããŸã€‚
+// ã‚ˆãã“ã‚“ãªã“ã¨ã§ãã‚‹ãªããƒ»ãƒ»ãƒ»
 
 Uint32 sintable_base[] = {
 	2137,
@@ -577,11 +577,11 @@ void dox(Uint32 *sint)
 	static int i = 0;
 	static FILE *fp = NULL;
 	static int stop = 0;
-	if (!fp) fp = fopen("c:\\kmz80d.out", "wb");
+	if (!fp) fp = fopen("c:Â¥Â¥kmz80d.out", "wb");
 	if (fp) { 
 	for (i = 0; i < (1 << SINTBL_BITS); i++)
 	{
-		fprintf(fp,"%08X\r\n",sint[i]);
+		fprintf(fp,"%08XÂ¥rÂ¥n",sint[i]);
 	}
 	if (fp) { fclose(fp); fp = 0; }
 	}
