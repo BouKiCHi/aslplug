@@ -776,7 +776,7 @@ static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 }
 //----------
 
-
+#include "output_log.h"
 
 static void reset(NEZ_PLAY *pNezPlay)
 {
@@ -792,21 +792,24 @@ static void reset(NEZ_PLAY *pNezPlay)
 	freq = NESAudioFrequencyGet(pNezPlay);
 	song = SONGINFO_GetSongNo(pNezPlay->song) - 1;
 	if (song >= THIS_->maxsong) song = THIS_->startsong - 1;
-
-	/* sound reset */
+    
+    /* sound reset */
 	if (THIS_->extdevice & EXTDEVICE_SNG)
 	{
-		if (THIS_->sndp[SND_FMUNIT] && THIS_->usertone_enable[1]) THIS_->sndp[SND_FMUNIT]->setinst(THIS_->sndp[SND_FMUNIT]->ctx, 0, THIS_->usertone[1], 16 * 19);
+		if (THIS_->sndp[SND_FMUNIT] && THIS_->usertone_enable[1])
+            THIS_->sndp[SND_FMUNIT]->setinst(THIS_->sndp[SND_FMUNIT]->ctx, 0, THIS_->usertone[1], 16 * 19);
 	}
 	else
 	{
-		if (THIS_->sndp[SND_MSXMUSIC] && THIS_->usertone_enable[0]) THIS_->sndp[SND_MSXMUSIC]->setinst(THIS_->sndp[SND_MSXMUSIC]->ctx, 0, THIS_->usertone[0], 16 * 19);
+		if (THIS_->sndp[SND_MSXMUSIC] && THIS_->usertone_enable[0])
+            THIS_->sndp[SND_MSXMUSIC]->setinst(THIS_->sndp[SND_MSXMUSIC]->ctx, 0, THIS_->usertone[0], 16 * 19);
 	}
 	for (i = 0; i < SND_MAX; i++)
 	{
 		if (THIS_->sndp[i])
-            
+        {
             THIS_->sndp[i]->reset(THIS_->sndp[i]->ctx, baseclock, freq);
+        }
 	}
 
 	/* memory reset */
@@ -926,7 +929,7 @@ static void reset(NEZ_PLAY *pNezPlay)
 		play_setup(THIS_, THIS_->playaddr);
 	}
 	THIS_->total_cycles = 0;
-
+    
 	//ここからメモリービュアー設定
 	memview_context = THIS_;
 	MEM_MAX=0xffff;

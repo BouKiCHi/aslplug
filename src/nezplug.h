@@ -1,6 +1,8 @@
 #ifndef NEZPLUG_H__
 #define NEZPLUG_H__
 
+#include "output_log.h"
+
 #include "nestypes.h"
 #include "format/songinfo.h"
 #include "format/handler.h"

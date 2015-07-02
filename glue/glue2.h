@@ -53,6 +53,11 @@ int glue2_make_binary(const char *infile, const char *outfile);
 // フェードアウト開始
 void glue2_start_fade(void);
 
+// フェード確認
+int glue2_is_fade_running(void);
+
+// フェード終了確認
+int glue2_is_fade_end(void);
 
 
 #ifndef NOUSE_NEZ

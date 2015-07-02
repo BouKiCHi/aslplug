@@ -3,8 +3,13 @@
 //
 //  Copyright (c) 2015 BouKiCHi. All rights reserved.
 //
+//  supported :
+//  NRD/MDR/MGS
+//  NSF/KSS/GBR
 
 #include "glue2.h"
+
+
 
 // for stat
 #include <sys/stat.h>
@@ -70,9 +75,29 @@ char glue_exec_path[1024] = "";
 char glue_driver_path[1024] = "";
 
 
+#if !defined(ANDROID)
+
+#include <stdarg.h>
+
+void output_log(const char *format, ...)
+{
+    char buf[2048];
+    va_list arg;
+    
+    va_start(arg, format);
+    vsprintf(buf, format, arg);
+    va_end(arg);
+    
+    printf("%s:%s\n", "nezjni", buf);
+}
+
+#endif
+
+
 // 初期化
 void glue2_init(void)
 {
+    LOG_X("init");
     memset(&g2, sizeof(g2), 0);
 }
 
@@ -92,18 +117,6 @@ void glue2_free(void)
     }
 #endif
 }
-
-
-// フェード開始
-void glue2_start_fade(void)
-{
-    if (fade_is_running())
-        return;
-    
-    if (g2.ctx[0])
-        fade_start(g2.setting[0].freq, 3);
-}
-
 
 // ファイルサイズの取得
 long glue2_get_filesize(const char *file)
@@ -349,6 +362,8 @@ long glue2_getpath_min(char *path, const char *dir, char *name, int min_size)
     return size;
 }
 
+
+//
 long glue2_getpath(char *path, const char *dir, char *name)
 {
 	return glue2_getpath_min(path, dir, name, 0);
@@ -672,8 +687,33 @@ static void glue2_audio_mix(short *dest, short *in, int len, float volume)
     }
 }
 
+
+// フェード開始
+void glue2_start_fade(void)
+{
+    if (fade_is_running())
+        return;
+    
+    if (g2.ctx[0])
+        fade_start(g2.setting[0].freq, 3);
+}
+
+// フェード確認
+int glue2_is_fade_running(void)
+{
+    return fade_is_running();
+}
+
+// フェード終了確認
+int glue2_is_fade_end(void)
+{
+    return fade_is_end();
+}
+
+
 #ifndef NOUSE_NEZ
 
+#include "nezplug.h"
 
 // サンプル生成
 void glue2_make_samples(short *buf, int len)
@@ -689,8 +729,7 @@ void glue2_make_samples(short *buf, int len)
     }
     
     // フェード機能
-    if (fade_is_running())
-        fade_stereo(buf, len);
+    fade_stereo(buf, len);
 }
 
 
@@ -701,7 +740,7 @@ int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
     
     if (track >= MAX_GLUE2_TRACK)
         return -1;
-    
+        
     // NEZ本体を初期化する
     if (!g2.ctx[track])
     {
@@ -713,9 +752,18 @@ int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
         g2.ctx[track] = tmp_ctx;
     }
 
+    
     // 設定を保存する
-    g2.setting[track] = *gs;
-
+    g2.setting[track].songno = gs->songno;
+    g2.setting[track].freq = gs->freq;
+    g2.setting[track].ch = gs->ch;
+    g2.setting[track].vol = gs->vol;
+    
+    g2.setting[track].turbo = gs->turbo;
+    g2.setting[track].use_fmgen = gs->use_fmgen;
+    
+    
+    
     // コンテキストに1部を受け渡す
     g2.ctx[track]->use_gmc = gs->use_gmc;
     g2.ctx[track]->log_ctx = gs->log_ctx;
@@ -728,15 +776,13 @@ int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
         return -1;
     
     gs->track_id = track;
-    
+
     // NEZ本体にメモリなどを渡す
     NEZLoad(g2.ctx[track], glue_mem_ptr, (Uint)size);
-    
-    memset(glue_mem_ptr, 0, size);
-    
+        
     NEZSetFrequency(g2.ctx[track], gs->freq);
     NEZSetChannel(g2.ctx[track], gs->ch);
-    
+
     if (gs->songno >= 0)
         NEZSetSongNo(g2.ctx[track], gs->songno);
     

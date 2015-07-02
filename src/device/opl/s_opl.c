@@ -1295,18 +1295,27 @@ static Uint32 oplread(OPLSOUND *sndp, Uint32 a)
 
 __inline static void opllwritereg(OPLSOUND *sndp, Uint32 a, Uint32 v)
 {
-	char b;
+    // FIXED: some of arm processer fails for-syntax with char-type.
+    int c;
+    
 	switch (a >> 3)
 	{
 		default:
 			NEVER_REACH
 		case 0:
+            
 			sndp->regs[OPLL_INST_WORK + (a & 7)] = v;
-			for(b=(sndp->regs[0xe]&0x20)?5:8;b>=0;b--){
-				if(!(sndp->regs[0x30+b]&0xf0))
-					opllsetchtone(sndp, &sndp->ch[b], 0);
+            
+            c = ((sndp->regs[0xe] & 0x20) ? 5: 8);
+			for(; c>=0;c--)
+            {
+				if(!(sndp->regs[0x30 + c] & 0xf0))
+                {
+					opllsetchtone(sndp, &sndp->ch[c], 0);
+                }
 			}
-			break;
+
+            break;
 		case 1:
 			if (a == 0xe) opllsetrc(sndp, v & 0x3f);
 			break;
@@ -1349,10 +1358,13 @@ static void opllwrite(OPLSOUND *sndp, Uint32 a, Uint32 v)
 		if (sndp->common.adr < 0x40)
 		{
             if (sndp->kmif.logwrite)
+            {
                 sndp->kmif.logwrite(sndp->kmif.log_ctx, sndp->kmif.log_id, sndp->common.adr, v);
-            
+            }
+
 			sndp->regs[sndp->common.adr] = v;
 			sndp->opllregs[sndp->common.adr] = v;
+            
 			opllwritereg(sndp, sndp->common.adr, v);
 		}
 	}
@@ -1396,6 +1408,7 @@ static void sndreset(OPLSOUND *sndp, Uint32 clock, Uint32 freq)
 	sndp->freq = freq;
 	sndp->freqp = 0;
 //	freq = FM_FREQ;
+    
 	XMEMSET(&sndp->common, 0, sizeof(sndp->common));
 	XMEMSET(&sndp->lfo[LFO_UNIT_AM], 0, sizeof(OPL_LFO));
 	sndp->lfo[LFO_UNIT_AM].sps = DivFix(37 * (1 << AMTBL_BITS), freq * 10, LFO_SHIFT);
@@ -1407,6 +1420,7 @@ static void sndreset(OPLSOUND *sndp, Uint32 clock, Uint32 freq)
 	sndp->lfo[LFO_UNIT_PM].table = sndp->opltbl->pm_table1;
 	sndp->common.cpsp = DivFix(clock, 72 * freq/4, CPS_SHIFTP);
 	cpse = DivFix(clock, 72 * freq, CPS_SHIFTE);
+    
 	for (i = 0; i < 4; i++)
 	{
 		sndp->common.ratetbl[i] = (4+i) * cpse;
@@ -1416,6 +1430,7 @@ static void sndreset(OPLSOUND *sndp, Uint32 clock, Uint32 freq)
 	sndp->common.sintablemask = (1 << SINTBL_BITS) - 1;
 	for (i = 0; i < 9; i++) chreset(sndp, &sndp->ch[i], clock, freq);
 	if (sndp->deltatpcm) sndp->deltatpcm->reset(sndp->deltatpcm->ctx, clock, freq);
+    
 	if (sndp->opl_type & OPL_TYPE_OPL)
 	{
 		XMEMSET(&sndp->regs, 0, 0x100);
@@ -1443,15 +1458,18 @@ static void sndreset(OPLSOUND *sndp, Uint32 clock, Uint32 freq)
 	else
 	{
 		const static Uint8 fmbios_initdata[8] = "\x30\x10\x20\x20\xfb\xb2\xf3\xf3";
+        
 		XMEMSET(&sndp->regs, 0, 0x40);
 		sndp->common.ar_table = sndp->opltbl->ar_tablelog;
 		sndp->common.wfe = 1;
 		sndp->common.sintablemask -= (1 << (SINTBL_BITS - 8)) - 1;
+        
 		for (i = 0; i < sizeof(fmbios_initdata); i++)
 		{
 			opllwrite(sndp, 0, i);
 			opllwrite(sndp, 1, fmbios_initdata[i]);
 		}
+        
 		opllwrite(sndp, 0, 0x0e);
 		opllwrite(sndp, 1, 0x00);
 		opllwrite(sndp, 0, 0x0f);
@@ -1465,7 +1483,8 @@ static void sndreset(OPLSOUND *sndp, Uint32 clock, Uint32 freq)
 			opllwrite(sndp, 0, 0x30 + i);
 			opllwrite(sndp, 1, 0xb3);
 		}
-	}
+    }
+    
 	for (i = 0; i < 9; i++)
 	{
 		sndp->ch[i].op[0].type = 0;

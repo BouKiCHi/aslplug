@@ -135,8 +135,10 @@ void NEZSetChannel(NEZ_PLAY *pNezPlay, Uint ch)
 void NEZReset(NEZ_PLAY *pNezPlay)
 {
 	if (pNezPlay == 0) return;
+
 	NESReset(pNezPlay);
-	NESVolume(pNezPlay, pNezPlay->volume);
+
+    NESVolume(pNezPlay, pNezPlay->volume);
 }
 
 void NEZSetFilter(NEZ_PLAY *pNezPlay, Uint filter)
