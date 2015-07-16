@@ -1,7 +1,9 @@
 #ifndef NEZPLUG_H__
 #define NEZPLUG_H__
 
+#ifdef __ANDROID__
 #include "output_log.h"
+#endif
 
 #include "nestypes.h"
 #include "format/songinfo.h"

@@ -21,6 +21,8 @@
 typedef unsigned char byte;
 typedef unsigned short word;
 
+#define PATH_MAX 2048
+
 #define PATH_SEP '/'
 #define PATH_SEP_W32 '\\'
 
@@ -55,13 +57,16 @@ int _kssnrt_len = 81;
 
 #define PCM_BLOCK_SIZE 8192
 
+#ifdef NOUSE_NEZ
+#define NEZ_PLAY void
+#endif
+
+
 struct struct_glue2_main
 {
-#ifdef NOUSE_NEZ
-    void *ctx[MAX_GLUE2_TRACK];
-#else
     NEZ_PLAY *ctx[MAX_GLUE2_TRACK];
-#endif
+
+    int pause[MAX_GLUE2_TRACK];
     struct glue2_setting setting[MAX_GLUE2_TRACK];
     
     short mixbuf[PCM_BLOCK_SIZE];
@@ -71,8 +76,8 @@ struct struct_glue2_main
 
 // メモリポインタ
 byte *glue_mem_ptr = NULL;
-char glue_exec_path[1024] = "";
-char glue_driver_path[1024] = "";
+char glue_exec_path[PATH_MAX] = "";
+char glue_driver_path[PATH_MAX] = "";
 
 
 #if !defined(ANDROID)
@@ -97,25 +102,20 @@ void output_log(const char *format, ...)
 // 初期化
 void glue2_init(void)
 {
-    LOG_X("init");
     memset(&g2, sizeof(g2), 0);
 }
 
 // 終了
 void glue2_free(void)
 {
-#ifndef NOUSE_NEZ
-    int i = 0;
+    int i;
     
     for(i = 0; i < MAX_GLUE2_TRACK; i++)
     {
-        if (g2.ctx[i])
-        {
-            NEZDelete(g2.ctx[i]);
-            g2.ctx[i] = NULL;
-        }
-    }
+#ifndef NOUSE_NEZ
+        glue2_close(i);
 #endif
+    }
 }
 
 // ファイルサイズの取得
@@ -424,7 +424,7 @@ int glue2_read_mdr_song(const char *file)
 int glue2_read_nrd_song(const char *file)
 {
     char *nrtdrv_bin = "NRTDRV.BIN";
-    char drv_path[1024];
+    char drv_path[PATH_MAX];
     
     // ドライバファイルパスとサイズの取得
     long drv_size = glue2_getpath(drv_path, file, nrtdrv_bin);
@@ -539,7 +539,7 @@ int glue2_read_mgs_song(const char *file)
 {
     
     char *drv_name = "MGSDRV.COM";
-    char drv_path[1024];
+    char drv_path[PATH_MAX];
     
     // ドライバファイルパスとサイズの取得
     long drv_size = glue2_getpath(drv_path, file, drv_name);
@@ -718,18 +718,22 @@ int glue2_is_fade_end(void)
 // サンプル生成
 void glue2_make_samples(short *buf, int len)
 {
-    NEZRender(g2.ctx[0], buf, len);
-    glue2_audio_volume(buf, len, g2.setting[0].vol);
+    int i;
     
-    // サブチャンネル
-    if (g2.ctx[1])
+    // 初期化
+    memset(buf, 0, len * 4);
+    
+    for(i = 0; i < MAX_GLUE2_TRACK; i++)
     {
-        NEZRender(g2.ctx[1], g2.mixbuf, len);
-        glue2_audio_mix(buf, g2.mixbuf, len, g2.setting[1].vol);
+        if (g2.ctx[i] && !g2.pause[i])
+        {
+            NEZRender(g2.ctx[i], buf, len);
+            glue2_audio_mix(buf, g2.mixbuf, len, g2.setting[i].vol);
+        }
     }
-    
     // フェード機能
     fade_stereo(buf, len);
+    
 }
 
 
@@ -796,13 +800,48 @@ int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
     return 0;
 }
 
+// 曲番号取得
+int glue2_get_songno(int track)
+{
+    if (!g2.ctx[track])
+        return -1;
+    
+    return NEZGetSongNo(g2.ctx[track]);
+}
+
+
+// 曲番号設定
+void glue2_set_songno(int track, int no)
+{
+    if (!g2.ctx[track])
+        return;
+    
+    NEZSetSongNo(g2.ctx[track], no);
+}
+
+// リセット
+void glue2_reset(int track)
+{
+    if (!g2.ctx[track])
+        return;
+    
+    NEZReset(g2.ctx[track]);
+}
+
+// ポーズ
+void glue2_pause(int track, int flag)
+{
+    g2.pause[track] = flag;
+}
+
+// 閉じる
 void glue2_close(int track)
 {
-    if (g2.ctx[track])
-    {
-        NEZDelete(g2.ctx[track]);
-        g2.ctx[track] = NULL;
-    }
+    if (!g2.ctx[track])
+        return;
+
+    NEZDelete(g2.ctx[track]);
+    g2.ctx[track] = NULL;
 }
 
 
