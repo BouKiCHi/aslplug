@@ -2,5 +2,10 @@
 # Makefile.inc
 #
 
-SRCDIR = ../src
+#
+# path of aslplug directory
+#
+
+# BASEDIR = aslplug
+
 BASEDIR = ..

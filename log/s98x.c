@@ -153,6 +153,8 @@ void CloseS98(S98CTX *ctx)
 
 #ifndef S98_READONLY
 
+/////////////////////////////////// S98書き込みルーチン
+//
 // 変数書き出し(DWORD)
 static void WriteDWORD(byte *p, dword val)
 {
@@ -194,26 +196,42 @@ static void WriteHeaderS98(S98CTX *ctx)
         return;
     
     // デバイスマップの作成
+    printf("-- devmap -- \n");
     for(i = 0; i < MAX_S98DEV; i++)
     {
+        int idx = ptr->index;
+        printf("log_id:%d -> device:%d\n", idx, i);
+
         // ptr->index = device_id
-        ctx->dev_map[i] = ptr->index;
+        ctx->dev_map[idx] = i;
         
-        if (ptr->right)
-            ptr = ptr->right;
-        else
+        // 次が無ければ終了
+        if (!ptr->right)
             break;
+        
+        ptr = ptr->right;
     }
+    
+     ptr = ctx->prio_top;
     
     // デバイスリスト書き込み
 	for(i = 0; i < MAX_S98DEV; i++)
 	{
 		memset(hdr, 0, 0x20);
         
-		WriteDWORD(hdr + 0x00, ctx->dev_type[ctx->dev_map[i]]);
-		WriteDWORD(hdr + 0x04, ctx->dev_freq[ctx->dev_map[i]]);
+        int idx = ptr->index;
+        
+		WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
+		WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
 		
 		fwrite(hdr, 0x10, 1, ctx->file);
+
+        // 次が無ければ終了
+        if (!ptr->right)
+            break;
+        
+        ptr = ptr->right;
+        
 	}
 }
 
@@ -260,56 +278,69 @@ void MapEndS98(S98CTX *ctx)
 void AddSortMapS98(S98CTX *ctx, int id, int prio)
 {
     struct prio_list *obj = &ctx->prio_map[ctx->dev_count];
-
-    // まだマップなし
-    if (!ctx->prio_top)
-    {
-        ctx->prio_top = obj;
-        ctx->prio_top->index = id;
-        ctx->prio_top->prio = prio;
-        return;
-    }
     
-    struct prio_list *ptr = ctx->prio_top;
-
-    // トップより大きい
-    if (prio > ptr->prio)
-    {
-        ptr->left = obj;
-        obj->right = ptr;
-        ctx->prio_top = obj;
-        
-        obj->index = id;
-        obj->prio = prio;
-        return;
-    }
-    
-    // 下をたどる
-    while(ptr->prio > prio)
-    {
-        // 一番下だった
-        if (!ptr->right)
-        {
-            ptr->right = obj;
-            obj->left = ptr;
-            
-            obj->prio = prio;
-            obj->index = id;
-            return;
-        }
-        ptr = ptr->right;
-    }
-    
-    // 途中に挿入する
-    // ptr > obj > ptr->right
-    
-    obj->right = ptr->right;
-    obj->left = ptr;
-    ptr->right = obj;
-    
+    // 現在のオブジェクトを初期化
+    obj->left = NULL;
+    obj->right = NULL;
     obj->prio = prio;
     obj->index = id;
     
+    printf("prio:%d idx:%d\n", prio, id);
+    
+    // ポインタの作成
+    struct prio_list *ptr = ctx->prio_top;
+    struct prio_list *prev = NULL;
+    
+    // まだマップなし
+    if (!ptr)
+    {
+        printf("top\n");
+        ctx->prio_top = obj;
+        return;
+    }
+    
+    // 下にたどる
+    while(ptr)
+    {
+        // 優先順位がptrよりも上の場合
+        if (prio > ptr->prio)
+            break;
+        
+        // 次に進める
+        prev = ptr;
+        ptr = ptr->right;
+    }
+    
+    if (ptr)
+        printf("next is %d\n", ptr->index);
+    else
+        printf("this is bottom");
+
+    
+    // ptrより前に挿入する
+    // obj > ptr
+    
+    obj->right = ptr;
+    obj->left = prev;
+
+    if (prev)
+    {
+        printf("prev is %d\n", prev->index);
+        prev->right = obj;
+    }
+
+    //　これが最後でない場合
+    if (ptr)
+    {
+        ptr->left = obj;
+    }
+    
+    // トップを更新する
+    if (!prev)
+    {
+        printf("tops is %d\n", obj->index);
+        ctx->prio_top = obj;
+    }
 }
 
 
@@ -320,6 +351,8 @@ int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
         return -1;
 
     int idx = ctx->dev_count;
+    
+    printf("type:%d freq:%d\n", type, freq);
 
     ctx->dev_type[idx] = type;
     ctx->dev_freq[idx] = freq;
@@ -358,7 +391,9 @@ void WriteSyncS98(S98CTX *ctx)
         return;
 
     ctx->sys_time += ctx->sys_step;
-    while((ctx->sys_time - ctx->s98_step) >= 0)
+
+    // 積算された時間が単位時間よりも上
+    while(ctx->sys_time > ctx->s98_step)
     {
         ctx->sys_time -= ctx->s98_step;
         fputc(S98_CMD_SYNC, ctx->file);
@@ -377,7 +412,8 @@ void SetTimingS98(S98CTX *ctx, int us)
     if (!ctx)
         return;
     
-    double step_sec = ((double)us / 1000000);
+    // 1秒単位に変換する
+    double step_sec = ((double)us / S98_US);
     
     int denom = ctx->def_denom;
     int nume = (int)(step_sec * denom);

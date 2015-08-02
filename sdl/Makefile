@@ -1,5 +1,5 @@
 #
-# Makefile
+# Makefile for ASLPLAY
 #
 
 NAME = aslplay
@@ -26,8 +26,10 @@ USE_OPM = 1
 USE_FMGEN = 1
 
 #
+# Sources
 #
-#
+
+SRCDIR = $(BASEDIR)/src
 
 LIBNEZ = libnez.a
 
@@ -73,7 +75,7 @@ kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
 # directory for main
 #
 
-MAINDIR   = .
+MAINDIR   = sdl
 
 
 LOGDIR = log
@@ -149,8 +151,6 @@ LIBNEZ := $(OBJDIR)/$(LIBNEZ)
 # include
 #
 
-CFLAGS += -I$(SRCDIR)
-
 # CFLAGS += $(addprefix -I$(SRCDIR)/,$(LIBDIRS))
 CFLAGS += $(addprefix -I$(BASEDIR)/,$(DIRS))
 CFLAGS += -I$(MAINDIR)
@@ -177,9 +177,14 @@ release : $(TARGET) $(TARGET_S)
 $(OBJDIR)/%.o : %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+# files in DIRS
 $(OBJDIR)/%.o : $(BASEDIR)/%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+$(OBJDIR)/%.o : $(BASEDIR)/%.cpp
+	$(CXX) -c $(CFLAGS) -o $@ $<
+
+# files in LIBDIR
 $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 

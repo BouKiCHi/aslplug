@@ -80,6 +80,7 @@ char glue_exec_path[PATH_MAX] = "";
 char glue_driver_path[PATH_MAX] = "";
 
 
+// Androidでログを出力する
 #if !defined(ANDROID)
 
 #include <stdarg.h>
@@ -647,6 +648,7 @@ int glue2_make_binary(const char *infile, const char *outfile)
 }
 
 
+#if 0
 // 音量増幅
 static void glue2_audio_volume(short *data, int len, float volume)
 {
@@ -666,6 +668,7 @@ static void glue2_audio_volume(short *data, int len, float volume)
         data[i] = (short)s;
     }
 }
+#endif
 
 // サンプル加算合成
 static void glue2_audio_mix(short *dest, short *in, int len, float volume)
@@ -768,7 +771,7 @@ int glue2_load_file(const char *file, int track, struct glue2_setting *gs)
     
     
     
-    // コンテキストに1部を受け渡す
+    // コンテキストに一部の情報を受け渡す
     g2.ctx[track]->use_gmc = gs->use_gmc;
     g2.ctx[track]->log_ctx = gs->log_ctx;
     g2.ctx[track]->turbo = gs->turbo;

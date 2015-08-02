@@ -63,7 +63,7 @@ typedef struct {
 #define S98_READMODE 0
 #define S98_WRITEMODE 1
 
-// 
+// 10^6
 #define S98_US 1000000
 
 enum S98_DEVID
@@ -103,7 +103,6 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data);
 void WriteSyncS98(S98CTX *ctx);
 void SetTimingS98(S98CTX *ctx, int us);
 void SetDenomS98(S98CTX *ctx,int denom);
-
 
 #endif
 

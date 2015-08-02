@@ -522,15 +522,15 @@ static void iowrite_eventX1(void *ctx, Uint32 a, Uint32 v)
         int ch = a & 0x03;
         v &= 0xff;
         
-        // 76543210
-        // 7 = 割り込みフラグ(1で許可)
-        // 6 = カウンタモード(0でタイマー)
-        // 5 = プリスケーラ(1で1/256、0で1/16)
-        // 4 = トリガ極性(1で立ち上がり)
-        // 3 = トリガ(タイマー時に1で外部トリガ)
-        // 2 = 定数設定(1で定数を書き換える)
-        // 1 = リセット(1で動作停止)
-        // 0 = 設定モード(1で設定、0でベクタ書き換え)
+        // bit: 76543210
+        // bit7 = 割り込みフラグ(1で許可)
+        // bit6 = カウンタモード(0でタイマー)
+        // bit5 = プリスケーラ(1で1/256、0で1/16)
+        // bit4 = トリガ極性(1で立ち上がり)
+        // bit3 = トリガ(タイマー時に1で外部トリガ)
+        // bit2 = 定数設定(1で定数を書き換える)
+        // bit1 = リセット(1で動作停止)
+        // bit0 = 設定モード(1で設定、0でベクタ書き換え)
         
         if (THIS_->ctc_conf[ch] & 4)
         {
@@ -776,8 +776,6 @@ static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 }
 //----------
 
-#include "output_log.h"
-
 static void reset(NEZ_PLAY *pNezPlay)
 {
 	KSSSEQ *THIS_ = pNezPlay->kssseq;
@@ -910,13 +908,23 @@ static void reset(NEZ_PLAY *pNezPlay)
         if (pNezPlay->log_ctx)
         {
             THIS_->log_ctx = pNezPlay->log_ctx;
-
-            double vsync = (double)cpu_cycle / (THIS_->cpf);
-            double vsync_us = (double)(1*1000*1000) / vsync;
-            // if 60Hz, vsync_us = 16666.666us
-            // 16666 / 64 exceed 256
             
-            WriteLOG_Timing(pNezPlay->log_ctx,(int)vsync_us);
+            if (THIS_->ext2 & EXT2_OPM)
+            {
+                THIS_->cpf = (cpu_cycle / 100);
+                double vsync = (double)cpu_cycle / (THIS_->cpf);
+                double vsync_us = ((double)1*1000*1000) / vsync;
+
+                WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
+            }
+            else
+            {
+                double vsync = (double)cpu_cycle / (THIS_->cpf);
+                double vsync_us = ((double)1*1000*1000) / vsync;
+                // if 60Hz, vsync_us = 16666.666us
+                // 16666 / 64 exceed 256
+                WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
+            }
         }
         
 		/* request execute */
@@ -1238,7 +1246,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         if (pNezPlay->use_gmc)
             flags |= OUT_EXT;
         
-        // 出力フラグ設定
+        // デバイス出力フラグ設定
         if (THIS_->sndp[SND_PSG])
             THIS_->sndp[SND_PSG]->output_device = flags;
 
@@ -1257,14 +1265,20 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
         {
             int type = LOG_TYPE_PSG;
             
+            // ログ出力関数
+            FUNC_LOGWRITE func_logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+            
             // SSGの場合もある
             if (MSXPSGType)
                 type = LOG_TYPE_SSG;
             
+            
+            
             // PSG or SSG
-            THIS_->sndp[SND_PSG]->log_id = AddMapLOG(pNezPlay->log_ctx, type, baseclock, LOG_PRIO_PSG);
+            THIS_->sndp[SND_PSG]->log_id =
+                AddMapLOG(pNezPlay->log_ctx, type, baseclock, LOG_PRIO_PSG);
             THIS_->sndp[SND_PSG]->log_ctx = pNezPlay->log_ctx;
-            THIS_->sndp[SND_PSG]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+            THIS_->sndp[SND_PSG]->logwrite = func_logwrite;
             
             // MSXMUSIC(YM2413)
             if (THIS_->sndp[SND_MSXMUSIC])
@@ -1272,7 +1286,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
                 THIS_->sndp[SND_MSXMUSIC]->log_id =
                     AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, baseclock, LOG_PRIO_OPLL);
                 THIS_->sndp[SND_MSXMUSIC]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_MSXMUSIC]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+                THIS_->sndp[SND_MSXMUSIC]->logwrite = func_logwrite;
             }
             
             // MSXAUDIO(Y8950)
@@ -1282,7 +1296,7 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
                 THIS_->sndp[SND_MSXAUDIO]->log_id =
                     AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPLL, baseclock, LOG_PRIO_OPLL);
                 THIS_->sndp[SND_MSXAUDIO]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_MSXAUDIO]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+                THIS_->sndp[SND_MSXAUDIO]->logwrite = func_logwrite;
             }
             
             // OPL3(MoonSound FM)
@@ -1291,25 +1305,30 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
                 THIS_->sndp[SND_OPL3]->log_id =
                     AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPL3, BASECLOCK_OPL3, LOG_PRIO_OPL3);
                 THIS_->sndp[SND_OPL3]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_OPL3]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+                THIS_->sndp[SND_OPL3]->logwrite = func_logwrite;
             }
             
             // OPM(X1 FM)
             if (THIS_->sndp[SND_OPM])
             {
                 THIS_->sndp[SND_OPM]->log_id =
-                AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
+                    AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
+            
                 THIS_->sndp[SND_OPM]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_OPM]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+                THIS_->sndp[SND_OPM]->logwrite = func_logwrite;
+
+                // THIS_->sndp[SND_OPM]->log_id = -1;
             }
 
             // OPM(X1 2nd FM)
             if (THIS_->sndp[SND_OPM2])
             {
                 THIS_->sndp[SND_OPM2]->log_id =
-                AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
+                    AddMapLOG(pNezPlay->log_ctx, LOG_TYPE_OPM, baseclock, LOG_PRIO_OPM);
                 THIS_->sndp[SND_OPM2]->log_ctx = pNezPlay->log_ctx;
-                THIS_->sndp[SND_OPM2]->logwrite = (FUNC_LOGWRITE)WriteLOG_Data;
+                THIS_->sndp[SND_OPM2]->logwrite = func_logwrite;
+                
+                // THIS_->sndp[SND_OPM2]->log_id = -1;
             }
             
             MapEndLOG(pNezPlay->log_ctx);

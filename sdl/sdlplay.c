@@ -1,3 +1,4 @@
+
 //
 // sdlplay.c
 // for nezplay
@@ -518,11 +519,12 @@ static void audio_loop_file(const char *file, int freq , int len)
         printf("\n");
 }
 
-#define NLG_NORMAL 1
-#define NLG_SAMEPATH 2
+#define NORMAL 1
+#define SAMEPATH 2
 
 #define NLG_EXT ".NLG"
 #define S98_EXT ".S98"
+#define WAV_EXT ".WAV"
 
 int audio_check_nlgmode(const char *file)
 {
@@ -560,53 +562,70 @@ void usage(void)
     "Usage %s [options ...] <file>\n", PRG_NAME);
     
     printf(
-    "\n"
-    " Options ...\n"
-    " -s / --rate <rate>   : Set playback rate\n"
-    " -v / --vol <vol>     : Set volume(def. 1.0)\n"
-    " -l / --len <n|mm:ss> : Set song length (n secs)\n"
-    "\n"
-    " --rt         : RealTime output for real device\n"
-    "\n"
-    " -n <num>     : Set song number\n"
-    " -q <dir>     : Set driver's path\n"
-    "\n"
-    " -o <file>    : Generate an WAV file(PCM)\n"
-    " -p           : NULL PCM mode.\n"
-    "\n"
-    " -z           : Set N163 mode\n"
-    "\n"
-    " -9 / --s98   : Set sound log mode to S98V3\n"
-    " -u / --rough : S98 rough tempo mode (default)\n"
-    " --fine       : S98 fine tempo mode\n"
-    " -r <file>    : Record a sound log\n"
-    " -b           : Record a sound log without sound\n"
-    "\n"
-    " --sub <file>   : Sub slot song file\n"
-    " --subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
-    " --subnum <num> : Set song number for Sub slot\n"
-    "\n"
+"\n"
+" Options ...\n"
+" -s / --rate <rate>   : Set playback rate\n"
+" -v / --vol <vol>     : Set volume(def. 1.0)\n"
+" -l / --len <n|mm:ss> : Set song length (n secs)\n"
+"\n"
+" --rt         : RealTime output for real device\n"
+"\n"
+" -n <num>     : Set song number\n"
+" -q <dir>     : Set driver's path\n"
+"\n"
+" --wav        : Generate an WAV file(PCM)\n"
+" -o <file>    : Generate an WAV file(PCM) with filename\n"
+" -p           : NULL PCM mode.\n"
+" --nosound    : NULL PCM mode.\n"
+"\n"
+" -z           : Set N163 mode\n"
+"\n"
+" --log        : Record a sound log\n"
+" -r <file>    : Record a sound log with filename\n"
+" -b           : Record a sound log without sound\n"
+" -9 / --s98   : Set sound log mode to S98V3\n"
+" -u / --rough : S98 rough tempo mode (default)\n"
+" --fine       : S98 fine tempo mode\n"
+"\n"
+" --sub <file>   : Sub slot song file\n"
+" --subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
+" --subnum <num> : Set song number for Sub slot\n"
+"\n"
 
 #ifdef USE_FMGEN
-    " -g          : Use FMGEN for OPM\n"
+" -g          : Use FMGEN for OPM\n"
 #endif
-    " -a          : Force turbo CPU mode\n"
-    " -x          : Set strict mode\n"
-    " -w          : Set verbose mode\n"
-    "\n"
-    " -h / --help : Help (this)\n"
-    "\n"
+" -a          : Force turbo CPU mode\n"
+" -x          : Set strict mode\n"
+" -w          : Set verbose mode\n"
+"\n"
+" -h / --help : Help (this)\n"
+"\n"
     );
+}
+
+
+// ファイル名の作成
+void make_filename(char *dest, const char *name, const char *ext)
+{
+    strcpy(dest, name);
+    char *p = strrchr(dest, '.');
+    
+    if (p)
+        strcpy(p, ext);
+    else
+        strcat(dest, ext);
 }
 
 // メイン処理
 int audio_main(int argc, char *argv[])
 {
     char log_path[NSF_FNMAX];
+    char wav_path[NSF_FNMAX];
     
     char *drvpath = NULL;
     char *logfile = NULL;
-    char *pcmfile = NULL;
+    char *wavfile = NULL;
 
     char *subfile = NULL;
     
@@ -616,6 +635,8 @@ int audio_main(int argc, char *argv[])
     int len    = 360;
     int songno = -1;
     int songno_sub = -1;
+    
+    int wav_mode = 0;
     
     int log_mode = 0;
     int nosound = 0;
@@ -664,20 +685,24 @@ int audio_main(int argc, char *argv[])
     player.debug = 0;
     
     // 長いオプション
-    struct option long_opts[] = {
-     {"fine", 0, NULL, 0},
-     {"rt", 0, NULL, 1},
-     {"sub", 1, NULL, 2},
-     {"subvol", 1, NULL, 3},
-     {"subnum", 1, NULL, 4},
+    struct option long_opts[] =
+    {
+        {"fine", 0, NULL, 0},
+        {"rt", 0, NULL, 1},
+        {"sub", 1, NULL, 2},
+        {"subvol", 1, NULL, 3},
+        {"subnum", 1, NULL, 4},
+        {"log", 0, NULL, 5},
+        {"wav", 0, NULL, 6},
+        {"nosound", 0, NULL, 7},
 
-     {"rough", 0, NULL, 'u'},
-     {"rate", 1, NULL, 's'},
-     {"len", 1, NULL,  'l'},
-     {"vol", 1, NULL, 'v'},
-     {"s98", 0, NULL, '9'},
-     {"help", 0, NULL, 'h'},
-     {0, 0, 0, 0}
+        {"rough", 0, NULL, 'u'},
+        {"rate", 1, NULL, 's'},
+        {"len", 1, NULL,  'l'},
+        {"vol", 1, NULL, 'v'},
+        {"s98", 0, NULL, '9'},
+        {"help", 0, NULL, 'h'},
+        {0, 0, 0, 0}
     };
     
     int opt_idx = 0;
@@ -701,6 +726,17 @@ int audio_main(int argc, char *argv[])
             case 4: // subnum
                 songno_sub = atoi(optarg);
             break;
+            case 5: // --log
+                log_mode = SAMEPATH;
+                logfile = NULL;
+                break;
+            case 6: // --wav
+                wav_mode = SAMEPATH;
+                wavfile = NULL;
+                nosound = 1;
+            case 7: // --nosound
+                nosound = 1;
+            break;
             case 'a':
                 turbo_mode = 1;
                 break;
@@ -714,12 +750,12 @@ int audio_main(int argc, char *argv[])
                 drvpath = optarg;
                 break;
             case 'b':
-                log_mode = NLG_SAMEPATH;
+                log_mode = SAMEPATH;
                 logfile = NULL;
                 nosound = 1;
                 break;
             case 'r':
-                log_mode = NLG_NORMAL;
+                log_mode = NORMAL;
                 logfile = optarg;
                 break;
             case 'p':
@@ -742,8 +778,8 @@ int audio_main(int argc, char *argv[])
                 break;
             case 'd': // デバッグ
                 break;
-            case 'o': // PCMファイル出力
-                pcmfile = optarg;
+            case 'o': // WAVファイル出力
+                wavfile = optarg;
                 nosound = 1;
                 break;
             case 'l': // 曲の長さ
@@ -817,16 +853,10 @@ int audio_main(int argc, char *argv[])
                 log_ext = S98_EXT;
 
             // 同じディレクトリに出力
-            if (log_mode == NLG_SAMEPATH)
+            if (log_mode == SAMEPATH)
             {
-                strcpy(log_path, playfile);
-                char *p = strrchr(log_path, '.');
-                
-                if (p)
-                    strcpy(p, log_ext);
-                else
-                    strcat(log_path, log_ext);
-                
+                make_filename(log_path, playfile, log_ext);
+
                 logfile = log_path;
             }
 
@@ -850,6 +880,22 @@ int audio_main(int argc, char *argv[])
         
         if (rt_mode)
             printf("RealTime output mode\n");
+        
+        if (wav_mode)
+        {
+            char *wav_ext = WAV_EXT;
+
+            // 同じディレクトリに出力
+            if (wav_mode == SAMEPATH)
+            {
+                make_filename(wav_path, playfile, wav_ext);
+                
+                wavfile = wav_path;
+            }
+        }
+        if (wavfile)
+            printf("CreateWAV:%s\n", wavfile);
+
 
         
         // 最低限必要な設定
@@ -909,7 +955,7 @@ int audio_main(int argc, char *argv[])
         else
         {
             if (nosound)
-                audio_loop_file(pcmfile, rate, len); // 音なし
+                audio_loop_file(wavfile, rate, len); // 音なし
             else
                 audio_loop(rate, len); // 音出力
         }

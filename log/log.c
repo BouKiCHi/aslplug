@@ -23,6 +23,7 @@ LOGCTX *CreateLOG(const char *file, int mode)
     }
     memset(ctx, 0 ,sizeof(LOGCTX));
     
+    // ログのモードを切り替える
     switch (mode)
     {
         case LOG_MODE_NLG:
@@ -115,23 +116,20 @@ int AddMapLOG(LOGCTX *ctx, int type, int freq, int prio)
             {
                 idx = CMD_PSG;
                 ctx->device_count++;
-                return idx;
             }
             else
             {
                 idx = CMD_FM1 + ctx->fm_count;
                 ctx->fm_count++;
                 ctx->device_count++;
-                return idx;
             }
-            return idx;
         break;
         case LOG_MODE_S98:
-            return AddMapS98(ctx->log_ctx, convS98Type(type), freq, prio);
+            idx = AddMapS98(ctx->log_ctx, convS98Type(type), freq, prio);
         break;
     }
     
-    return 0;
+    return idx;
 }
 
 
