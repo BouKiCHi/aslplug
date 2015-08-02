@@ -38,6 +38,14 @@ enum
     LOG_CTC3,
 };
 
+enum
+{
+    LOG_STR_TITLE = 0,
+    LOG_STR_ARTIST,
+    LOG_STR_GAME,
+};
+
+
 #define MAX_MAP 4
 
 typedef struct {
@@ -65,6 +73,10 @@ void MapEndLOG(LOGCTX *ctx);
 
 // データ書き込み
 void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data);
+
+// 文字列書き込み
+void WriteLOG_SetTitle(LOGCTX *ctx, int type, const char *str);
+
 
 // CTC出力
 void WriteLOG_CTC(LOGCTX *ctx, int type, int value);

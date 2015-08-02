@@ -23,14 +23,6 @@ typedef unsigned short word;
 
 #define PATH_MAX 2048
 
-#define PATH_SEP '/'
-#define PATH_SEP_W32 '\\'
-
-#ifdef _WIN32
-#define PATH_DEFSEP PATH_SEP_W32
-#else
-#define PATH_DEFSEP PATH_SEP
-#endif
 
 #include "fade.h"
 

@@ -18,6 +18,7 @@ typedef unsigned long  dword;
 
 
 static void WriteHeaderS98(S98CTX *ctx);
+static void WriteTagS98(S98CTX *ctx);
 
 /*
  // 変数書き出し(WORD)
@@ -137,6 +138,14 @@ void CloseS98(S98CTX *ctx)
         {
             // 終了マーカーを出力
             fputc(S98_CMD_END, ctx->file);
+            
+            // タグ情報がある
+            if (ctx->tag_info)
+            {
+                ctx->tag_pos = TellS98(ctx);
+                WriteTagS98(ctx);
+                
+            }
 
             WriteHeaderS98(ctx);
         }
@@ -145,10 +154,12 @@ void CloseS98(S98CTX *ctx)
         ctx->file = NULL;
     }
     
+    // タグ
+    if (ctx->tag_info)
+        free(ctx->tag_info);
+    
     free(ctx);
 }
-
-
 
 
 #ifndef S98_READONLY
@@ -173,15 +184,24 @@ static void WriteHeaderS98(S98CTX *ctx)
     memset(hdr, 0, 0x80);
     memcpy(hdr, "S983", 4);
     
-    WriteDWORD(hdr + 0x04, ctx->time_nume); 
-    WriteDWORD(hdr + 0x08, ctx->time_denom); 
-    
-    // ヘッダ計算
-    ctx->dump_ptr = (0x20 + (0x10 * MAX_S98DEV));
-    
-	WriteDWORD(hdr + 0x14, ctx->dump_ptr); 
-	WriteDWORD(hdr + 0x18, ctx->dump_loop); 
+    // 分子
+    WriteDWORD(hdr + 0x04, ctx->time_nume);
 
+    // 分母
+    WriteDWORD(hdr + 0x08, ctx->time_denom);
+    
+    // タグ位置
+    WriteDWORD(hdr + 0x10, ctx->tag_pos);
+    
+    
+    // ヘッダサイズの計算
+    ctx->dump_ptr = (0x20 + (0x10 * ctx->dev_count));
+    
+    // ヘッダの先頭
+	WriteDWORD(hdr + 0x14, ctx->dump_ptr); 
+    // ループポインタ
+	WriteDWORD(hdr + 0x18, ctx->dump_loop);
+    // デバイス数
 	WriteDWORD(hdr + 0x1c, ctx->dev_count); 
 
     // ヘッダ書き込み
@@ -196,11 +216,17 @@ static void WriteHeaderS98(S98CTX *ctx)
         return;
     
     // デバイスマップの作成
-    printf("-- devmap -- \n");
+    // printf("-- devmap -- \n");
+    
+    // 初期化
+    for(i = 0; i < MAX_S98DEV; i++)
+        ctx->dev_map[i] = -1;
+    
     for(i = 0; i < MAX_S98DEV; i++)
     {
         int idx = ptr->index;
-        printf("log_id:%d -> device:%d\n", idx, i);
+        
+        // printf("log_id:%d -> device:%d\n", idx, i);
 
         // ptr->index = device_id
         ctx->dev_map[idx] = i;
@@ -215,24 +241,45 @@ static void WriteHeaderS98(S98CTX *ctx)
      ptr = ctx->prio_top;
     
     // デバイスリスト書き込み
-	for(i = 0; i < MAX_S98DEV; i++)
+	for(i = 0; i < ctx->dev_count; i++)
 	{
-		memset(hdr, 0, 0x20);
+		memset(hdr, 0, 0x10);
         
-        int idx = ptr->index;
+        int idx = -1;
         
-		WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
-		WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
+        if (ptr)
+        {
+            idx = ptr->index;
+        
+            WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
+            WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
+        }
 		
 		fwrite(hdr, 0x10, 1, ctx->file);
 
-        // 次が無ければ終了
-        if (!ptr->right)
-            break;
-        
-        ptr = ptr->right;
-        
+        if (ptr)
+            ptr = ptr->right;
 	}
+}
+
+// タグを出力
+static void WriteTagS98(S98CTX *ctx)
+{
+    if (!ctx || !ctx->tag_info)
+        return;
+    
+    S98CTX_TAG *tag = (S98CTX_TAG *)ctx->tag_info;
+    
+    fprintf(ctx->file,"[S98]");
+    fprintf(ctx->file,"title=%s", tag->title);
+    fputc(0x0a, ctx->file);
+    fprintf(ctx->file,"artist=%s", tag->artist);
+    fputc(0x0a, ctx->file);
+    fprintf(ctx->file,"game=%s", tag->game);
+    fputc(0x0a, ctx->file);
+
+    fputc(0x00, ctx->file);
+    
 }
 
 // ファイルを開く
@@ -240,8 +287,6 @@ S98CTX *CreateS98(const char *file)
 {
     
     S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
-    memset(ctx, 0 , sizeof(S98CTX));
-    
     
     if (!ctx)
     {
@@ -250,7 +295,6 @@ S98CTX *CreateS98(const char *file)
     }
     
     memset(ctx, 0, sizeof(S98CTX));
-
     
     ctx->file = fopen(file, "wb");
     
@@ -285,7 +329,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
     obj->prio = prio;
     obj->index = id;
     
-    printf("prio:%d idx:%d\n", prio, id);
+    // printf("prio:%d idx:%d\n", prio, id);
     
     // ポインタの作成
     struct prio_list *ptr = ctx->prio_top;
@@ -294,7 +338,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
     // まだマップなし
     if (!ptr)
     {
-        printf("top\n");
+        // printf("top\n");
         ctx->prio_top = obj;
         return;
     }
@@ -311,11 +355,11 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
         ptr = ptr->right;
     }
     
-    if (ptr)
+    /* if (ptr)
         printf("next is %d\n", ptr->index);
     else
         printf("this is bottom");
-
+    */
     
     // ptrより前に挿入する
     // obj > ptr
@@ -325,7 +369,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
 
     if (prev)
     {
-        printf("prev is %d\n", prev->index);
+        // printf("prev is %d\n", prev->index);
         prev->right = obj;
     }
 
@@ -338,7 +382,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
     // トップを更新する
     if (!prev)
     {
-        printf("tops is %d\n", obj->index);
+        // printf("tops is %d\n", obj->index);
         ctx->prio_top = obj;
     }
 }
@@ -352,7 +396,7 @@ int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
 
     int idx = ctx->dev_count;
     
-    printf("type:%d freq:%d\n", type, freq);
+    // printf("type:%d freq:%d\n", type, freq);
 
     ctx->dev_type[idx] = type;
     ctx->dev_freq[idx] = freq;
@@ -363,6 +407,42 @@ int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
     
     return idx;
     
+}
+
+#define COPY_STR(dest, str) { strncpy(dest, str, 255); dest[255] = 0; }
+
+
+// 文字列書き込み
+void WriteStringS98(S98CTX *ctx, int type, const char *str)
+{
+    if (!ctx)
+        return;
+    
+    // タグ構造体の取得
+    if (!ctx->tag_info)
+    {
+        ctx->tag_info = malloc(sizeof(S98CTX_TAG));
+        
+        if (!ctx->tag_info)
+            return;
+        
+        memset(ctx->tag_info, 0, sizeof(S98CTX_TAG));
+    }
+
+    
+    S98CTX_TAG *tag = (S98CTX_TAG *)ctx->tag_info;
+    
+    switch (type) {
+        case S98_STR_ARTIST:
+            COPY_STR(tag->artist, str);
+            break;
+        case S98_STR_TITLE:
+            COPY_STR(tag->title, str);
+            break;
+        case S98_STR_GAME:
+            COPY_STR(tag->game, str);
+            break;
+    }
 }
 
 // データ書き込み

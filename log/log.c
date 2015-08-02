@@ -157,7 +157,11 @@ void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data)
 {
     if (!ctx)
         return;
-    
+
+#ifdef LOG_DUMP
+    printf("id:%d addr:%03x data:%02x\n", device, addr, data);
+#endif
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -165,6 +169,36 @@ void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data)
             break;
         case LOG_MODE_S98:
             WriteDataS98(ctx->log_ctx, device, addr, data);
+            break;
+    }
+}
+
+//
+int convTAGtype(int type)
+{
+    switch (type) {
+        case LOG_STR_ARTIST:
+            return S98_STR_ARTIST;
+        case LOG_STR_TITLE:
+            return S98_STR_TITLE;
+        case LOG_STR_GAME:
+            return S98_STR_GAME;
+    }
+    return -1;
+}
+
+// データ書き込み
+void WriteLOG_SetTitle(LOGCTX *ctx, int type, const char *str)
+{
+    if (!ctx)
+        return;
+    
+    switch (ctx->mode)
+    {
+        case LOG_MODE_NLG:
+            break;
+        case LOG_MODE_S98:
+            WriteStringS98(ctx->log_ctx, convTAGtype(type), str);
             break;
     }
 }

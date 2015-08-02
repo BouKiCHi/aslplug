@@ -31,10 +31,9 @@ struct {
     int debug;
 } player;
 
-
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2015-06-30"
+#define PRG_VER "2015-08-02"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
@@ -563,47 +562,62 @@ void usage(void)
     
     printf(
 "\n"
-" Options ...\n"
-" -s / --rate <rate>   : Set playback rate\n"
-" -v / --vol <vol>     : Set volume(def. 1.0)\n"
-" -l / --len <n|mm:ss> : Set song length (n secs)\n"
+"Options ...\n"
+"-s / --rate <rate>   : Set playback rate\n"
+"-v / --vol <vol>     : Set volume(def. 1.0)\n"
+"-l / --len <n|mm:ss> : Set song length (n secs)\n"
 "\n"
-" --rt         : RealTime output for real device\n"
+"--rt         : RealTime output for real device\n"
 "\n"
-" -n <num>     : Set song number\n"
-" -q <dir>     : Set driver's path\n"
+"-n <num>     : Set song number\n"
+"-q <dir>     : Set driver's path\n"
 "\n"
-" --wav        : Generate an WAV file(PCM)\n"
-" -o <file>    : Generate an WAV file(PCM) with filename\n"
-" -p           : NULL PCM mode.\n"
-" --nosound    : NULL PCM mode.\n"
+"--wav        : Generate an WAV file(PCM)\n"
+"-o <file>    : Generate an WAV file(PCM) with filename\n"
+"-p           : NULL PCM mode.\n"
+"--nosound    : NULL PCM mode.\n"
 "\n"
-" -z           : Set N163 mode\n"
+"-z           : Set N163 mode\n"
 "\n"
-" --log        : Record a sound log\n"
-" -r <file>    : Record a sound log with filename\n"
-" -b           : Record a sound log without sound\n"
-" -9 / --s98   : Set sound log mode to S98V3\n"
-" -u / --rough : S98 rough tempo mode (default)\n"
-" --fine       : S98 fine tempo mode\n"
+"--log        : Record a sound log\n"
+"-r <file>    : Record a sound log with filename\n"
+"-b           : Record a sound log without sound\n"
+"--nlg        : Set sound log mode to NLG\n"
+"-9 / --s98   : Set sound log mode to S98V3 (default)\n"
+"-u / --rough : S98 rough tempo mode (default)\n"
+"--fine       : S98 fine tempo mode\n"
 "\n"
-" --sub <file>   : Sub slot song file\n"
-" --subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
-" --subnum <num> : Set song number for Sub slot\n"
+"--title <str>   : Title in S98 Tag\n"
+"--artist <str>  : Artist in S98 Tag\n"
+"--game <str>    : Game in S98 Tag\n"
+"\n"
+"--sub <file>   : Sub slot song file\n"
+"--subvol <vol> : Set volume for Sub slot(def. 1.0)\n"
+"--subnum <num> : Set song number for Sub slot\n"
 "\n"
 
 #ifdef USE_FMGEN
-" -g          : Use FMGEN for OPM\n"
+"-g          : Use FMGEN for OPM\n"
 #endif
-" -a          : Force turbo CPU mode\n"
-" -x          : Set strict mode\n"
-" -w          : Set verbose mode\n"
+"-a          : Force turbo CPU mode\n"
+"-x          : Set strict mode\n"
+"-w          : Set verbose mode\n"
 "\n"
-" -h / --help : Help (this)\n"
+"-h / --help : Help (this)\n"
 "\n"
     );
 }
 
+// ファイル名の複製
+void copy_filename(char *dest, const char *name)
+{
+    char *p = strrchr(name, PATH_DEFSEP);
+    
+    if (p)
+        strcpy(dest, p + 1);
+    else
+        strcpy(dest, name);
+}
 
 // ファイル名の作成
 void make_filename(char *dest, const char *name, const char *ext)
@@ -629,6 +643,10 @@ int audio_main(int argc, char *argv[])
 
     char *subfile = NULL;
     
+    char *tag_title = NULL;
+    char *tag_artist = NULL;
+    char *tag_game = NULL;
+    
     int opt;
     
     int rate   = 44100;
@@ -641,7 +659,7 @@ int audio_main(int argc, char *argv[])
     int log_mode = 0;
     int nosound = 0;
     
-    int s98mode = 0;
+    int s98mode = 1;
     int n163mode = 0;
     int strictmode = 0;
     
@@ -696,6 +714,12 @@ int audio_main(int argc, char *argv[])
         {"wav", 0, NULL, 6},
         {"nosound", 0, NULL, 7},
 
+        {"artist", 1, NULL, 8},
+        {"title", 1, NULL, 9},
+        {"game", 1, NULL, 10},
+
+        {"nlg", 0, NULL, 11},
+        
         {"rough", 0, NULL, 'u'},
         {"rate", 1, NULL, 's'},
         {"len", 1, NULL,  'l'},
@@ -737,6 +761,18 @@ int audio_main(int argc, char *argv[])
             case 7: // --nosound
                 nosound = 1;
             break;
+            case 8: // --artist
+                tag_artist = optarg;
+            break;
+            case 9: // --title
+                tag_title = optarg;
+            break;
+            case 10: // --game
+                tag_game = optarg;
+            break;
+            case 11: // --nlg
+                s98mode = 0;
+                break;
             case 'a':
                 turbo_mode = 1;
                 break;
@@ -881,6 +917,7 @@ int audio_main(int argc, char *argv[])
         if (rt_mode)
             printf("RealTime output mode\n");
         
+        // WAV出力パスの設定
         if (wav_mode)
         {
             char *wav_ext = WAV_EXT;
@@ -893,6 +930,7 @@ int audio_main(int argc, char *argv[])
                 wavfile = wav_path;
             }
         }
+        
         if (wavfile)
             printf("CreateWAV:%s\n", wavfile);
 
@@ -913,6 +951,35 @@ int audio_main(int argc, char *argv[])
         gs.log_ctx = log_ctx;
         
         printf("File : %s\n", playfile);
+
+        // タグ書き出し
+        if (log_ctx)
+        {
+            char title[NSF_FNMAX];
+            copy_filename(title, playfile);
+            
+            if (!tag_title)
+                tag_title = title;
+            
+            if (tag_title)
+            {
+                printf("Title : %s\n", tag_title);
+                WriteLOG_SetTitle(log_ctx, LOG_STR_TITLE, tag_title);
+            }
+            
+            if (tag_artist)
+            {
+                printf("Artist : %s\n", tag_artist);
+                WriteLOG_SetTitle(log_ctx, LOG_STR_ARTIST, tag_artist);
+            }
+
+            if (tag_game)
+            {
+                printf("Game : %s\n", tag_game);
+                WriteLOG_SetTitle(log_ctx, LOG_STR_GAME, tag_game);
+            }
+
+        }
         
         
         // ファイルの読み出し

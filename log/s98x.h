@@ -18,7 +18,7 @@
 #define PATH_SEP '/'
 #endif
 
-#define MAX_S98DEV 4
+#define MAX_S98DEV 8
 
 // 優先順位マップ
 struct prio_list
@@ -39,7 +39,10 @@ typedef struct {
     int time_denom; // 分母(デフォルトは1000)
     int time_us; // us単位での1SYNC
     
-    int def_denom;
+    long tag_pos; // タグ位置
+    void *tag_info; // タグ情報
+    
+    int def_denom; // デフォルト分母
     
     double s98_step; // S98の単位時間
     double sys_time; // 実際の時間
@@ -82,6 +85,13 @@ enum S98_DEVID
 	S98_DCSG,   // DCSG
 };
 
+enum
+{
+    S98_STR_TITLE = 0,
+    S98_STR_ARTIST,
+    S98_STR_GAME
+};
+
 S98CTX *OpenS98(const char *file);
 void CloseS98(S98CTX *ctx);
 int ReadS98(S98CTX *ctx);
@@ -96,6 +106,13 @@ int ReadS98VV(S98CTX *ctx);
 
 #ifndef S98_READONLY
 
+typedef struct {
+    char title[256];
+    char artist[256];
+    char game[256];
+} S98CTX_TAG;
+
+
 S98CTX *CreateS98(const char *file);
 int AddMapS98(S98CTX *ctx, int type, int freq, int prio);
 void MapEndS98(S98CTX *ctx);
@@ -103,6 +120,8 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data);
 void WriteSyncS98(S98CTX *ctx);
 void SetTimingS98(S98CTX *ctx, int us);
 void SetDenomS98(S98CTX *ctx,int denom);
+
+void WriteStringS98(S98CTX *ctx, int type, const char *str);
 
 #endif
 

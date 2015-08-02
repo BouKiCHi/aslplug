@@ -10,6 +10,16 @@
 
 #include <stdio.h>
 
+#define PATH_SEP '/'
+#define PATH_SEP_W32 '\\'
+
+#ifdef _WIN32
+#define PATH_DEFSEP PATH_SEP_W32
+#else
+#define PATH_DEFSEP PATH_SEP
+#endif
+
+
 struct glue2_setting
 {
     int track_id;
