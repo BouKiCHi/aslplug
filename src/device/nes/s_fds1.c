@@ -230,7 +230,7 @@ static void __fastcall FDSSoundReset(void *pNezPlay)
 	FDSSOUND *fdssound = ((NSFNSF*)((NEZ_PLAY*)pNezPlay)->nsf)->fdssound;
 	Int i;
 	FDS_FMOP *pop;
-	XMEMSET(&fdssound, 0, sizeof(FDSSOUND));
+	XMEMSET(fdssound, 0, sizeof(FDSSOUND));
 	fdssound->cps = DivFix(NES_BASECYCLES, 12 * (1 << XXX_SHIFT) * NESAudioFrequencyGet(pNezPlay), CPS_SHIFT);
 	for (pop = &fdssound->op[0]; pop < &fdssound->op[2]; pop++)
 	{
