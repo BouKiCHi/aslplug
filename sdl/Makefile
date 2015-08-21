@@ -16,6 +16,8 @@ endif
 
 include Makefile.inc
 
+ZIPBIN = $(NAME)_$(shell date +"%y%m%d")$(OSSFX).zip
+
 
 #
 # common
@@ -215,3 +217,10 @@ clean :
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 	rm -f $(TARGET_S)
+	
+zipclean :
+	rm -f $(ZIPBIN)
+
+zip :
+	zip $(ZIPBIN) $(TARGET) readme.txt SDL.dll	
+
