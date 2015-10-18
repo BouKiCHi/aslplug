@@ -2,7 +2,7 @@
 NLG.h
  2014-12-29
  定義の追加
- 
+
 */
 
 #ifndef __NLG_H__
@@ -24,11 +24,11 @@ typedef struct {
     int  length;
     int  loop_ptr;
     int  version;
-    
+
     int  ctc0;
     int  ctc3;
     int  irq_count;
-    
+
     int mode;
 } NLGCTX;
 
@@ -57,6 +57,9 @@ typedef void (*NLG_WRITELOG)(NLGCTX *ctx, int cmd, int addr, int data);
 
 char *GetTitleNLG(NLGCTX *ctx);
 int GetTickNLG(NLGCTX *ctx);
+// NLGの現在のtickをマイクロ秒で返す
+int GetTickUsNLG(NLGCTX *ctx);
+
 int GetLengthNLG(NLGCTX *ctx);
 int GetLoopPtrNLG(NLGCTX *ctx);
 int  GetBaseClkNLG(NLGCTX *ctx);

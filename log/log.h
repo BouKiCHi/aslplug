@@ -1,12 +1,19 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
+// 拡張子
+#define LOG_EXT_NLG ".NLG"
+#define LOG_EXT_S98 ".S98"
+
+
+// ログのモード(CreateLogで使用)
 enum
 {
     LOG_MODE_NLG = 0,
     LOG_MODE_S98,
 };
 
+// デバイスのタイプ。数値はS98と同じ(AddMapLOGで使用)
 enum
 {
     LOG_TYPE_NONE = 0,
@@ -23,13 +30,16 @@ enum
     LOG_TYPE_DCSG,   // DCSG
 };
 
+// 優先順位。値が高いほど最初にマップされる。AddMapLOGで使用。
 enum
 {
-    LOG_PRIO_PSG = 0,
-    LOG_PRIO_OPN,
-    LOG_PRIO_OPM,
-    LOG_PRIO_OPLL,
-    LOG_PRIO_OPL3,
+  LOG_PRIO_NORM = 0,
+  LOG_PRIO_PSG,
+  LOG_PRIO_FM,
+  LOG_PRIO_OPN,
+  LOG_PRIO_OPM,
+  LOG_PRIO_OPLL,
+  LOG_PRIO_OPL3,
 };
 
 enum
@@ -46,16 +56,16 @@ enum
 };
 
 
-#define MAX_MAP 4
+#define LOG_MAXMAP 8
 
 typedef struct {
     int mode;
     void *log_ctx;
-    
+
     int fm_count;
     int device_count;
-    char map[MAX_MAP];
-    int freq[MAX_MAP];
+    char map[LOG_MAXMAP];
+    int freq[LOG_MAXMAP];
 } LOGCTX;
 
 // ログの作成
@@ -89,5 +99,19 @@ void WriteLOG_SYNC(LOGCTX *ctx);
 
 // ラフモード出力
 void SetRoughModeLOG(LOGCTX *ctx, int denom);
+
+// 分母設定
+void SetDenomLOG(LOGCTX *ctx, int denom);
+
+// ファイル存在確認
+// 1 = 存在
+int IsExistLOG(const char *path);
+
+// ファイル名の作成(dest <- name without ext + ext)
+void MakeFilenameLOG(char *dest, const char *name, const char *ext);
+
+// 出力ファイル名の作成(dest <- name without ext + ext)
+// 0 = 成功, -1 = 失敗
+int MakeOutputFileLOG(char *dest, const char *name, const char *ext);
 
 #endif

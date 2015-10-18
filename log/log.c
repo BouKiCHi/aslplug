@@ -15,26 +15,26 @@
 LOGCTX *CreateLOG(const char *file, int mode)
 {
     LOGCTX *ctx = (LOGCTX *)malloc(sizeof(LOGCTX));
-    
+
     if (!ctx)
     {
         printf("Failed to malloc!");
         return NULL;
     }
     memset(ctx, 0 ,sizeof(LOGCTX));
-    
+
     // ログのモードを切り替える
     switch (mode)
     {
         case LOG_MODE_NLG:
             ctx->log_ctx = (void *)CreateNLG(file);
             break;
-            
+
         default:
             ctx->log_ctx = (void *)CreateS98(file);
             break;
     }
-    
+
     if (!ctx->log_ctx)
     {
         free(ctx);
@@ -52,13 +52,13 @@ void CloseLOG(LOGCTX *ctx)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
             CloseNLG((NLGCTX *)ctx->log_ctx);
             break;
-            
+
         default:
         case LOG_MODE_S98:
             CloseS98(ctx->log_ctx);
@@ -96,19 +96,19 @@ static int convS98Type(int type)
         default:
             return S98_NONE;
     }
-    
+
 }
 
 // デバイスの追加(返り値はデバイスID)
 int AddMapLOG(LOGCTX *ctx, int type, int freq, int prio)
 {
     int idx = 0;
-    
+
     if (!ctx)
         return -1;
-    
+
     idx = ctx->device_count;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -128,7 +128,7 @@ int AddMapLOG(LOGCTX *ctx, int type, int freq, int prio)
             idx = AddMapS98(ctx->log_ctx, convS98Type(type), freq, prio);
         break;
     }
-    
+
     return idx;
 }
 
@@ -138,7 +138,7 @@ void MapEndLOG(LOGCTX *ctx)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -147,7 +147,7 @@ void MapEndLOG(LOGCTX *ctx)
             MapEndS98(ctx->log_ctx);
             break;
     }
-    
+
 
 }
 
@@ -192,7 +192,7 @@ void WriteLOG_SetTitle(LOGCTX *ctx, int type, const char *str)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -208,7 +208,7 @@ void WriteLOG_CTC(LOGCTX *ctx, int type, int value)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -223,12 +223,12 @@ void WriteLOG_CTC(LOGCTX *ctx, int type, int value)
     }
 }
 
-// 時間出力
+// ログティック設定(マイクロ秒単位)
 void WriteLOG_Timing(LOGCTX *ctx, int us)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -249,7 +249,7 @@ void WriteLOG_SYNC(LOGCTX *ctx)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -268,7 +268,7 @@ void SetRoughModeLOG(LOGCTX *ctx, int denom)
 {
     if (!ctx)
         return;
-    
+
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
@@ -277,7 +277,77 @@ void SetRoughModeLOG(LOGCTX *ctx, int denom)
             SetDenomS98(ctx->log_ctx, denom);
             break;
     }
-    
 }
 
+// 分母設定
+void SetDenomLOG(LOGCTX *ctx, int denom)
+{
+    if (!ctx)
+      return;
 
+    switch (ctx->mode)
+    {
+      case LOG_MODE_NLG:
+        break;
+      case LOG_MODE_S98:
+        SetDenomS98(ctx->log_ctx, denom);
+        break;
+    }
+}
+
+// ファイル存在確認
+// 1 = 存在
+int IsExistLOG(const char *path)
+{
+  FILE *fp = fopen(path, "rb");
+
+  if (fp)
+  {
+    fclose(fp);
+    return 1;
+  }
+
+  return 0;
+}
+
+// ファイル名の作成(dest <- name without ext + ext)
+void MakeFilenameLOG(char *dest, const char *name, const char *ext)
+{
+    strcpy(dest, name);
+    char *p = strrchr(dest, '.');
+
+    if (p)
+      strcpy(p, ext);
+    else
+      strcat(dest, ext);
+}
+
+// 出力ファイル名の作成(dest <- name without ext + ext)
+// 0 = 成功, -1 = 失敗
+int MakeOutputFileLOG(char *dest, const char *name, const char *ext)
+{
+  int i;
+  char temp[512];
+
+  strcpy(temp, name);
+  char *p = strrchr(temp, '.');
+
+  if (p)
+    *p = 0;
+
+  sprintf(dest, "%s%s", temp, ext);
+
+  if (!IsExistLOG(dest))
+    return 0;
+
+  for(i = 0; i < 1000; i++)
+  {
+    sprintf(dest, "%s.%03d%s", temp, i, ext);
+    if (!IsExistLOG(dest))
+      return 0;
+  }
+
+  dest[0] = 0;
+
+  return -1;
+}

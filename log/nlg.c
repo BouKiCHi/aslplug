@@ -58,41 +58,41 @@ dword ReadDWORD(byte *p)
 NLGCTX *OpenNLG(const char *file)
 {
 	byte hdr[0x80];
-    
+
     NLGCTX *ctx = (NLGCTX *)malloc(sizeof(NLGCTX));
-    
+
     if (!ctx)
     {
         printf("Failed to malloc!");
         return NULL;
     }
     memset(ctx, 0 ,sizeof(NLGCTX));
-    
+
 	ctx->file = fopen(file,"rb");
-	
+
     if (!ctx->file)
 	{
 		printf("File open error:%s\n", file);
         free(ctx);
 		return NULL;
 	}
-    
+
 	fread(hdr, 0x60, 1, ctx->file);
-	
+
 	if (memcmp(hdr, "NLG1", 4) != 0)
 	{
 		printf("Unknown format!\n");
 		fclose(ctx->file);
-        
+
         free(ctx);
 		return NULL;
 	}
-	
+
     ctx->mode = NLG_READ;
 	ctx->version = ReadWORD(hdr + 4);
 
 	memcpy(ctx->title, hdr + 8, 64);
-    
+
 	ctx->title[64]  = 0;
 
 	ctx->baseclk    = (int)ReadDWORD(hdr + 72);
@@ -100,12 +100,12 @@ NLGCTX *OpenNLG(const char *file)
 
 	ctx->length     = (int)ReadDWORD(hdr + 88);
 	ctx->loop_ptr   = (int)ReadDWORD(hdr + 92);
-	
+
 	fseek(ctx->file, 0x60, SEEK_SET);
-    
+
     ctx->irq_count = 0;
     ctx->ctc0 = ctx->ctc3 = 0;
-	
+
 	return ctx;
 }
 
@@ -115,7 +115,7 @@ void CloseNLG(NLGCTX *ctx)
 {
     if (!ctx)
         return;
-    
+
     if (ctx->file)
     {
 #ifndef NLG_READONLY
@@ -127,7 +127,7 @@ void CloseNLG(NLGCTX *ctx)
         fclose(ctx->file);
         ctx->file = NULL;
     }
-    
+
     free(ctx);
 }
 
@@ -137,23 +137,23 @@ void CloseNLG(NLGCTX *ctx)
 void WriteHeaderNLG(NLGCTX *ctx)
 {
     byte hdr[0x80];
-    
+
     memset(hdr, 0, 0x80);
     memcpy(hdr, "NLG1", 4);
-    
+
     int len = (int)strlen(ctx->title);
-    
+
     if (len > 64)
         len = 64;
 
     memcpy(hdr + 8, ctx->title, len);
-    
+
     WriteWORD(hdr + 4, ctx->version); // Version
     WriteDWORD(hdr + 72, ctx->baseclk); // BaseCLK
     WriteDWORD(hdr + 76, ctx->tick); // Tick
     WriteDWORD(hdr + 88, ctx->length); // Length
     WriteDWORD(hdr + 92, ctx->loop_ptr); // Loop Pointer
-	
+
     SeekNLG(ctx, 0);
     fwrite(hdr, 0x60, 1, ctx->file);
 }
@@ -162,20 +162,20 @@ void WriteHeaderNLG(NLGCTX *ctx)
 NLGCTX *CreateNLG(const char *file)
 {
     char *name;
-    
+
     NLGCTX *ctx = malloc(sizeof(NLGCTX));
-    
+
     if (!ctx)
     {
         printf("Failed to malloc!");
         return NULL;
     }
-    
+
     memset(ctx, 0, sizeof(NLGCTX));
-    
+
     ctx->mode = NLG_WRITE;
 	ctx->file = fopen(file, "wb");
-	
+
     if (!ctx->file)
 	{
 		printf("File open error:%s\n", file);
@@ -183,7 +183,7 @@ NLGCTX *CreateNLG(const char *file)
         free(ctx);
 		return NULL;
 	}
-    
+
     name = strrchr(file, PATH_SEP);
 
     int len = 0;
@@ -194,29 +194,29 @@ NLGCTX *CreateNLG(const char *file)
     }
     else
         len = (int)strlen(file);
-    
+
     if (len > 64)
         len = 64;
-    
+
     if (name)
         strncpy(ctx->title, name, len);
     else
         strncpy(ctx->title, file, len);
-    
+
     ctx->title[len] = 0;
 
-    
+
     ctx->version = NLG_VER;
     ctx->baseclk = NLG_BASECLK;
     ctx->tick = 0;
     ctx->length = 0;
     ctx->loop_ptr = 0;
-    
+
     ctx->irq_count = 0;
     ctx->ctc0 = ctx->ctc3 = 0;
-    
+
     WriteHeaderNLG(ctx);
-    
+
 	return ctx;
 }
 
@@ -231,7 +231,7 @@ void WriteNLG_CMD(NLGCTX *ctx, int cmd)
 {
     if (!ctx || !ctx->file)
         return;
-    
+
     fputc(cmd, ctx->file);
 }
 
@@ -241,9 +241,9 @@ void WriteNLG_IRQ(NLGCTX *ctx)
 {
     if (!ctx || !ctx->file)
         return;
-    
+
     ctx->irq_count++;
-    
+
     fputc(CMD_IRQ, ctx->file);
 }
 
@@ -319,6 +319,12 @@ void SetCTC3_NLG(NLGCTX *ctx, int value)
     ctx->tick = ((ctx->ctc0 * 256) * ctx->ctc3);
 }
 
+// NLGの現在のtickをマイクロ秒で返す  
+int GetTickUsNLG(NLGCTX *ctx)
+{
+  return (ctx->tick / 4);
+}
+
 // 曲の長さを得る
 int GetLengthNLG(NLGCTX *ctx)
 {
@@ -348,34 +354,34 @@ int main(int argc,char *argv[])
         printf("nlgtest <file>\n");
         return -1;
     }
-    
+
     NLGCTX *ctx = OpenNLG(argv[1]);
-    
+
 	if (!ctx)
     {
         printf("Failed to open:%s\n", argv[1]);
 		return -1;
     }
-	
+
 	printf("Title:%s %d %d %dsec %d\n",
 		GetTitleNLG(ctx),
 		GetBaseClkNLG(ctx),
 		GetTickNLG(ctx),
 		GetLengthNLG(ctx),
 		GetLoopPtrNLG(ctx));
-		
+
 
 	int tick = 0;
 	int cmd = 0;
     int addr = 0;
     int data = 0;
-	
+
 	while (1)
 	{
 		cmd = ReadNLG(ctx);
 		if (cmd == EOF)
 			break;
-		
+
 		switch (cmd)
 		{
 			case CMD_PSG:
@@ -409,12 +415,12 @@ int main(int argc,char *argv[])
             break;
 		}
 	}
-	
+
 	printf("tick = %d\n", tick);
-	
+
 	CloseNLG(ctx);
     ctx = NULL;
-	
+
 	return 0;
 }
 

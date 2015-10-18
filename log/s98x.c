@@ -3,7 +3,7 @@
  2015-02-25 Added priority settings.
  2014-12-29
 
- This file is no warranty, but free to use. 
+ This file is no warranty, but free to use.
  ********/
 
 #include <stdio.h>
@@ -53,9 +53,9 @@ S98CTX *OpenS98(const char *file)
 {
 	int i;
 	byte hdr[0x80];
-    
+
     S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
-    
+
     if (!ctx)
     {
         printf("Failed to malloc!");
@@ -64,64 +64,64 @@ S98CTX *OpenS98(const char *file)
     memset(ctx, 0, sizeof(S98CTX));
 
 	ctx->file = fopen(file, "rb");
-	
+
     if (!ctx->file)
 	{
 		printf("File open error:%s\n", file);
         free(ctx);
 		return NULL;
 	}
-    
+
     ctx->mode = S98_READMODE;
 
 	fread(hdr, 0x20, 1, ctx->file);
-	
+
 	// フォーマット確認
 	if (memcmp(hdr, "S98", 3) != 0)
 	{
 		printf("Invalid S98 header!!\n");
 		fclose(ctx->file);
-        
+
         free(ctx);
 		return NULL;
 	}
-	
+
 	// バージョン確認
 	ctx->version = 1;
 	if (hdr[3] == '3')
 		ctx->version = 3;
-	
-	// タイミング 
+
+	// タイミング
 	ctx->time_nume = (int)ReadDWORD(hdr + 0x04);
 	ctx->time_denom = (int)ReadDWORD(hdr + 0x08);
-	
+
 	// デフォルト値の設定
 	if (ctx->time_nume == 0)
 		ctx->time_nume = 10;
-	
+
 	if (ctx->time_denom == 0)
 		ctx->time_denom = 1000;
-	
+
 	// ウェイトをus単位に変換する
 	ctx->time_us = (int)(((double)ctx->time_nume * S98_US) / ctx->time_denom);
-	
+
 	// データ位置の取得
 	ctx->dump_ptr = (int)ReadDWORD(hdr + 0x14);
 	ctx->dump_loop = (int)ReadDWORD(hdr + 0x18);
 
-	// デバイスカウント	
+	// デバイスカウント
 	ctx->dev_count = (int)ReadDWORD(hdr + 0x1c);
-	
+
 	// デバイス情報の取得
 	for(i = 0; i < ctx->dev_count && i < MAX_S98DEV; i++)
 	{
 		fread(hdr, 0x10, 1, ctx->file);
 		ctx->dev_type[i] = (int)ReadDWORD(hdr + 0x00);
 		ctx->dev_freq[i] = (int)ReadDWORD(hdr + 0x04);
-	} 
+	}
 	// データ先頭までシーク
-	fseek(ctx->file, ctx->dump_ptr, SEEK_SET); 
-	
+	fseek(ctx->file, ctx->dump_ptr, SEEK_SET);
+
 	return ctx;
 }
 
@@ -130,7 +130,7 @@ void CloseS98(S98CTX *ctx)
 {
     if (!ctx)
         return;
-    
+
     if (ctx->file)
     {
 #ifndef S98_READONLY
@@ -138,13 +138,13 @@ void CloseS98(S98CTX *ctx)
         {
             // 終了マーカーを出力
             fputc(S98_CMD_END, ctx->file);
-            
+
             // タグ情報がある
             if (ctx->tag_info)
             {
                 ctx->tag_pos = TellS98(ctx);
                 WriteTagS98(ctx);
-                
+
             }
 
             WriteHeaderS98(ctx);
@@ -153,11 +153,11 @@ void CloseS98(S98CTX *ctx)
         fclose(ctx->file);
         ctx->file = NULL;
     }
-    
+
     // タグ
     if (ctx->tag_info)
         free(ctx->tag_info);
-    
+
     free(ctx);
 }
 
@@ -180,81 +180,81 @@ static void WriteHeaderS98(S98CTX *ctx)
 {
 	int i;
     byte hdr[0x80];
-    
+
     memset(hdr, 0, 0x80);
     memcpy(hdr, "S983", 4);
-    
+
     // 分子
     WriteDWORD(hdr + 0x04, ctx->time_nume);
 
     // 分母
     WriteDWORD(hdr + 0x08, ctx->time_denom);
-    
+
     // タグ位置
     WriteDWORD(hdr + 0x10, ctx->tag_pos);
-    
-    
+
+
     // ヘッダサイズの計算
     ctx->dump_ptr = (0x20 + (0x10 * ctx->dev_count));
-    
+
     // ヘッダの先頭
-	WriteDWORD(hdr + 0x14, ctx->dump_ptr); 
+	WriteDWORD(hdr + 0x14, ctx->dump_ptr);
     // ループポインタ
 	WriteDWORD(hdr + 0x18, ctx->dump_loop);
     // デバイス数
-	WriteDWORD(hdr + 0x1c, ctx->dev_count); 
+	WriteDWORD(hdr + 0x1c, ctx->dev_count);
 
     // ヘッダ書き込み
 	fseek(ctx->file, 0, SEEK_SET);
 	fwrite(hdr, 0x20, 1, ctx->file);
-	
+
     // ポインタ
     struct prio_list *ptr = ctx->prio_top;
 
     // デバイスがない
     if (!ptr)
         return;
-    
+
     // デバイスマップの作成
     // printf("-- devmap -- \n");
-    
+
     // 初期化
     for(i = 0; i < MAX_S98DEV; i++)
         ctx->dev_map[i] = -1;
-    
+
     for(i = 0; i < MAX_S98DEV; i++)
     {
         int idx = ptr->index;
-        
+
         // printf("log_id:%d -> device:%d\n", idx, i);
 
         // ptr->index = device_id
         ctx->dev_map[idx] = i;
-        
+
         // 次が無ければ終了
         if (!ptr->right)
             break;
-        
+
         ptr = ptr->right;
     }
-    
+
      ptr = ctx->prio_top;
-    
+
     // デバイスリスト書き込み
 	for(i = 0; i < ctx->dev_count; i++)
 	{
 		memset(hdr, 0, 0x10);
-        
+
         int idx = -1;
-        
+
         if (ptr)
         {
             idx = ptr->index;
-        
+
             WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
             WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
         }
-		
+
 		fwrite(hdr, 0x10, 1, ctx->file);
 
         if (ptr)
@@ -267,9 +267,9 @@ static void WriteTagS98(S98CTX *ctx)
 {
     if (!ctx || !ctx->tag_info)
         return;
-    
+
     S98CTX_TAG *tag = (S98CTX_TAG *)ctx->tag_info;
-    
+
     fprintf(ctx->file,"[S98]");
     fprintf(ctx->file,"title=%s", tag->title);
     fputc(0x0a, ctx->file);
@@ -279,25 +279,25 @@ static void WriteTagS98(S98CTX *ctx)
     fputc(0x0a, ctx->file);
 
     fputc(0x00, ctx->file);
-    
+
 }
 
 // ファイルを開く
 S98CTX *CreateS98(const char *file)
 {
-    
+
     S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
-    
+
     if (!ctx)
     {
         printf("Failed to malloc!");
         return NULL;
     }
-    
+
     memset(ctx, 0, sizeof(S98CTX));
-    
+
     ctx->file = fopen(file, "wb");
-    
+
     if (!ctx->file)
     {
         printf("File open error:%s\n", file);
@@ -307,8 +307,8 @@ S98CTX *CreateS98(const char *file)
 
     ctx->mode = S98_WRITEMODE;
     ctx->dev_count = 0;
-    ctx->def_denom = 10000;
-    
+    ctx->def_denom = 1000;
+
     return ctx;
 }
 
@@ -322,19 +322,19 @@ void MapEndS98(S98CTX *ctx)
 void AddSortMapS98(S98CTX *ctx, int id, int prio)
 {
     struct prio_list *obj = &ctx->prio_map[ctx->dev_count];
-    
+
     // 現在のオブジェクトを初期化
     obj->left = NULL;
     obj->right = NULL;
     obj->prio = prio;
     obj->index = id;
-    
+
     // printf("prio:%d idx:%d\n", prio, id);
-    
+
     // ポインタの作成
     struct prio_list *ptr = ctx->prio_top;
     struct prio_list *prev = NULL;
-    
+
     // まだマップなし
     if (!ptr)
     {
@@ -342,28 +342,28 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
         ctx->prio_top = obj;
         return;
     }
-    
+
     // 下にたどる
     while(ptr)
     {
         // 優先順位がptrよりも上の場合
         if (prio > ptr->prio)
             break;
-        
+
         // 次に進める
         prev = ptr;
         ptr = ptr->right;
     }
-    
+
     /* if (ptr)
         printf("next is %d\n", ptr->index);
     else
         printf("this is bottom");
     */
-    
+
     // ptrより前に挿入する
     // obj > ptr
-    
+
     obj->right = ptr;
     obj->left = prev;
 
@@ -378,7 +378,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
     {
         ptr->left = obj;
     }
-    
+
     // トップを更新する
     if (!prev)
     {
@@ -395,18 +395,18 @@ int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
         return -1;
 
     int idx = ctx->dev_count;
-    
+
     // printf("type:%d freq:%d\n", type, freq);
 
     ctx->dev_type[idx] = type;
     ctx->dev_freq[idx] = freq;
-    
+
     AddSortMapS98(ctx, idx, prio);
-    
+
     ctx->dev_count++;
-    
+
     return idx;
-    
+
 }
 
 #define COPY_STR(dest, str) { strncpy(dest, str, 255); dest[255] = 0; }
@@ -417,21 +417,21 @@ void WriteStringS98(S98CTX *ctx, int type, const char *str)
 {
     if (!ctx)
         return;
-    
+
     // タグ構造体の取得
     if (!ctx->tag_info)
     {
         ctx->tag_info = malloc(sizeof(S98CTX_TAG));
-        
+
         if (!ctx->tag_info)
             return;
-        
+
         memset(ctx->tag_info, 0, sizeof(S98CTX_TAG));
     }
 
-    
+
     S98CTX_TAG *tag = (S98CTX_TAG *)ctx->tag_info;
-    
+
     switch (type) {
         case S98_STR_ARTIST:
             COPY_STR(tag->artist, str);
@@ -450,7 +450,7 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
 {
     if (id < 0 || !ctx)
         return;
-    
+
     id = ctx->dev_map[id];
 
     // レジスタは表と裏が想定されている
@@ -458,7 +458,7 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
 
     if (addr > 0xff)
         cmd += 1;
-    
+
     fputc(cmd, ctx->file);
     fputc(addr & 0xff, ctx->file);
     fputc(data & 0xff, ctx->file);
@@ -491,13 +491,14 @@ void SetTimingS98(S98CTX *ctx, int us)
 {
     if (!ctx)
         return;
-    
+
     // 1秒単位に変換する
     double step_sec = ((double)us / S98_US);
-    
+
     int denom = ctx->def_denom;
+
     int nume = (int)(step_sec * denom);
-    
+
     // S98設定値
     ctx->time_nume = nume;
     ctx->time_denom = denom;
@@ -527,6 +528,13 @@ int GetTickS98(S98CTX *ctx)
 {
     return ctx->time_us;
 }
+
+// ティックの読み出し(マイクロ秒)
+int GetTickUsS98(S98CTX *ctx)
+{
+    return ctx->time_us;
+}
+
 
 
 // デバイス数の読み出し
@@ -562,7 +570,6 @@ int ReadS98VV(S98CTX *ctx)
 		out |= (v & 0x7f) << s;
 		s += 7;
 	}while(v & 0x80);
-	
+
 	return out + 2;
 }
-

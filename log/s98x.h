@@ -2,7 +2,7 @@
  s98x.h by BouKiCHi 2014
  2014-12-29
 
- This file is no warranty, but free to use. 
+ This file is no warranty, but free to use.
  ********/
 
 #ifndef __S98X_H__
@@ -25,7 +25,7 @@ struct prio_list
 {
     struct prio_list *left;
     struct prio_list *right;
-    
+
     int prio;
     int index;
 };
@@ -34,21 +34,21 @@ typedef struct {
     FILE *file;
     int version;
     int mode;
-    
+
     int time_nume; // 分子(デフォルトは10)
     int time_denom; // 分母(デフォルトは1000)
     int time_us; // us単位での1SYNC
-    
+
     long tag_pos; // タグ位置
     void *tag_info; // タグ情報
-    
+
     int def_denom; // デフォルト分母
-    
+
     double s98_step; // S98の単位時間
     double sys_time; // 実際の時間
-    double sys_step; // 実際の単位時間    
-    
-    
+    double sys_step; // 実際の単位時間
+
+
     int dump_ptr; // データ先頭
     int dump_loop; // ループ位置
 
@@ -56,7 +56,7 @@ typedef struct {
     int dev_type[MAX_S98DEV];
     int dev_freq[MAX_S98DEV];
     int dev_map[MAX_S98DEV];
-    
+
     struct prio_list prio_map[MAX_S98DEV];
     struct prio_list *prio_top;
 
@@ -97,6 +97,7 @@ void CloseS98(S98CTX *ctx);
 int ReadS98(S98CTX *ctx);
 long TellS98(S98CTX *ctx);
 int GetTickS98(S98CTX *ctx);
+int GetTickUsS98(S98CTX *ctx);
 int GetDeviceCountS98(S98CTX *ctx);
 int GetDeviceTypeS98(S98CTX *ctx, int idx);
 int GetDeviceFreqS98(S98CTX *ctx, int idx);
