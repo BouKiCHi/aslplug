@@ -522,6 +522,7 @@ static void audio_loop_file(const char *file, int freq , int len)
 #define SAMEPATH 2
 
 #define WAV_EXT ".WAV"
+#define NLG_EXT ".NLG"
 
 int audio_check_nlgmode(const char *file)
 {
