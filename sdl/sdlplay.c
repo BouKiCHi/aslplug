@@ -33,7 +33,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2015-08-02"
+#define PRG_VER "2016-01-31"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
@@ -576,6 +576,8 @@ void usage(void)
 "-p           : NULL PCM mode.\n"
 "--nosound    : NULL PCM mode.\n"
 "\n"
+"--dump       : Dump mode.\n"
+"\n"
 "-z           : Set N163 mode\n"
 "\n"
 "--log        : Record a sound log\n"
@@ -623,6 +625,7 @@ int audio_main(int argc, char *argv[])
 {
     char log_path[NSF_FNMAX];
     char wav_path[NSF_FNMAX];
+    char dump_path[NSF_FNMAX];
 
     char *drvpath = NULL;
     char *logfile = NULL;
@@ -640,6 +643,9 @@ int audio_main(int argc, char *argv[])
     int len    = 360;
     int songno = -1;
     int songno_sub = -1;
+
+    // ダンプ作成
+    int dump_mode = 0;
 
     int wav_mode = 0;
 
@@ -707,6 +713,9 @@ int audio_main(int argc, char *argv[])
 
         {"nlg", 0, NULL, 11},
 
+        // ダンプモード
+        {"dump", 0, NULL, 12},
+
         {"rough", 0, NULL, 'u'},
         {"rate", 1, NULL, 's'},
         {"len", 1, NULL,  'l'},
@@ -759,6 +768,9 @@ int audio_main(int argc, char *argv[])
             break;
             case 11: // --nlg
                 s98mode = 0;
+                break;
+            case 12: // --dump / ダンプモード
+                dump_mode = 1;
                 break;
             case 'a':
                 turbo_mode = 1;
@@ -904,7 +916,7 @@ int audio_main(int argc, char *argv[])
         // WAV出力パスの設定
         if (wav_mode)
         {
-            char *wav_ext = WAV_EXT;
+            const char *wav_ext = WAV_EXT;
 
             // 同じディレクトリに出力
             if (wav_mode == SAMEPATH)
@@ -913,6 +925,15 @@ int audio_main(int argc, char *argv[])
 
                 wavfile = wav_path;
             }
+        }
+
+        // ダンプモード
+        if (dump_mode)
+        {
+          const char *ext = ".KSS";
+          MakeFilenameLOG(dump_path, playfile, ext);
+          glue2_set_dump_path(dump_path);
+          printf("Dump : %s\n", dump_path);
         }
 
         if (wavfile)

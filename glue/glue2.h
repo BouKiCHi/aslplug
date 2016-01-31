@@ -25,14 +25,14 @@ struct glue2_setting
     int track_id;
 
     int songno;
-    
+
     int freq;
     int ch;
     float vol;
-    
+
     int turbo;
     int use_fmgen;
-    
+
     int use_gmc;
     void *log_ctx;
 };
@@ -51,6 +51,10 @@ void glue2_set_exec_path(const char *path);
 
 // ドライバパスの設定
 void glue2_set_driver_path(const char *path);
+
+// ダンプパスの設定
+void glue2_set_dump_path(const char *path);
+
 
 
 // 拡張子をextに変更する
