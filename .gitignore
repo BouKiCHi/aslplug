@@ -1,4 +1,10 @@
 src/ui/sdl/obj-w32
 src/ui/sdl/obj-x86-gcc
-nezplay_asl
-nezplay_asl.exe
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/xcshareddata
+
+!*.xcodeproj/project.pbxproj
+
+.DS_Store
