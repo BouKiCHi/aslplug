@@ -411,7 +411,7 @@ const static NES_TERMINATE_HANDLER s_mmc5_terminate_handler[] = {
 
 //ここからレジスタビュアー設定
 Uint8 *mmc5_regdata;
-Uint32 (*ioview_ioread_DEV_MMC5)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_MMC5)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x15)return mmc5_regdata[a];else return 0x100;
 }

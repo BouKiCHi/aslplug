@@ -542,8 +542,8 @@ static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 //ここからレジスタビュアー設定
 static PSGSOUND *sndpr;
-Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
-Uint32 (*ioview_ioread_DEV_MSX)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_MSX)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0xd)return sndpr->regs[a];else return 0x100;
 }

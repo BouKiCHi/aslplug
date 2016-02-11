@@ -5,42 +5,67 @@
 #ifndef __YMF278B_H__
 #define __YMF278B_H__
 
-#include "emu.h"
+#include "mametype.h"
+
+class direct_read_data
+{
+public:
+	UINT8 *_ptr;
+	UINT64 _size;
+	void setMemory(UINT8 *mem, UINT64 size)
+	{
+		_ptr = mem;
+		_size = size;
+		
+	}
+	
+	UINT8 *getMemory(void)
+	{
+		return _ptr;
+	}
+	
+	UINT8 read_byte(UINT64 adrs)
+	{
+		if (adrs >= _size)
+			return 0xff;
+		
+		return _ptr[adrs];
+	}
+	void write_byte(UINT64 adrs, UINT8 data)
+	{
+		if (adrs >= _size)
+			return;
+		_ptr[adrs] = data;
+	}	
+};
+
+// #include "emu.h"
 
 #define YMF278B_STD_CLOCK (33868800)            /* standard clock for OPL4 */
 
-#define MCFG_YMF278B_IRQ_HANDLER(_devcb) \
-	devcb = &ymf278b_device::set_irq_handler(*device, DEVCB_##_devcb);
-
-class ymf278b_device : public device_t,
-						public device_sound_interface,
-						public device_memory_interface
+class ymf278b_device
 {
 public:
-	ymf278b_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	ymf278b_device(const char *tag, UINT32 clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<ymf278b_device &>(device).m_irq_handler.set_callback(object); }
+	// DECLARE_READ8_MEMBER( read );
+	// DECLARE_WRITE8_MEMBER( write );
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	void write(int offset, int data);
+	UINT8 read(int offset);
 
 	void ymf262_update_request();
 
+	void sound_stream_update(stream_sample_t **outputs, int samples);
+	
+	void load_rom(const char *filename);
+	
 protected:
 	// device-level overrides
-	virtual void device_config_complete() override;
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_stop() override;
-
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-
-	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_0) ? &m_space_config : nullptr; }
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
+	void device_config_complete() ;
+	void device_start();
+	void device_reset() ;
+	void device_stop();
 
 private:
 	struct YMF278BSlot
@@ -105,14 +130,11 @@ private:
 	INT32 m_memadr;
 
 	UINT8 m_status_busy, m_status_ld;
-	emu_timer *m_timer_busy;
-	emu_timer *m_timer_ld;
 	UINT8 m_exp;
 
 	INT32 m_fm_l, m_fm_r;
 	INT32 m_pcm_l, m_pcm_r;
 
-	attotime m_timer_base;
 	UINT8 m_timer_a_count, m_timer_b_count;
 	UINT8 m_enable, m_current_irq;
 	int m_irq_line;
@@ -126,22 +148,14 @@ private:
 	int m_pan_left[16],m_pan_right[16]; // pan volume offsets
 	INT32 m_mix_level[8];
 
-	emu_timer *m_timer_a, *m_timer_b;
 	int m_clock;
 
-	sound_stream * m_stream;
-	std::unique_ptr<INT32[]> m_mix_buffer;
 	direct_read_data * m_direct;
-	const address_space_config m_space_config;
-	devcb_write_line m_irq_handler;
 	UINT8 m_last_fm_data;
 
 	// ymf262
 	void *m_ymf262;
-	sound_stream * m_stream_ymf262;
 };
-
-extern const device_type YMF278B;
 
 
 #endif /* __YMF278B_H__ */

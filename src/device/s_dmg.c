@@ -993,7 +993,7 @@ static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 //ここからレジスタビュアー設定
 Uint8 *gb_regdata;
-Uint32 (*ioview_ioread_DEV_DMG)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_DMG)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x2f)return gb_regdata[a];else return 0x100;
 }

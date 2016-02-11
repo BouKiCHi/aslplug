@@ -170,7 +170,7 @@ static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 //ここからレジスタビュアー設定
 static SCCSOUND *sndpr;
-Uint32 (*ioview_ioread_DEV_SCC)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_SCC)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x9f)
 		return sndpr->ch[(a&0xe0)>>5].tonereg[a&0x1f];

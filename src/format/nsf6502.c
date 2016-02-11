@@ -147,9 +147,9 @@ static void __fastcall NullWrite(void *pNezPlay, Uint A, Uint V)
 
 
 //ここからメモリービュアー設定
-Uint32 (*memview_memread)(Uint32 a);
-NEZ_PLAY* memview_context;
-int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
+extern Uint32 (*memview_memread)(Uint32 a);
+static NEZ_PLAY* memview_context;
+extern int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_nes(Uint32 a){
 	if(((NSFNSF*)((NEZ_PLAY*)memview_context)->nsf)->nprh[(a>>12) & 0xF]!=NULL)
 		return ExtRdTbl[(a>>12) & 0xF](memview_context,a);

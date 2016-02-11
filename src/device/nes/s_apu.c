@@ -1041,7 +1041,7 @@ const static NES_TERMINATE_HANDLER s_apu_terminate_handler[] = {
 
 //ここからレジスタビュアー設定
 Uint8 *regdata_2a03;
-Uint32 (*ioview_ioread_DEV_2A03)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_2A03)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x17)return regdata_2a03[a];else return 0x100;
 }

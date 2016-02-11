@@ -14,33 +14,43 @@
 #include "m_nsd.h"
 #include "m_sgc.h"
 
+// global
+songinfodata_t songinfodata;
+
+// 
+Uint32 (*memview_memread)(Uint32 a);
+int MEM_MAX, MEM_IO, MEM_RAM, MEM_ROM;
+
+
 static int chmask_init = 0;
 Uint8 chmask[0x200];
 
-extern int (*ioview_ioread_DEV_2A03   )(int a);
-extern int (*ioview_ioread_DEV_FDS    )(int a);
-extern int (*ioview_ioread_DEV_MMC5   )(int a);
-extern int (*ioview_ioread_DEV_VRC6   )(int a);
-extern int (*ioview_ioread_DEV_N106   )(int a);
-extern int (*ioview_ioread_DEV_DMG    )(int a);
-extern int (*ioview_ioread_DEV_HUC6230)(int a);
-extern int (*ioview_ioread_DEV_AY8910 )(int a);
-extern int (*ioview_ioread_DEV_SN76489)(int a);
-extern int (*ioview_ioread_DEV_SCC    )(int a);
-extern int (*ioview_ioread_DEV_OPL    )(int a);
-extern int (*ioview_ioread_DEV_OPLL   )(int a);
-extern int (*ioview_ioread_DEV_ADPCM  )(int a);
-extern int (*ioview_ioread_DEV_ADPCM2 )(int a);
-extern int (*ioview_ioread_DEV_MSX    )(int a);
+int (*ioview_ioread_DEV_2A03   )(int a);
+int (*ioview_ioread_DEV_FDS    )(int a);
+int (*ioview_ioread_DEV_MMC5   )(int a);
+int (*ioview_ioread_DEV_VRC6   )(int a);
+int (*ioview_ioread_DEV_N106   )(int a);
+int (*ioview_ioread_DEV_DMG    )(int a);
+int (*ioview_ioread_DEV_HUC6230)(int a);
+int (*ioview_ioread_DEV_AY8910 )(int a);
+int (*ioview_ioread_DEV_SN76489)(int a);
+int (*ioview_ioread_DEV_SCC    )(int a);
+int (*ioview_ioread_DEV_OPL    )(int a);
+int (*ioview_ioread_DEV_OPLL   )(int a);
+int (*ioview_ioread_DEV_ADPCM  )(int a);
+int (*ioview_ioread_DEV_ADPCM2 )(int a);
+int (*ioview_ioread_DEV_MSX    )(int a);
 
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
+Uint32 (*dump_DEV_2A03)(Uint32 a, unsigned char* mem);
+Uint32 (*dump_DEV_HUC6230)(Uint32 a, unsigned char* mem);
+Uint32 (*dump_DEV_DMG)(Uint32 a, unsigned char* mem);
+Uint32 (*dump_DEV_OPLL)(Uint32 a, unsigned char* mem);
+Uint32 (*dump_DEV_AY8910)(Uint32 a,unsigned char* mem);
+Uint32 (*dump_DEV_ADPCM)(Uint32 a,unsigned char* mem);
 
-int (*memview_memread)(int a);
+Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
+Uint32 (*dump_MEM_GB)(Uint32 a,unsigned char* mem);
+
 
 
 static Uint GetWordLE(Uint8 *p)

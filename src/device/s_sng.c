@@ -268,7 +268,7 @@ static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 //ここからレジスタビュアー設定
 static Uint8 *regdata;
-Uint32 (*ioview_ioread_DEV_SN76489)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_SN76489)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	switch(a){
 	case 0:	case 1:	case 2:	case 3:	case 4:	case 5:	case 0x10:

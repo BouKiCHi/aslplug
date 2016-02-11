@@ -499,7 +499,7 @@ static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 //ここからレジスタビュアー設定
 static HESSOUND *sndpr;
-Uint32 (*ioview_ioread_DEV_HUC6230)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_HUC6230)(Uint32 a);
 Uint32 pce_ioview_ioread_bf(Uint32 a){
 	if(a<=0x1)return sndpr->common.sysregs[a];
 	if(a>=0x2 && a<=0x7)if (sndpr->cur) return sndpr->cur->regs[a - 2];

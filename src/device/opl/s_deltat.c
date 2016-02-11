@@ -311,8 +311,8 @@ static void setinst(YMDELTATPCMSOUND *sndp, Uint32 n, void *p, Uint32 l)
 }
 //ここからレジスタビュアー設定
 static YMDELTATPCMSOUND *sndpr;
-Uint32 (*ioview_ioread_DEV_ADPCM)(Uint32 a);
-Uint32 (*ioview_ioread_DEV_ADPCM2)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_ADPCM)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_ADPCM2)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0xb)return sndpr->common.regs[a];else return 0x100;
 }

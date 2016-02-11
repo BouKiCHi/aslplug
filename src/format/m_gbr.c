@@ -135,14 +135,6 @@ struct  GBRDMG_TAG {
 
 };
 
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
-
-
 static Int32 execute(GBRDMG *THIS_)
 {
 	Uint32 cycles;
@@ -608,7 +600,7 @@ static void timer_event(KMEVENT *event, KMEVENT_ITEM_ID curid, GBRDMG *THIS_)
 
 //Ç±Ç±Ç©ÇÁÉ_ÉìÉvê›íË
 static NEZ_PLAY *pNezPlayDump;
-Uint32 (*dump_MEM_GB)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_MEM_GB)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_GB_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -622,7 +614,7 @@ static Uint32 dump_MEM_GB_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint8 *gb_regdata;
 
-Uint32 (*dump_DEV_DMG)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_DMG)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_DMG_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){

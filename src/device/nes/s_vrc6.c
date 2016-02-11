@@ -254,7 +254,7 @@ const static NES_TERMINATE_HANDLER s_vrc6_terminate_handler[] = {
 Uint8 *vrc6_regdata;
 Uint8 *vrc6_regdata2;
 Uint8 *vrc6_regdata3;
-Uint32 (*ioview_ioread_DEV_VRC6)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_VRC6)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x02)return vrc6_regdata [a     ];else
 	if(a>=0x10 && a<=0x12)return vrc6_regdata2[a-0x10];else

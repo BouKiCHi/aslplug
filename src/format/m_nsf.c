@@ -25,15 +25,9 @@
 #define EXTSOUND_FME7	(1 << 5)
 #define EXTSOUND_J86	(1 << 6)	/* JALECO-86 */
 
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
-Uint8 titlebuffer[0x21];
-Uint8 artistbuffer[0x21];
-Uint8 copyrightbuffer[0x21];
+static Uint8 titlebuffer[0x21];
+static Uint8 artistbuffer[0x21];
+static Uint8 copyrightbuffer[0x21];
 
 /* RAM area */
 static Uint32 __fastcall ReadRam(void *pNezPlay, Uint32 A)
@@ -289,7 +283,7 @@ static Uint32 dump_MEM_FC_bf(Uint32 menu,unsigned char* mem){
 }
 //----------
 extern Uint8 *regdata_2a03;
-Uint32 (*dump_DEV_2A03)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_2A03)(Uint32 a,unsigned char* mem);
 const Uint8 *BASE64=(Uint8 *)"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static Uint32 dump_DEV_2A03_bf(Uint32 menu,unsigned char* mem){
 	int i,j,k,l,adr;Uint32 ac;
@@ -467,7 +461,7 @@ static Uint32 dump_DEV_N106_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
 
-Uint32 (*dump_DEV_AY8910)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_AY8910)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_AY8910_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -482,7 +476,7 @@ static Uint32 dump_DEV_AY8910_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_OPLL)(Uint32 a);
 
-Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_OPLL_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){

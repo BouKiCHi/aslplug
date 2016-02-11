@@ -13,7 +13,22 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+	
+// global(extern)
+typedef struct {
+		char* title;
+		char* artist;
+		char* copyright;
+		char detail[1024];
+} songinfodata_t;
+	
+extern songinfodata_t songinfodata;
 
+extern Uint32 (*memview_memread)(Uint32 a);
+extern int MEM_MAX, MEM_IO, MEM_RAM, MEM_ROM;
+
+
+// tag
 typedef struct NEZPLAY_TAG {
 	SONG_INFO *song;
 	Uint volume;

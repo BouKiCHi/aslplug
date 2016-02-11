@@ -77,15 +77,6 @@ struct  HESHES_TAG {
 	Uint8 hesvdc_ADR;
 };
 
-
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
-
-
 static Uint32 km6280_exec(struct K6280_Context *ctx, Uint32 cycles)
 {
 	HESHES *THIS_ = (HESHES *)ctx->user;
@@ -400,9 +391,9 @@ static void timer_event(KMEVENT *event, KMEVENT_ITEM_ID curid, HESHES *THIS_)
 }
 
 //ここからメモリービュアー設定
-Uint32 (*memview_memread)(Uint32 a);
-HESHES* memview_context;
-int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
+extern Uint32 (*memview_memread)(Uint32 a);
+static HESHES* memview_context;
+extern int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_hes(Uint32 a){
 	if(a>=0x1800&&a<0x1c00&&(a&0xf)==0xa)return 0xff;
 	return read_event(memview_context,a);
@@ -425,7 +416,7 @@ static Uint32 dump_MEM_PCE_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 pce_ioview_ioread_bf(Uint32);
 
-Uint32 (*dump_DEV_HUC6230)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_HUC6230)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_HUC6230_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -455,7 +446,7 @@ static Uint32 dump_DEV_HUC6230_bf(Uint32 menu,unsigned char* mem){
 extern Uint32 (*ioview_ioread_DEV_ADPCM)(Uint32 a);
 extern Uint32 (*ioview_ioread_DEV_ADPCM2)(Uint32 a);
 
-Uint32 (*dump_DEV_ADPCM)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_ADPCM)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){

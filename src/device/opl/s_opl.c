@@ -1545,8 +1545,9 @@ static void sndrelease(OPLSOUND *sndp)
 //ここからレジスタビュアー設定
 static Uint8 *regdata;
 static Uint8 *regdata2;
-Uint32 (*ioview_ioread_DEV_OPL)(Uint32 a);
-Uint32 (*ioview_ioread_DEV_OPLL)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_OPL)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_OPLL)(Uint32 a);
+
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0xff)return regdata[a];else return 0x100;
 }

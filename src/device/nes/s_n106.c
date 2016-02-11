@@ -427,7 +427,7 @@ const static NES_TERMINATE_HANDLER s_n106_terminate_handler[] = {
 
 //ここからレジスタビュアー設定
 Uint8 *n106_regdata;
-Uint32 (*ioview_ioread_DEV_N106)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_N106)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(a<=0x7f)return n106_regdata[a];else return 0x100;
 }

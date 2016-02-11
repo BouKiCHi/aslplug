@@ -637,9 +637,9 @@ static void ctc3_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
 
 
 //ここからメモリービュアー設定
-Uint32 (*memview_memread)(Uint32 a);
-KSSSEQ* memview_context;
-int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
+extern Uint32 (*memview_memread)(Uint32 a);
+static KSSSEQ* memview_context;
+extern int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_kss(Uint32 a){
 	return read_event(memview_context,a);
 }
@@ -647,7 +647,7 @@ Uint32 memview_memread_kss(Uint32 a){
 
 //ここからダンプ設定
 // static NEZ_PLAY *pNezPlayDump;
-Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -661,7 +661,7 @@ static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
 
-Uint32 (*dump_DEV_AY8910)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_AY8910)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_AY8910_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -740,7 +740,7 @@ static Uint32 dump_DEV_OPL_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_OPLL)(Uint32 a);
 
-Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_OPLL_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -756,7 +756,7 @@ static Uint32 dump_DEV_OPLL_bf(Uint32 menu,unsigned char* mem){
 extern Uint32 (*ioview_ioread_DEV_ADPCM)(Uint32 a);
 extern Uint32 (*ioview_ioread_DEV_ADPCM2)(Uint32 a);
 
-Uint32 (*dump_DEV_ADPCM)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_ADPCM)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -970,12 +970,6 @@ static void terminate(KSSSEQ *THIS_)
 	XFREE(THIS_);
 }
 
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
 
 static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 {

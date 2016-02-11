@@ -291,9 +291,9 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, SGCSEQ *THIS_)
 }
 
 //ここからメモリービュアー設定
-Uint32 (*memview_memread)(Uint32 a);
-SGCSEQ* memview_context;
-int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
+extern Uint32 (*memview_memread)(Uint32 a);
+static SGCSEQ* memview_context;
+extern int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_sgc(Uint32 a){
 	return read_event(memview_context,a);
 }
@@ -301,7 +301,7 @@ Uint32 memview_memread_sgc(Uint32 a){
 
 //ここからダンプ設定
 // static NEZ_PLAY *pNezPlayDump;
-Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_MEM_MSX)(Uint32 a,unsigned char* mem);
 static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -315,7 +315,7 @@ static Uint32 dump_MEM_MSX_bf(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_SN76489)(Uint32 a);
 
-Uint32 (*dump_DEV_SN76489)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_SN76489)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_SN76489_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -341,7 +341,7 @@ static Uint32 dump_DEV_SN76489_bf2(Uint32 menu,unsigned char* mem){
 //----------
 extern Uint32 (*ioview_ioread_DEV_OPLL)(Uint32 a);
 
-Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
+extern Uint32 (*dump_DEV_OPLL)(Uint32 a,unsigned char* mem);
 static Uint32 dump_DEV_OPLL_bf(Uint32 menu,unsigned char* mem){
 	int i;
 	switch(menu){
@@ -538,15 +538,9 @@ static void terminate(SGCSEQ *THIS_)
 	XFREE(THIS_);
 }
 
-struct {
-	char* title;
-	char* artist;
-	char* copyright;
-	char detail[1024];
-}songinfodata;
-Uint8 titlebuffer[0x21];
-Uint8 artistbuffer[0x21];
-Uint8 copyrightbuffer[0x21];
+static Uint8 titlebuffer[0x21];
+static Uint8 artistbuffer[0x21];
+static Uint8 copyrightbuffer[0x21];
 
 static Uint32 load(NEZ_PLAY *pNezPlay, SGCSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 {

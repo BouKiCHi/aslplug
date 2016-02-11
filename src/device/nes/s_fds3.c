@@ -443,7 +443,7 @@ const static NES_TERMINATE_HANDLER s_fds_terminate_handler[] = {
 Uint8 *fds_regdata;
 Uint8 *fds_regdata2;
 Uint8 *fds_regdata3;
-Uint32 (*ioview_ioread_DEV_FDS)(Uint32 a);
+extern Uint32 (*ioview_ioread_DEV_FDS)(Uint32 a);
 static Uint32 ioview_ioread_bf(Uint32 a){
 	if(         a<=0x0f)return fds_regdata[a];
 	if(a>=0x20&&a<=0x5f)return fds_regdata2[a-0x20];
