@@ -24,6 +24,9 @@ typedef struct {
 	
 extern songinfodata_t songinfodata;
 
+// CPU使用率
+extern double (*get_cpuusage)(void);
+
 extern Uint32 (*memview_memread)(Uint32 a);
 extern int MEM_MAX, MEM_IO, MEM_RAM, MEM_ROM;
 
@@ -83,6 +86,9 @@ Uint NEZGetSongMax(NEZ_PLAY*);
 Uint NEZGetChannel(NEZ_PLAY*);
 Uint NEZGetFrequency(NEZ_PLAY*);
 void NEZGetFileInfo(char **p1, char **p2, char **p3, char **p4);
+
+	
+double NEZGetCPUUsage(NEZ_PLAY *pNezPlay);
 
 #ifdef __cplusplus
 }

@@ -85,18 +85,16 @@ struct  KSSSEQ_TAG {
 	Uint8 *readmap[8];
 	Uint8 *writemap[8];
 
-    double cps;
-    double cpsrem;
-    double cpf;
-    double cpfrem;
-    
-//	Uint32 cps;		/* cycles per sample:fixed point */
-//	Uint32 cpsrem;	/* cycle remain */
-//	Uint32 cpsgap;	/* cycle gap */
-//	Uint64 cpf;		/* cycles per frame:fixed point */
-//	Uint64 cpfrem;	/* cycle remain */
-
-    Uint32 total_cycles;	/* total played cycles */
+	double cps; // サンプルごとのサイクル数
+	double cpsrem; // サンプルごとのサイクル数のあまり
+	double cpf; // フレームごとのサイクル数
+	double cpfrem; // フレームごとのサイクル数のあまり
+	
+	double cpu_usage; // CPU利用率
+	Uint32 cpu_cycle; // 1秒あたりのCPUクロック数
+	Uint32 total_skip_cycles; // スキップクロック数(1秒以内)
+	Uint32 total_cycles; // 実行クロック数(1秒以内)
+	Uint32 total_sec;	// 再生時間(秒)
 
 	Uint32 startsong;
 	Uint32 maxsong;
@@ -165,24 +163,34 @@ void OPLLSetTone(Uint8 *p, Uint32 type)
 
 static Int32 execute(KSSSEQ *THIS_)
 {
-	Int32 cycles;
+	// 実行可能なクロック数の残りに1サンプルあたりのクロック数を足す
 	THIS_->cpsrem += THIS_->cps;
-    cycles = (Int32)THIS_->cpsrem;
-    THIS_->cpsrem -= kmz80_exec(&THIS_->ctx, cycles);
+	
+	// 実行可能サイクル数
+	Int32 cycles = (Int32)THIS_->cpsrem;
+	
+	// 実行可能なクロック数から、実際に実行されたサイクル数を引く
+	THIS_->cpsrem -= kmz80_exec(&THIS_->ctx, cycles);
+	
+	// スキップ時間を加算
+	THIS_->total_skip_cycles += THIS_->ctx.skip_cycle;
 
-/*    cycles = THIS_->cpsrem >> SHIFT_CPS;
-	if (THIS_->cpsgap >= cycles)
-		THIS_->cpsgap -= cycles;
-	else
-	{
-		Int32 excycles = cycles - THIS_->cpsgap;
-		THIS_->cpsgap = kmz80_exec(&THIS_->ctx, excycles) - excycles;
-	}
-	THIS_->cpsrem &= (1 << SHIFT_CPS) - 1;
-*/
+	// トータルクロック数を加算
 	THIS_->total_cycles += cycles;
-    
-    return 0;
+	
+	// CPU時間を計算する
+	if (THIS_->total_cycles >= THIS_->cpu_cycle)
+	{
+		THIS_->cpu_usage = 1 - ((double)THIS_->total_skip_cycles / THIS_->total_cycles);
+		THIS_->cpu_usage *= 100;
+		THIS_->total_skip_cycles = 0;
+		
+		// 秒数計算を行う(オーバーフロー対策)
+		THIS_->total_sec++;
+		THIS_->total_cycles -= THIS_->cpu_cycle;
+	}
+	
+	return 0;
 }
 
 __inline static void synth(KSSSEQ *THIS_, Int32 *d)
@@ -305,8 +313,13 @@ static void play_setup_base(KSSSEQ *THIS_, Uint32 pc, Uint32 sp)
 {
 	Uint32 rp;
 	THIS_->ram[--sp] = 0;
-	THIS_->ram[--sp] = 0xfe;
-	THIS_->ram[--sp] = 0x18;	/* JR +0 */
+
+	if (THIS_->ext2 & EXT2_OPM)
+		THIS_->ram[--sp] = 0xfd; // -3
+	else
+		THIS_->ram[--sp] = 0xfe; // -2
+	
+	THIS_->ram[--sp] = 0x18;	/* JR */
 	THIS_->ram[--sp] = 0x76;	/* HALT */
 	rp = sp;
 	THIS_->ram[--sp] = (Uint8)(rp >> 8);
@@ -605,8 +618,9 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
     }
     
 	vsync_setup(THIS_);
-    
-    if (!(THIS_->ext2 & EXT2_OPM))
+	
+	// X1モードではない
+  if (!(THIS_->ext2 & EXT2_OPM))
         if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
 }
 
@@ -634,14 +648,16 @@ static void ctc3_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
 }
 
 
+// 現在のコンテキスト
+static KSSSEQ* kss_context;
+
 
 
 //ここからメモリービュアー設定
 extern Uint32 (*memview_memread)(Uint32 a);
-static KSSSEQ* memview_context;
 extern int MEM_MAX,MEM_IO,MEM_RAM,MEM_ROM;
 Uint32 memview_memread_kss(Uint32 a){
-	return read_event(memview_context,a);
+	return read_event(kss_context,a);
 }
 //ここまでメモリービュアー設定
 
@@ -776,6 +792,15 @@ static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 }
 //----------
 
+// CPU使用率ハンドラ
+extern double (*get_cpuusage)(void);
+static double kss_cpuusage(void)
+{
+	return kss_context->cpu_usage;
+}
+
+
+// リセット
 static void reset(NEZ_PLAY *pNezPlay)
 {
 	KSSSEQ *THIS_ = pNezPlay->kssseq;
@@ -889,13 +914,15 @@ static void reset(NEZ_PLAY *pNezPlay)
     if (THIS_->ext2 & EXT2_TURBO)
         cpu_ratio = 4;
     
-    //
-    int cpu_cycle = baseclock * cpu_ratio;
+    // 1秒間のCPUクロック数
+    THIS_->cpu_cycle = baseclock * cpu_ratio;
 
-    THIS_->cps = (double)cpu_cycle / freq;
+	// 1サンプルあたりのクロック数
+    THIS_->cps = (double)THIS_->cpu_cycle / freq;
     
     // THIS_->cps = DivFix(cpu_cycle, freq, SHIFT_CPS);
 
+	// 1フレームあたりのクロック数
 	if (THIS_->extdevice & EXTDEVICE_PAL)
         THIS_->cpf = ((4 * 342 * 313 / 6) * cpu_ratio);
 	else
@@ -911,15 +938,15 @@ static void reset(NEZ_PLAY *pNezPlay)
             
             if (THIS_->ext2 & EXT2_OPM)
             {
-                THIS_->cpf = (cpu_cycle / 100);
-                double vsync = (double)cpu_cycle / (THIS_->cpf);
+                THIS_->cpf = (THIS_->cpu_cycle / 100);
+                double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
                 double vsync_us = ((double)1*1000*1000) / vsync;
 
                 WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
             }
             else
             {
-                double vsync = (double)cpu_cycle / (THIS_->cpf);
+                double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
                 double vsync_us = ((double)1*1000*1000) / vsync;
                 // if 60Hz, vsync_us = 16666.666us
                 // 16666 / 64 exceed 256
@@ -929,17 +956,29 @@ static void reset(NEZ_PLAY *pNezPlay)
         
 		/* request execute */
 		Uint32 initbreak = 5 << 8; /* 5sec */
-		while (!THIS_->ctx.regs8[REGID_HALTED] && --initbreak) kmz80_exec(&THIS_->ctx, cpu_cycle >> 8);
+		
+		// リクエスト実行
+		while (!THIS_->ctx.regs8[REGID_HALTED] && --initbreak)
+			kmz80_exec(&THIS_->ctx, THIS_->cpu_cycle >> 8);
 	}
+	
+	// 垂直割り込みのセットアップ
 	vsync_setup(THIS_);
+	
+	// 再生機能セットアップ
 	if (THIS_->ctx.regs8[REGID_HALTED])
 	{
 		play_setup(THIS_, THIS_->playaddr);
 	}
+	
+	//　初期化
+	THIS_->cpu_usage = 0;
+	THIS_->total_sec = 0;
 	THIS_->total_cycles = 0;
+	THIS_->total_skip_cycles = 0;
     
 	//ここからメモリービュアー設定
-	memview_context = THIS_;
+	kss_context = THIS_;
 	MEM_MAX=0xffff;
 	MEM_IO =0x0000;
 	MEM_RAM=0xC000;
@@ -947,11 +986,16 @@ static void reset(NEZ_PLAY *pNezPlay)
 	memview_memread = memview_memread_kss;
 	//ここまでメモリービュアー設定
 
+	// CPU使用率ハンドラ
+	get_cpuusage = kss_cpuusage;
+
 }
 
 static void terminate(KSSSEQ *THIS_)
 {
 	Uint32 i;
+	// CPU使用率ハンドラ
+	get_cpuusage = NULL;
 
 	//ここからダンプ設定
 	dump_MEM_MSX     = NULL;

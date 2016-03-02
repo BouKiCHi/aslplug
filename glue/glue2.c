@@ -737,7 +737,16 @@ void glue2_make_samples(short *buf, int len)
     }
     // フェード機能
     fade_stereo(buf, len);
+}
 
+
+// CPU使用率
+double glue2_cpu_usage(void)
+{
+	if (g2.ctx[0])
+		return NEZGetCPUUsage(g2.ctx[0]);
+	
+	return 0;
 }
 
 

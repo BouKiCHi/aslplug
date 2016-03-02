@@ -288,6 +288,10 @@ typedef struct {
 #define TOP (context->t_op)
 #define TAD (context->t_ad)
 #define CYCLE (context->cycle)
+	
+	
+#define SKIP_CYCLE (context->skip_cycle)
+
 
 #define OPT ((const OPT_ITEM *)context->opt)
 #define OPTCB ((const Uint8 *)context->optcb)

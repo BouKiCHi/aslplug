@@ -17,6 +17,9 @@
 // global
 songinfodata_t songinfodata;
 
+// CPU比率を得る
+double (*get_cpuusage)(void) = NULL;
+
 // 
 Uint32 (*memview_memread)(Uint32 a);
 int MEM_MAX, MEM_IO, MEM_RAM, MEM_ROM;
@@ -97,6 +100,7 @@ NEZ_PLAY* NEZNew()
 void NEZDelete(NEZ_PLAY *pNezPlay)
 {
 	if (pNezPlay != NULL) {
+		get_cpuusage = NULL;
 		ioview_ioread_DEV_2A03   =NULL;
 		ioview_ioread_DEV_FDS    =NULL;
 		ioview_ioread_DEV_MMC5   =NULL;
@@ -214,9 +218,19 @@ Uint NEZGetFrequency(NEZ_PLAY *pNezPlay)
 	return NESAudioFrequencyGet(pNezPlay);
 }
 
+double NEZGetCPUUsage(NEZ_PLAY *pNezPlay)
+{
+	if (!get_cpuusage)
+		return 0;
+	
+	return get_cpuusage();
+}
+
 Uint NEZLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint uSize)
 {
 	Uint ret = NESERR_NOERROR;
+	get_cpuusage = NULL;
+	
 	ioview_ioread_DEV_2A03   =NULL;
 	ioview_ioread_DEV_FDS    =NULL;
 	ioview_ioread_DEV_MMC5   =NULL;

@@ -252,21 +252,24 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
 
 }
 
+// audio_info : 時間表示
+
 static void audio_info(int sec, int len)
 {
     if (!player.debug)
     {
-        if (player.verbose)
-            printf("\rTime : %02d:%02d / %02d:%02d o:%5d u:%5d c:%5d w:%6d p:%6d",
-                   sec / 60, sec % 60,
-                   len / 60, len % 60,
-                   pcm.over, pcm.under, pcm.count,
-                   pcm.write, pcm.play
-                   );
-
-        else
-        printf("\rTime : %02d:%02d / %02d:%02d",
-               sec / 60 , sec % 60 , len / 60 , len % 60 );
+			printf("Time: %02d:%02d / %02d:%02d ",
+					sec / 60 , sec % 60 , len / 60 , len % 60 );
+			
+			printf("CPU: %.3lf%% ", glue2_cpu_usage());
+			
+				if (player.verbose)
+						printf("o:%5d u:%5d c:%5d w:%6d p:%6d ",
+									 pcm.over, pcm.under, pcm.count,
+									 pcm.write, pcm.play
+						);
+		
+			printf("\r");
     }
     fflush(stdout);
 }

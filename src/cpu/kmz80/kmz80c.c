@@ -341,6 +341,8 @@ Uint32 kmz80_exec(KMZ80_CONTEXT *context, Uint32 cycles)
 	Uint32 op0, kmecycle;
 
 	kmecycle = CYCLE = 0;
+	SKIP_CYCLE = 0;
+	
 	while (CYCLE < cycles)
 	{
 		if (CHECKBREAK && CHECKBREAK(context->user, context, context->object)) break;
@@ -1161,13 +1163,20 @@ Uint32 kmz80_exec(KMZ80_CONTEXT *context, Uint32 cycles)
 				{
 					/* イベント有り */
 					if (CYCLE + nextcount < cycles)
+					{
+						SKIP_CYCLE += nextcount;
 						CYCLE += nextcount;
+					}
 					else
+					{
+						SKIP_CYCLE += (cycles - CYCLE);
 						CYCLE = cycles;
+					}
 				}
 				else
 				{
 					/* イベント無し */
+					SKIP_CYCLE += (cycles - CYCLE);
 					CYCLE = cycles;
 				}
 			}

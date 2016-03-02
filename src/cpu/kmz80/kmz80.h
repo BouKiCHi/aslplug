@@ -67,6 +67,8 @@ struct KMZ80_CONTEXT_TAG {
 	Uint32 t_ad;
 	/* サイクルカウンタ */
 	Uint32 cycle;
+	/* スキップサイクルカウンタ */
+	Uint32 skip_cycle;
 	/* オペコードテーブル */
 	void *opt;
 	/* オペコードCBテーブル */

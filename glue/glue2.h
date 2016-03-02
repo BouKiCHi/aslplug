@@ -81,6 +81,10 @@ int glue2_is_fade_end(void);
 // サンプル生成 / len = フレーム数
 void glue2_make_samples(short *buf, int len);
 
+// CPU使用率
+double glue2_cpu_usage(void);
+
+
 // ファイル読み出し
 int glue2_load_file(const char *file, int track, struct glue2_setting *gs);
 

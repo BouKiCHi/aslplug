@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B738C7301C6D099A0060E079 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B7C418E91AC035D700B0C67E /* Cocoa.framework */; };
+		73F9FDF01C867E40001F7F69 /* libSDL.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 73F9FDEE1C867E40001F7F69 /* libSDL.a */; };
+		73F9FDF11C867E40001F7F69 /* libSDLmain.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 73F9FDEF1C867E40001F7F69 /* libSDLmain.a */; };
+		73F9FDF41C867EAA001F7F69 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73F9FDF31C867EAA001F7F69 /* Cocoa.framework */; };
 		B738C7331C6D0A210060E079 /* sdlplay.c in Sources */ = {isa = PBXBuildFile; fileRef = B78035911B44AEB900280103 /* sdlplay.c */; };
 		B738C7341C6D0A280060E079 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = B78035821B44AE9F00280103 /* log.c */; };
 		B738C7351C6D0A2C0060E079 /* nlg.c in Sources */ = {isa = PBXBuildFile; fileRef = B78035841B44AE9F00280103 /* nlg.c */; };
@@ -63,8 +65,6 @@
 		B738C7681C6D0AC10060E079 /* nezplug.c in Sources */ = {isa = PBXBuildFile; fileRef = B780353C1B44AE7200280103 /* nezplug.c */; };
 		B738C7691C6D0AC10060E079 /* nsf6502.c in Sources */ = {isa = PBXBuildFile; fileRef = B780353D1B44AE7200280103 /* nsf6502.c */; };
 		B738C76A1C6D0AC10060E079 /* songinfo.c in Sources */ = {isa = PBXBuildFile; fileRef = B780353F1B44AE7200280103 /* songinfo.c */; };
-		B738C7731C6D0CE60060E079 /* libSDLmain.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B738C7711C6D0CE60060E079 /* libSDLmain.a */; };
-		B738C7751C6D0D080060E079 /* libSDL.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B738C7741C6D0D080060E079 /* libSDL.a */; };
 		B75726D01C6D1BC7009A7CB8 /* s_opm_gen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B780351B1B44AE7200280103 /* s_opm_gen.cpp */; };
 		B75726D81C6D1CF4009A7CB8 /* ymf278b.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B75726D61C6D1CF4009A7CB8 /* ymf278b.cpp */; };
 /* End PBXBuildFile section */
@@ -82,9 +82,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		73F9FDEE1C867E40001F7F69 /* libSDL.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libSDL.a; sourceTree = "<group>"; };
+		73F9FDEF1C867E40001F7F69 /* libSDLmain.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libSDLmain.a; sourceTree = "<group>"; };
+		73F9FDF31C867EAA001F7F69 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		B738C7291C6D09350060E079 /* aslplay */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = aslplay; sourceTree = BUILT_PRODUCTS_DIR; };
-		B738C7711C6D0CE60060E079 /* libSDLmain.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libSDLmain.a; sourceTree = "<group>"; };
-		B738C7741C6D0D080060E079 /* libSDL.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libSDL.a; sourceTree = "<group>"; };
 		B75726D61C6D1CF4009A7CB8 /* ymf278b.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ymf278b.cpp; sourceTree = "<group>"; };
 		B75726D71C6D1CF4009A7CB8 /* ymf278b.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ymf278b.h; sourceTree = "<group>"; };
 		B75726D91C6D1FA6009A7CB8 /* mametype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mametype.h; sourceTree = "<group>"; };
@@ -103,14 +104,14 @@
 		B78034C31B44AE7200280103 /* km65c02m.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = km65c02m.h; sourceTree = "<group>"; };
 		B78034C41B44AE7200280103 /* kmconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kmconfig.h; sourceTree = "<group>"; };
 		B78034C61B44AE7200280103 /* kmdmg.c */ = {isa = PBXFileReference; fileEncoding = 2147483649; lastKnownFileType = sourcecode.c.c; path = kmdmg.c; sourceTree = "<group>"; };
-		B78034C71B44AE7200280103 /* kmevent.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kmevent.c; sourceTree = "<group>"; };
+		B78034C71B44AE7200280103 /* kmevent.c */ = {isa = PBXFileReference; fileEncoding = 2147483649; lastKnownFileType = sourcecode.c.c; path = kmevent.c; sourceTree = "<group>"; };
 		B78034C81B44AE7200280103 /* kmevent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kmevent.h; sourceTree = "<group>"; };
 		B78034C91B44AE7200280103 /* kmr800.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kmr800.c; sourceTree = "<group>"; };
 		B78034CA1B44AE7200280103 /* kmtypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kmtypes.h; sourceTree = "<group>"; };
 		B78034CB1B44AE7200280103 /* kmz80.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kmz80.c; sourceTree = "<group>"; };
-		B78034CC1B44AE7200280103 /* kmz80.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kmz80.h; sourceTree = "<group>"; };
+		B78034CC1B44AE7200280103 /* kmz80.h */ = {isa = PBXFileReference; fileEncoding = 2147483649; lastKnownFileType = sourcecode.c.h; path = kmz80.h; sourceTree = "<group>"; };
 		B78034CD1B44AE7200280103 /* kmz80.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = kmz80.txt; sourceTree = "<group>"; };
-		B78034CE1B44AE7200280103 /* kmz80c.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kmz80c.c; sourceTree = "<group>"; };
+		B78034CE1B44AE7200280103 /* kmz80c.c */ = {isa = PBXFileReference; fileEncoding = 2147483649; lastKnownFileType = sourcecode.c.c; path = kmz80c.c; sourceTree = "<group>"; };
 		B78034CF1B44AE7200280103 /* kmz80i.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kmz80i.h; sourceTree = "<group>"; };
 		B78034D01B44AE7200280103 /* kmz80t.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kmz80t.c; sourceTree = "<group>"; };
 		B78034D21B44AE7200280103 /* divfix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = divfix.h; sourceTree = "<group>"; };
@@ -235,7 +236,6 @@
 		B78035961B44AEE900280103 /* c86ctl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = c86ctl.h; sourceTree = "<group>"; };
 		B78035981B44AEE900280103 /* gmcdrv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gmcdrv.h; sourceTree = "<group>"; };
 		B78035991B44AEE900280103 /* gmcdrv_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gmcdrv_dummy.cpp; sourceTree = "<group>"; };
-		B7C418E91AC035D700B0C67E /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -243,15 +243,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B738C7301C6D099A0060E079 /* Cocoa.framework in Frameworks */,
-				B738C7731C6D0CE60060E079 /* libSDLmain.a in Frameworks */,
-				B738C7751C6D0D080060E079 /* libSDL.a in Frameworks */,
+				73F9FDF41C867EAA001F7F69 /* Cocoa.framework in Frameworks */,
+				73F9FDF11C867E40001F7F69 /* libSDLmain.a in Frameworks */,
+				73F9FDF01C867E40001F7F69 /* libSDL.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		73F9FDF21C867E4B001F7F69 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				73F9FDEE1C867E40001F7F69 /* libSDL.a */,
+				73F9FDEF1C867E40001F7F69 /* libSDLmain.a */,
+			);
+			name = lib;
+			path = /usr/local/lib;
+			sourceTree = "<absolute>";
+		};
 		B738C7241C6D077B0060E079 /* aslplug */ = {
 			isa = PBXGroup;
 			children = (
@@ -263,23 +273,6 @@
 			);
 			name = aslplug;
 			sourceTree = "<group>";
-		};
-		B738C72A1C6D09350060E079 /* aslplay */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = aslplay;
-			sourceTree = "<group>";
-		};
-		B738C76F1C6D0CA00060E079 /* lib */ = {
-			isa = PBXGroup;
-			children = (
-				B738C7711C6D0CE60060E079 /* libSDLmain.a */,
-				B738C7741C6D0D080060E079 /* libSDL.a */,
-			);
-			name = lib;
-			path = ../../../../../usr/local/lib;
-			sourceTree = SOURCE_ROOT;
 		};
 		B78034B41B44AE7200280103 /* src */ = {
 			isa = PBXGroup;
@@ -565,10 +558,9 @@
 		B7C417591AC0319B00B0C67E = {
 			isa = PBXGroup;
 			children = (
-				B738C76F1C6D0CA00060E079 /* lib */,
-				B7C418E91AC035D700B0C67E /* Cocoa.framework */,
+				73F9FDF31C867EAA001F7F69 /* Cocoa.framework */,
+				73F9FDF21C867E4B001F7F69 /* lib */,
 				B738C7241C6D077B0060E079 /* aslplug */,
-				B738C72A1C6D09350060E079 /* aslplay */,
 				B7C417631AC0319B00B0C67E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -703,6 +695,7 @@
 		B738C72E1C6D09350060E079 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
 				CODE_SIGN_IDENTITY = "-";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
@@ -710,19 +703,22 @@
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../** /usr/local/include/**";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/** /usr/local/include/**";
 			};
 			name = Debug;
 		};
 		B738C72F1C6D09350060E079 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
 				CODE_SIGN_IDENTITY = "-";
 				GCC_NO_COMMON_BLOCKS = YES;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../** /usr/local/include/**";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/** /usr/local/include/**";
 			};
 			name = Release;
 		};
