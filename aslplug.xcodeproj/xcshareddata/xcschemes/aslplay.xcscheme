@@ -64,6 +64,14 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "$HOME/Music/NRD/SAMPLE01.NRD"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "$HOME/Music/NRD/AD02B.NRD"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "$HOME/Music/NRD/motteke_tvsize.NRD"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
