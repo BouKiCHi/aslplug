@@ -430,6 +430,13 @@ int glue2_read_nrd_song(const char *file)
 
     // ドライバファイルパスとサイズの取得
     long drv_size = glue2_getpath(drv_path, file, nrtdrv_bin);
+	
+		// ドライバサイズがおかしい
+		if (drv_size < 0)
+		{
+			printf("Driver not found!:%s\n", nrtdrv_bin);
+			return -1;
+		}
 
     // ヘッダサイズの取得
     long hdr_size = _kssnrt_len;
@@ -438,7 +445,7 @@ int glue2_read_nrd_song(const char *file)
     long song_size = glue2_get_filesize(file);
 
     // サイズがおかしい
-    if (song_size < 0 || drv_size < 0 || hdr_size < 0)
+    if (song_size < 0 || hdr_size < 0)
         return -1;
 
     // 0x4000 = ドライバメモリ, 0xF0 = ヘッダ開始アドレス
@@ -545,6 +552,13 @@ int glue2_read_mgs_song(const char *file)
 
     // ドライバファイルパスとサイズの取得
     long drv_size = glue2_getpath(drv_path, file, drv_name);
+	
+		// ドライバサイズがおかしい
+		if (drv_size < 0)
+		{
+			printf("Driver not found!:%s\n", drv_name);
+			return -1;
+		}
 
     // 曲ファイルのサイズを取得
     long song_size = glue2_get_filesize(file);
@@ -746,7 +760,7 @@ double glue2_cpu_usage(void)
 	if (g2.ctx[0])
 		return NEZGetCPUUsage(g2.ctx[0]);
 	
-	return 0;
+	return -1;
 }
 
 

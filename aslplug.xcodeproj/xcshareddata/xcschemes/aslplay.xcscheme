@@ -72,11 +72,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "$HOME/Music/NRD/motteke_tvsize.NRD"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "$HOME/Music/moon/O3D001.MDR"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>

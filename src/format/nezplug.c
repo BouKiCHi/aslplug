@@ -221,7 +221,7 @@ Uint NEZGetFrequency(NEZ_PLAY *pNezPlay)
 double NEZGetCPUUsage(NEZ_PLAY *pNezPlay)
 {
 	if (!get_cpuusage)
-		return 0;
+		return -1;
 	
 	return get_cpuusage();
 }

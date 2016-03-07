@@ -261,7 +261,10 @@ static void audio_info(int sec, int len)
 			printf("Time: %02d:%02d / %02d:%02d ",
 					sec / 60 , sec % 60 , len / 60 , len % 60 );
 			
-			printf("CPU: %.3lf%% ", glue2_cpu_usage());
+			double cpu_usage = glue2_cpu_usage();
+			
+			if (cpu_usage >= 0)
+				printf("CPU: %.3lf%% ", cpu_usage);
 			
 				if (player.verbose)
 						printf("o:%5d u:%5d c:%5d w:%6d p:%6d ",

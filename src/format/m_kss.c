@@ -181,8 +181,6 @@ static Int32 execute(KSSSEQ *THIS_)
 	// CPU時間を計算する
 	if (THIS_->total_cycles >= THIS_->cpu_cycle)
 	{
-		THIS_->cpu_usage = 1 - ((double)THIS_->total_skip_cycles / THIS_->total_cycles);
-		THIS_->cpu_usage *= 100;
 		THIS_->total_skip_cycles = 0;
 		
 		// 秒数計算を行う(オーバーフロー対策)
@@ -314,10 +312,14 @@ static void play_setup_base(KSSSEQ *THIS_, Uint32 pc, Uint32 sp)
 	Uint32 rp;
 	THIS_->ram[--sp] = 0;
 
+	THIS_->ram[--sp] = 0xfd; // -3 = HALT
+
+	/*
 	if (THIS_->ext2 & EXT2_OPM)
 		THIS_->ram[--sp] = 0xfd; // -3
 	else
 		THIS_->ram[--sp] = 0xfe; // -2
+	*/
 	
 	THIS_->ram[--sp] = 0x18;	/* JR */
 	THIS_->ram[--sp] = 0x76;	/* HALT */
@@ -794,9 +796,20 @@ static Uint32 dump_DEV_ADPCM_bf(Uint32 menu,unsigned char* mem){
 
 // CPU使用率ハンドラ
 extern double (*get_cpuusage)(void);
+
+static double kss_calc_cpuusage(void)
+{
+	double cpu_usage = 0;
+	
+	cpu_usage = 1 - ((double)kss_context->total_skip_cycles / kss_context->total_cycles);
+	cpu_usage *= 100;
+
+	return cpu_usage;
+}
+
 static double kss_cpuusage(void)
 {
-	return kss_context->cpu_usage;
+	return kss_calc_cpuusage();
 }
 
 
@@ -910,7 +923,7 @@ static void reset(NEZ_PLAY *pNezPlay)
     }
     
     // CPUを高速に設定
-    int cpu_ratio = 1;
+    double cpu_ratio = 1;
     if (THIS_->ext2 & EXT2_TURBO)
         cpu_ratio = 4;
     
@@ -965,7 +978,7 @@ static void reset(NEZ_PLAY *pNezPlay)
 	// 垂直割り込みのセットアップ
 	vsync_setup(THIS_);
 	
-	// 再生機能セットアップ
+	// HALTしているので、再生アドレスに戻す
 	if (THIS_->ctx.regs8[REGID_HALTED])
 	{
 		play_setup(THIS_, THIS_->playaddr);
