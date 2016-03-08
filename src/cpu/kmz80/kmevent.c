@@ -95,6 +95,7 @@ void kmevent_free(KMEVENT *kme, KMEVENT_ITEM_ID curid)
 void kmevent_settimer(KMEVENT *kme, KMEVENT_ITEM_ID curid, Uint32 time)
 {
 	kmevent_itemunlist(kme, curid);	/* 取り外し */
+	// kme->item[curid].count = time;
 	kme->item[curid].count = time ? kme->item[0].count + time : 0;
 	if (kme->item[curid].count) kmevent_iteminsert(kme, curid);	/* ソート */
 }

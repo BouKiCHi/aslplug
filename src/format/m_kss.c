@@ -71,26 +71,28 @@ struct  KSSSEQ_TAG {
 	Uint8 vola[SND_MAX];
 	KMEVENT kme;
 	KMEVENT_ITEM_ID vsync_id;
-    KMEVENT_ITEM_ID ctc3_id;
-    KMEVENT_ITEM_ID ctc1_id;
+	KMEVENT_ITEM_ID ctc3_id;
+	KMEVENT_ITEM_ID ctc1_id;
     
-    Uint8 ctc_const[4];
-    Uint8 ctc_conf[4];
-    Uint8 ctc_vect[4];
-    Uint8 ctc_flags;
+  Uint8 ctc_const[4];
+  Uint8 ctc_conf[4];
+  Uint8 ctc_vect[4];
+	Uint8 ctc_flags;
 
     
-    Uint32 bus_vector;
+	Uint32 bus_vector;
 
 	Uint8 *readmap[8];
 	Uint8 *writemap[8];
 
-	double cps; // サンプルごとのサイクル数
-	double cpsrem; // サンプルごとのサイクル数のあまり
-	double cpf; // フレームごとのサイクル数
-	double cpfrem; // フレームごとのサイクル数のあまり
+	double	cps; // サンプルごとのサイクル数
+	double	cpsrem; // サンプルごとのサイクル数のあまり
+	double	cpf; // フレームごとのサイクル数
+	double	cpfrem; // フレームごとのサイクル数のあまり
 	
-	double cpu_usage; // CPU利用率
+	double	cpu_usage; // CPU利用率
+	int			cpu_ratio; // CPU倍数
+	
 	Uint32 cpu_cycle; // 1秒あたりのCPUクロック数
 	Uint32 total_skip_cycles; // スキップクロック数(1秒以内)
 	Uint32 total_cycles; // 実行クロック数(1秒以内)
@@ -163,19 +165,13 @@ void OPLLSetTone(Uint8 *p, Uint32 type)
 
 static Int32 execute(KSSSEQ *THIS_)
 {
-	// 実行可能なクロック数の残りに1サンプルあたりのクロック数を足す
+	// サイクル数計算
 	THIS_->cpsrem += THIS_->cps;
-	
-	// 実行可能サイクル数
 	Int32 cycles = (Int32)THIS_->cpsrem;
-	
-	// 実行可能なクロック数から、実際に実行されたサイクル数を引く
 	THIS_->cpsrem -= kmz80_exec(&THIS_->ctx, cycles);
 	
-	// スキップ時間を加算
+	// HALT時間、クロック数を加算
 	THIS_->total_skip_cycles += THIS_->ctx.skip_cycle;
-
-	// トータルクロック数を加算
 	THIS_->total_cycles += cycles;
 	
 	// CPU時間を計算する
@@ -266,14 +262,13 @@ __inline static void volume(KSSSEQ *THIS_, Uint32 v)
 static void vsync_setup(KSSSEQ *THIS_)
 {
 	Int32 cycles = 0;
-    THIS_->cpfrem += THIS_->cpf;
-    cycles = (Int32)THIS_->cpfrem;
-    THIS_->cpfrem -= cycles;
+	
+	// 次のフレームまでの時間を算出
+	THIS_->cpfrem += THIS_->cpf;
+	cycles = (Int32)THIS_->cpfrem;
+	THIS_->cpfrem -= cycles;
 
-//	THIS_->cpfrem += THIS_->cpf;
-//	cycles = THIS_->cpfrem >> SHIFT_CPS;
-//	THIS_->cpfrem &= (1 << SHIFT_CPS) - 1;
-    
+	
 	kmevent_settimer(&THIS_->kme, THIS_->vsync_id, (Uint32)cycles);
 }
 
@@ -289,7 +284,7 @@ static void ctc3_setup(KSSSEQ *THIS_)
     Int32 cycles = (c0 * 256) * c3;
     
     if (THIS_->ext2 & EXT2_TURBO)
-        cycles *= 4;
+        cycles *= THIS_->cpu_ratio;
     
     kmevent_settimer(&THIS_->kme, THIS_->ctc3_id, (Uint32)cycles);
 }
@@ -299,7 +294,7 @@ static void ctc1_setup(KSSSEQ *THIS_)
     Int32 cycles = 256 * 256;
     
     if (THIS_->ext2 & EXT2_TURBO)
-        cycles *= 4;
+        cycles *= THIS_->cpu_ratio;
 
     
     kmevent_settimer(&THIS_->kme, THIS_->ctc1_id, (Uint32)cycles);
@@ -923,12 +918,12 @@ static void reset(NEZ_PLAY *pNezPlay)
     }
     
     // CPUを高速に設定
-    double cpu_ratio = 1;
+		THIS_->cpu_ratio = 1;
     if (THIS_->ext2 & EXT2_TURBO)
-        cpu_ratio = 4;
+        THIS_->cpu_ratio = 4;
     
     // 1秒間のCPUクロック数
-    THIS_->cpu_cycle = baseclock * cpu_ratio;
+    THIS_->cpu_cycle = baseclock * THIS_->cpu_ratio;
 
 	// 1サンプルあたりのクロック数
     THIS_->cps = (double)THIS_->cpu_cycle / freq;
@@ -937,36 +932,36 @@ static void reset(NEZ_PLAY *pNezPlay)
 
 	// 1フレームあたりのクロック数
 	if (THIS_->extdevice & EXTDEVICE_PAL)
-        THIS_->cpf = ((4 * 342 * 313 / 6) * cpu_ratio);
+        THIS_->cpf = ((4 * 342 * 313 / 6) * THIS_->cpu_ratio);
 	else
-        THIS_->cpf = ((4 * 342 * 262 / 6) * cpu_ratio);
+        THIS_->cpf = ((4 * 342 * 262 / 6) * THIS_->cpu_ratio);
 
     // THIS_->cpf = THIS_->cpf << SHIFT_CPS;
     
 	{
-        // ログ出力
-        if (pNezPlay->log_ctx)
-        {
-            THIS_->log_ctx = pNezPlay->log_ctx;
-            
-            if (THIS_->ext2 & EXT2_OPM)
-            {
-                THIS_->cpf = (THIS_->cpu_cycle / 100);
-                double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
-                double vsync_us = ((double)1*1000*1000) / vsync;
+		// ログ出力
+		if (pNezPlay->log_ctx)
+		{
+				THIS_->log_ctx = pNezPlay->log_ctx;
+				
+				if (THIS_->ext2 & EXT2_OPM)
+				{
+						THIS_->cpf = (THIS_->cpu_cycle / 100);
+						double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
+						double vsync_us = ((double)1*1000*1000) / vsync;
 
-                WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
-            }
-            else
-            {
-                double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
-                double vsync_us = ((double)1*1000*1000) / vsync;
-                // if 60Hz, vsync_us = 16666.666us
-                // 16666 / 64 exceed 256
-                WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
-            }
-        }
-        
+						WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
+				}
+				else
+				{
+						double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
+						double vsync_us = ((double)1*1000*1000) / vsync;
+						// if 60Hz, vsync_us = 16666.666us
+						// 16666 / 64 exceed 256
+						WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
+				}
+		}
+		
 		/* request execute */
 		Uint32 initbreak = 5 << 8; /* 5sec */
 		
