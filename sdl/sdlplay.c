@@ -20,7 +20,6 @@
 #include <sys/stat.h>
 
 #include "glue2.h"
-#include "nezplug.h"
 
 #include "log.h"
 
@@ -698,6 +697,8 @@ int audio_main(int argc, char *argv[])
         usage();
         return 0;
     }
+    
+    double adj_vol[8] = {1,1,1,1,1,1,1,1};
 
     player.debug = 0;
 
@@ -718,6 +719,7 @@ int audio_main(int argc, char *argv[])
         {"game", 1, NULL, 10},
 
         {"nlg", 0, NULL, 11},
+        {"adjvol", 1, NULL, 13},
 
         // ダンプモード
         {"dump", 0, NULL, 12},
@@ -732,6 +734,7 @@ int audio_main(int argc, char *argv[])
     };
 
     int opt_idx = 0;
+    
 
     while ((opt = getopt_long(argc, argv, "9q:s:n:v:l:d:o:r:btxhpzwagu", long_opts, &opt_idx)) != -1)
     {
@@ -777,6 +780,15 @@ int audio_main(int argc, char *argv[])
                 break;
             case 12: // --dump / ダンプモード
                 dump_mode = 1;
+                break;
+            case 13: // adjvol
+            {
+                int adjvol_idx;
+                double adjvol_val;
+                sscanf(optarg,"%d=%lf",&adjvol_idx,&adjvol_val);
+                if (adjvol_idx < 0 || adjvol_idx > 7) { printf("Wrong Device Index!\n"); break; }
+                adj_vol[adjvol_idx] = adjvol_val;
+            }
                 break;
             case 'a':
                 turbo_mode = 1;
@@ -877,6 +889,7 @@ int audio_main(int argc, char *argv[])
     LOGCTX *log_ctx = NULL;
 
     pcm.on = 1;
+    
 
 
     // ファイルの数だけ処理
@@ -1021,6 +1034,8 @@ int audio_main(int argc, char *argv[])
 
         if (!player.debug)
             printf("Freq = %d, SongNo = %d\n", rate, songno);
+        
+        for(int i = 0; i < 8; i++) glue2_set_adjust_volume(i,adj_vol[i]);
 
         // ループ実行
         if (rt_mode)

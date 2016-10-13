@@ -12,6 +12,7 @@ typedef void (*FUNC_RELEASE)(void *ctx);
 typedef void (*FUNC_RESET)(void *ctx, Uint32 clock, Uint32 freq);
 typedef void (*FUNC_SYNTH)(void *ctx, Int32 *p);
 typedef void (*FUNC_VOLUME)(void *ctx, Int32 v);
+typedef void (*FUNC_ADJUST_VOLUME)(void *ctx, double v);
 typedef void (*FUNC_WRITE)(void *ctx, Uint32 a, Uint32 v);
 typedef Uint32 (*FUNC_READ)(void *ctx, Uint32 a);
 typedef void (*FUNC_SETINST)(void *ctx, Uint32 n, void *p, Uint32 l);
@@ -26,6 +27,7 @@ typedef struct {
     FUNC_RESET reset;
     FUNC_SYNTH synth;
     FUNC_VOLUME volume;
+    FUNC_ADJUST_VOLUME adjust_volume;
     FUNC_WRITE write;
     FUNC_READ read;
     FUNC_SETINST setinst;

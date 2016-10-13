@@ -95,6 +95,9 @@ int glue2_get_songno(int track);
 // 曲番号設定
 void glue2_set_songno(int track, int songno);
 
+// 音量設定
+void glue2_set_adjust_volume(int device, double volume);
+
 
 // ポーズ
 void glue2_pause(int track, int flag);

@@ -24,6 +24,16 @@ typedef struct {
 	
 extern songinfodata_t songinfodata;
 
+// 音量調節
+enum {
+    ADJ_VOL_FM1,
+    ADJ_VOL_FM2,
+    ADJ_VOL_PSG
+};
+    
+typedef void (*ADJUST_DEVICE_VOLUME)(void *,int device, double v);
+    
+    
 // CPU使用率
 extern double (*get_cpuusage)(void);
 
@@ -41,6 +51,7 @@ typedef struct NEZPLAY_TAG {
 	NES_VOLUME_HANDLER *nvh;
 	NES_RESET_HANDLER *(nrh[0x10]);
 	NES_TERMINATE_HANDLER *nth;
+    ADJUST_DEVICE_VOLUME adj_dev_volume;
 	Uint naf_type;
 	Uint32 naf_prev[2];
 	void *nsf;
@@ -76,6 +87,8 @@ void NEZSetChannel(NEZ_PLAY*, Uint ch);
 void NEZReset(NEZ_PLAY*);
 void NEZSetFilter(NEZ_PLAY *, Uint filter);
 void NEZVolume(NEZ_PLAY*, Uint uVolume);
+void NEZAdjVolume(NEZ_PLAY*, int device, double v);
+    
 void NEZAPUVolume(NEZ_PLAY*, Int32 uVolume);
 void NEZDPCMVolume(NEZ_PLAY*, Int32 uVolume);
 void NEZRender(NEZ_PLAY*, void *bufp, Uint buflen);

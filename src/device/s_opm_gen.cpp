@@ -26,6 +26,8 @@ typedef struct
 	
 	Uint8 opm_addr;
 	char *mask;
+
+    double adjvol;
     
     FM::OPM *opm_inst;
 	
@@ -45,13 +47,21 @@ static void sndsynth(void *p, Int32 *dest)
     buf[1] = 0;
 	
     sndp->opm_inst->Mix(buf, 1);
-
+    buf[0] = (double)buf[0] * sndp->adjvol;
+    buf[1] = (double)buf[1] * sndp->adjvol;
+    
     dest[0] += (buf[0] * VOL_OPM);
     dest[1] += (buf[1] * VOL_OPM);
 }
 
 static void sndvolume(void *p, Int32 volume)
 {
+}
+
+static void sndadjvol(void *p, double volume)
+{
+    OPM_FMGEN *sndp = (OPM_FMGEN *)(p);
+    sndp->adjvol =volume;
 }
 
 
@@ -137,10 +147,13 @@ KMIF_SOUND_DEVICE *OPM_FMGen_SoundAlloc(void)
 	sndp->kmif.reset = sndreset;
 	sndp->kmif.synth = sndsynth;
 	sndp->kmif.volume = sndvolume;
-	sndp->kmif.write = sndwrite;
+    sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
     // sndp->kmif.setmask = setmask;
+    
+    sndp->kmif.adjust_volume = sndadjvol;
+    sndp->adjvol = 1;
 	
 	return &sndp->kmif;
 }

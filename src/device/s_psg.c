@@ -78,7 +78,7 @@ typedef struct {
 	} common;
 	Uint8 type;
 	Uint8 regs[0x10];
-    
+    double adjvol;
     int map_psg;
     int map_type;
     
@@ -362,6 +362,8 @@ static void sndsynth(void *ctx, Int32 *p)
 	if (chmask[DEV_MSX_DA])
 		accum += LogToLin(sndp->logtbl,sndp->common.mastervolume, LOG_LIN_BITS-7)
 		* (sndp->common.daenable ? (sndp->common.davolume*7 + (1<<16))/7 : sndp->common.davolume);
+    
+    accum = ((double)accum) * sndp->adjvol;
 #ifdef VOLUME_3
 	accum = accum * PSG_VOL;
 #endif
@@ -374,6 +376,12 @@ static void sndvolume(void *ctx, Int32 volume)
 	PSGSOUND *sndp = ctx;
 	volume = (volume << (LOG_BITS - 8)) << 1;
 	sndp->common.mastervolume = volume;
+}
+
+static void sndadjvolume(void *ctx, double volume)
+{
+    PSGSOUND *sndp = ctx;
+    sndp->adjvol = volume;
 }
 
 __inline static Uint32 sndreadreg(PSGSOUND *sndp, Uint32 a)
@@ -564,9 +572,12 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 	sndp->kmif.reset = sndreset;
 	sndp->kmif.synth = sndsynth;
 	sndp->kmif.volume = sndvolume;
-	sndp->kmif.write = sndwrite;
+    sndp->kmif.adjust_volume = sndadjvolume;
+    sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
+
+    sndp->adjvol = 1;
     
 	sndp->logtbl = LogTableAddRef();
 	if (!sndp->logtbl)

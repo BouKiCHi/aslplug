@@ -28,6 +28,7 @@ typedef struct
 	} common;
 	Uint8 type;
 	
+    double adjvol;
 	int opm_addr;
 	void *opm_ctx;
 	char *mask;
@@ -51,6 +52,10 @@ static void sndsynth(void *p, Int32 *dest)
 	bufp[1] = buf+1;
 
     YM2151UpdateOne(sndp->opm_ctx, bufp, 1);
+    
+    buf[0] = (double)buf[0] * sndp->adjvol;
+    buf[1] = (double)buf[1] * sndp->adjvol;
+    
     dest[0] += (buf[0] * VOL_OPM);
     dest[1] += (buf[1] * VOL_OPM);
 }
@@ -63,6 +68,11 @@ static void sndvolume(void *p, Int32 volume)
 	sndp->common.mastervolume = volume;
 }
 
+static void sndadjvolume(void *p, double volume)
+{
+    OPMSOUND *sndp = (OPMSOUND *)(p);
+    sndp->adjvol = volume;
+}
 
 static Uint32 sndread(void *p, Uint32 a)
 {
@@ -171,10 +181,13 @@ KMIF_SOUND_DEVICE *OPMSoundAlloc(int count)
 	sndp->kmif.reset = sndreset;
 	sndp->kmif.synth = sndsynth;
 	sndp->kmif.volume = sndvolume;
-	sndp->kmif.write = sndwrite;
+    sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
     sndp->kmif.setirq = setirq;
+    
+    sndp->kmif.adjust_volume = sndadjvolume;
+    sndp->adjvol = 1;
     
     // sndp->kmif.setmask = setmask;
 	

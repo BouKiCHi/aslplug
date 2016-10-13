@@ -168,6 +168,12 @@ void NEZVolume(NEZ_PLAY *pNezPlay, Uint uVolume)
 	NESVolume(pNezPlay, pNezPlay->volume);
 }
 
+void NEZAdjVolume(NEZ_PLAY *pNezPlay,int device, double vol)
+{
+    if (!pNezPlay || !pNezPlay->adj_dev_volume) return;
+    pNezPlay->adj_dev_volume(pNezPlay,device,vol);
+}
+
 void NEZAPUVolume(NEZ_PLAY *pNezPlay, Int32 uVolume)
 {
 	if (pNezPlay == 0) return;

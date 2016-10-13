@@ -257,6 +257,13 @@ __inline static void volume(KSSSEQ *THIS_, Uint32 v)
 			if (THIS_->sndp[SND_MSXAUDIO]) THIS_->sndp[SND_MSXAUDIO]->volume(THIS_->sndp[SND_MSXAUDIO]->ctx, v + (THIS_->vola[SND_MSXAUDIO] << 4) - SND_VOLUME);
 			break;
 	}
+    // X1モード
+    if (THIS_->sndp[SND_OPM]) {
+        int vol = v + (THIS_->vola[SND_PSG] << 4) - SND_VOLUME;
+        vol /= 2;
+        THIS_->sndp[SND_PSG]->volume(THIS_->sndp[SND_PSG]->ctx, vol);
+    }
+    
 }
 
 static void vsync_setup(KSSSEQ *THIS_)
@@ -1403,6 +1410,22 @@ static Uint32 load(NEZ_PLAY *pNezPlay, KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize
 	return NESERR_NOERROR;
 }
 
+static void KSSSEQAdjVolume(void *p,int device, double v) {
+    NEZ_PLAY *pNezPlay = (NEZ_PLAY *)p;
+    KSSSEQ *THIS_ = pNezPlay->kssseq;
+    switch(device) {
+        case ADJ_VOL_FM1:
+            THIS_->sndp[SND_OPM]->adjust_volume(THIS_->sndp[SND_OPM]->ctx,v);
+            break;
+        case ADJ_VOL_FM2:
+            THIS_->sndp[SND_OPM2]->adjust_volume(THIS_->sndp[SND_OPM2]->ctx,v);
+            break;
+        case ADJ_VOL_PSG:
+            THIS_->sndp[SND_PSG]->adjust_volume(THIS_->sndp[SND_PSG]->ctx,v);
+            break;
+    }
+}
+
 static Int32 __fastcall KSSSEQExecuteZ80CPU(void *pNezPlay)
 {
 	execute(((NEZ_PLAY*)pNezPlay)->kssseq);
@@ -1488,5 +1511,6 @@ Uint32 KSSLoad(NEZ_PLAY *pNezPlay, Uint8 *pData, Uint32 uSize)
 	NESVolumeHandlerInstall(pNezPlay, kssseq_volume_handler);
 	NESResetHandlerInstall(pNezPlay->nrh, kssseq_reset_handler);
 	NESTerminateHandlerInstall(&pNezPlay->nth, kssseq_terminate_handler);
+    pNezPlay->adj_dev_volume = KSSSEQAdjVolume;
 	return ret;
 }

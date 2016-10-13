@@ -63,8 +63,12 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
+            argument = "-n 128"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "$HOME/Music/NRD/SAMPLE01.NRD"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "$HOME/Music/NRD/AD02B.NRD"
@@ -76,7 +80,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "$HOME/Music/moon/O3D001.MDR"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>

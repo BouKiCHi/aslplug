@@ -852,6 +852,15 @@ void glue2_set_songno(int track, int no)
     NEZSetSongNo(g2.ctx[track], no);
 }
 
+// 音量調整
+void glue2_set_adjust_volume(int device, double volume)
+{
+    if (!g2.ctx[0])
+        return;
+    
+    NEZAdjVolume(g2.ctx[0],device,volume);
+}
+
 // リセット
 void glue2_reset(int track)
 {
