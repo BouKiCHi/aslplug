@@ -8,3 +8,4 @@ src/ui/sdl/obj-x86-gcc
 !*.xcodeproj/project.pbxproj
 
 .DS_Store
+sdl/obj-w32/

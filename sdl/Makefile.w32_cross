@@ -42,7 +42,7 @@ endif
 # SDL stuff
 #
 
-SDL_CONFIG = sdl-config.w32
+SDL_CONFIG = sdl-config
 
 SDL_LIBS := -mconsole 
 SDL_LIBS += `$(SDL_CONFIG) --libs | sed -e "s|-mwindows||g" | \
