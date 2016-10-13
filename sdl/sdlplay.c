@@ -32,7 +32,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2016-01-31"
+#define PRG_VER "2016-10-14"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
