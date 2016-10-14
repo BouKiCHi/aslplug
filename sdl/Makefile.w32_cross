@@ -43,12 +43,11 @@ endif
 #
 
 SDL_CONFIG = sdl-config
+SDL_DIR = /lib
 
 SDL_LIBS := -mconsole 
-SDL_LIBS += `$(SDL_CONFIG) --libs | sed -e "s|-mwindows||g" | \
- sed -e  "s|-lSDLmain||g" | sed -e  "s|-lmingw32||g"`
-SDL_LIBS += -static-libgcc
-
+SDL_LIBS += -L$(SDL_DIR) -lSDLmain $(SDL_DIR)/libSDL.dll.a
+SDL_LIBS += -static
 
 #
 # static link for w32 is currently not supported.

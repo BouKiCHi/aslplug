@@ -21,8 +21,9 @@
 typedef unsigned char byte;
 typedef unsigned short word;
 
+#ifndef PATH_MAX
 #define PATH_MAX 2048
-
+#endif
 
 #include "fade.h"
 
