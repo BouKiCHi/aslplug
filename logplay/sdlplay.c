@@ -82,6 +82,7 @@ struct {
 
   int pos;
   int count;
+  SDL_mutex *mutex;
 
   short buffer[PCM_BUFFER_SHORT];
 } pcm;
@@ -144,28 +145,34 @@ static void audio_callback(void *param, Uint8 *dest, int len_in_bytes) {
     memset(dest, 0, len_in_bytes);
     return;
   }
+  int count;
+  int out_count;
+  
+  if (SDL_LockMutex(pcm.mutex) == 0) {
+    count = pcm.count;
+    out_count = pcm.output_count;
+    SDL_UnlockMutex(pcm.mutex); 
+  }
 
-    int count = pcm.count;
-    int out_count = pcm.output_count;
-
-    for (i = 0; i < len_in_bytes / 2;) {
-      if (count > 0) {
-        buf[i++] = pcm.buffer[pcm.play++];
-        buf[i++] = pcm.buffer[pcm.play++];
-        count -= 2;
-      } else {
-        buf[i++] = 0;
-        buf[i++] = 0;
-      }
-      out_count++;
-      if (pcm.play >= PCM_BUFFER_SHORT)
-        pcm.play = 0;
+  for (i = 0; i < len_in_bytes / 2;) {
+    if (count > 0) {
+      buf[i++] = pcm.buffer[pcm.play++];
+      buf[i++] = pcm.buffer[pcm.play++];
+      count -= 2;
+    } else {
+      buf[i++] = 0;
+      buf[i++] = 0;
     }
-#ifdef USE_SYNC
-    __sync_synchronize();
-#endif
+    out_count++;
+    if (pcm.play >= PCM_BUFFER_SHORT) pcm.play = 0;
+  }
+
+
+  if (SDL_LockMutex(pcm.mutex) == 0) {
     pcm.output_count = out_count;
     pcm.count = count;
+    SDL_UnlockMutex(pcm.mutex); 
+  }
 }
 
 
@@ -193,11 +200,18 @@ static int audio_init(int freq)
     return 1;
   }
 
+  pcm.mutex = SDL_CreateMutex();
+  if (!pcm.mutex) {
+    printf("Couldn't create mutex!\n");
+    return 0;
+  }
+
   return 0;
 }
 
 // SDL開放
 static void audio_free(void) {
+  if (!pcm.mutex) SDL_DestroyMutex(pcm.mutex);
   SDL_CloseAudio();
   SDL_Quit();
 }
@@ -516,11 +530,11 @@ static void audio_loop(NLG *np, int freq) {
 
     len = audio_render_log(np, pcm.buffer + pcm.write, PCM_BLOCK_SHORT);
 
-#ifdef USE_SYNC
-    __sync_synchronize();
-#endif
-    pcm.write += (len * PCM_CH);
-    pcm.count += (len * PCM_CH);
+    if (SDL_LockMutex(pcm.mutex) == 0) {
+      pcm.write += (len * PCM_CH);
+      pcm.count += (len * PCM_CH);
+      SDL_UnlockMutex(pcm.mutex); 
+    }
 
     if (pcm.write >= PCM_BUFFER_SHORT) pcm.write = 0;
 
@@ -557,8 +571,12 @@ static void audio_loop_file(NLG *np, const char *file, int freq) {
 
     if (fp) fwrite(pcm.buffer, PCM_BLOCK_BYTES, 1, fp);
 
-    pcm.output_count += PCM_BLOCK_FRAME;
-    total_frames += PCM_BLOCK_FRAME;
+
+    if (SDL_LockMutex(pcm.mutex) == 0) {
+      pcm.output_count += PCM_BLOCK_FRAME;
+      total_frames += PCM_BLOCK_FRAME;
+      SDL_UnlockMutex(pcm.mutex); 
+    }
   }while(len > 0 && !pcm.stop);
 
   audio_write_wav_header(fp, freq,
