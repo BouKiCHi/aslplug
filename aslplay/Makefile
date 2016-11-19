@@ -77,7 +77,7 @@ kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
 # directory for main
 #
 
-MAINDIR   = sdl
+MAINDIR   = aslplay
 
 
 LOGDIR = log

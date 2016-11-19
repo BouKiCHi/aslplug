@@ -9,3 +9,5 @@ src/ui/sdl/obj-x86-gcc
 
 .DS_Store
 sdl/obj-w32/
+aslplay/obj-w32/
+logplay/objs_w32/
