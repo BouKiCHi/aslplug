@@ -11,3 +11,4 @@ src/ui/sdl/obj-x86-gcc
 sdl/obj-w32/
 aslplay/obj-w32/
 logplay/objs_w32/
+sccisim/obj-w32/

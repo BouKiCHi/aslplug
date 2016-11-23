@@ -10,6 +10,7 @@ typedef struct {
 	unsigned bit;
 	unsigned ch;
 	unsigned freq;
+	unsigned blocklen;
 	/* callback */
 	void *lpargs;
 	void (*Write)(void *lpargs, void *lpbuf, unsigned len);
@@ -25,5 +26,13 @@ typedef struct SOUNDDEVICE_TAG {
 	void (*Pause)(struct SOUNDDEVICE_TAG *psd, unsigned isPause);
 } SOUNDDEVICE;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 SOUNDDEVICE *CreateSoundDevice(SOUNDDEVICEINITDATA *psdid);
 SOUNDDEVICE *CreateSoundDeviceDX(SOUNDDEVICEINITDATA *psdid);
+
+#ifdef __cplusplus
+}
+#endif

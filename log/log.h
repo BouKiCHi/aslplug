@@ -5,6 +5,9 @@
 #define LOG_EXT_NLG ".NLG"
 #define LOG_EXT_S98 ".S98"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ログのモード(CreateLogで使用)
 enum
@@ -113,5 +116,10 @@ void MakeFilenameLOG(char *dest, const char *name, const char *ext);
 // 出力ファイル名の作成(dest <- name without ext + ext)
 // 0 = 成功, -1 = 失敗
 int MakeOutputFileLOG(char *dest, const char *name, const char *ext);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
