@@ -16,27 +16,8 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-
 static void WriteHeaderS98(S98CTX *ctx);
 static void WriteTagS98(S98CTX *ctx);
-
-/*
- // 変数書き出し(WORD)
-static void WriteWORD(byte *p, word val)
-{
-    p[0] = (val & 0xff);
-    p[1] = ((val>>8) & 0xff);
-}
-
-// 変数読み出し(WORD)
-static word ReadWORD(byte *p)
-{
-	return
- ((word)p[0]) |
- ((word)p[1])<<8;
-}
-
-*/
 
 // 変数読み出し(DWORD)
 static dword ReadDWORD(byte *p)
@@ -54,25 +35,24 @@ S98CTX *OpenS98(const char *file)
 	int i;
 	byte hdr[0x80];
 
-    S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
+  S98CTX *ctx = (S98CTX *)malloc(sizeof(S98CTX));
 
-    if (!ctx)
-    {
-        printf("Failed to malloc!");
-        return NULL;
-    }
-    memset(ctx, 0, sizeof(S98CTX));
+  if (!ctx) {
+      printf("Failed to malloc!");
+      return NULL;
+  }
+
+  memset(ctx, 0, sizeof(S98CTX));
 
 	ctx->file = fopen(file, "rb");
 
-    if (!ctx->file)
-	{
+  if (!ctx->file) {
 		printf("File open error:%s\n", file);
-        free(ctx);
+    free(ctx);
 		return NULL;
 	}
 
-    ctx->mode = S98_READMODE;
+  ctx->mode = S98_READMODE;
 
 	fread(hdr, 0x20, 1, ctx->file);
 
@@ -113,8 +93,7 @@ S98CTX *OpenS98(const char *file)
 	ctx->dev_count = (int)ReadDWORD(hdr + 0x1c);
 
 	// デバイス情報の取得
-	for(i = 0; i < ctx->dev_count && i < MAX_S98DEV; i++)
-	{
+	for(i = 0; i < ctx->dev_count && i < MAX_S98DEV; i++) {
 		fread(hdr, 0x10, 1, ctx->file);
 		ctx->dev_type[i] = (int)ReadDWORD(hdr + 0x00);
 		ctx->dev_freq[i] = (int)ReadDWORD(hdr + 0x04);
@@ -126,39 +105,33 @@ S98CTX *OpenS98(const char *file)
 }
 
 // ファイルを閉じる
-void CloseS98(S98CTX *ctx)
-{
-    if (!ctx)
-        return;
+void CloseS98(S98CTX *ctx) {
+  if (!ctx)
+      return;
 
-    if (ctx->file)
-    {
+  if (ctx->file) {
 #ifndef S98_READONLY
-        if (ctx->mode != S98_READMODE)
-        {
-            // 終了マーカーを出力
-            fputc(S98_CMD_END, ctx->file);
+      if (ctx->mode != S98_READMODE) {
+          // 終了マーカーを出力
+          fputc(S98_CMD_END, ctx->file);
 
-            // タグ情報がある
-            if (ctx->tag_info)
-            {
-                ctx->tag_pos = TellS98(ctx);
-                WriteTagS98(ctx);
-
-            }
-
-            WriteHeaderS98(ctx);
-        }
+          // タグ情報がある
+          if (ctx->tag_info) {
+              ctx->tag_pos = TellS98(ctx);
+              WriteTagS98(ctx);
+          }
+          WriteHeaderS98(ctx);
+      }
 #endif
-        fclose(ctx->file);
-        ctx->file = NULL;
-    }
+      fclose(ctx->file);
+      ctx->file = NULL;
+  }
 
-    // タグ
-    if (ctx->tag_info)
-        free(ctx->tag_info);
+  // タグ
+  if (ctx->tag_info)
+      free(ctx->tag_info);
 
-    free(ctx);
+  free(ctx);
 }
 
 
@@ -175,90 +148,76 @@ static void WriteDWORD(byte *p, dword val)
     p[3] = ((val>>24) & 0xff);
 }
 
+static void RemapS98(S98CTX *ctx) {
+  // ポインタ
+  struct prio_list *ptr = ctx->prio_top;
+
+  // 変換マップ作成
+  for(int i = 0; i < MAX_S98DEV && ptr; i++) {
+      int idx = ptr->index;
+      // printf("log_id:%d -> device:%d\n", idx, i);
+      // ptr->index = device_id
+      ctx->dev_map[idx] = i;
+      ptr = ptr->next;
+  }
+}
+
 // ヘッダの作成
-static void WriteHeaderS98(S98CTX *ctx)
-{
-	int i;
-    byte hdr[0x80];
+static void WriteHeaderS98(S98CTX *ctx) {
+  int i;
+  byte hdr[0x100];
 
-    memset(hdr, 0, 0x80);
-    memcpy(hdr, "S983", 4);
+  memset(hdr, 0, 0x100);
+  memcpy(hdr, "S983", 4);
 
-    // 分子
-    WriteDWORD(hdr + 0x04, ctx->time_nume);
+  // 分子
+  WriteDWORD(hdr + 0x04, ctx->time_nume);
 
-    // 分母
-    WriteDWORD(hdr + 0x08, ctx->time_denom);
+  // 分母
+  WriteDWORD(hdr + 0x08, ctx->time_denom);
 
-    // タグ位置
-    WriteDWORD(hdr + 0x10, ctx->tag_pos);
+  // タグ位置
+  WriteDWORD(hdr + 0x10, ctx->tag_pos);
 
+  // ヘッダサイズの計算
+  ctx->dump_ptr = (0x20 + (0x10 * MAX_S98DEV));
 
-    // ヘッダサイズの計算
-    ctx->dump_ptr = (0x20 + (0x10 * ctx->dev_count));
-
-    // ヘッダの先頭
+  // ヘッダの先頭
 	WriteDWORD(hdr + 0x14, ctx->dump_ptr);
-    // ループポインタ
+  // ループポインタ
 	WriteDWORD(hdr + 0x18, ctx->dump_loop);
-    // デバイス数
+  // デバイス数
 	WriteDWORD(hdr + 0x1c, ctx->dev_count);
 
-    // ヘッダ書き込み
+  // ヘッダ書き込み
 	fseek(ctx->file, 0, SEEK_SET);
 	fwrite(hdr, 0x20, 1, ctx->file);
 
-    // ポインタ
-    struct prio_list *ptr = ctx->prio_top;
+  // ポインタ
+  struct prio_list *ptr = ctx->prio_top;
 
-    // デバイスがない
-    if (!ptr)
-        return;
+  // デバイスがない
+  if (!ptr) return;
 
-    // デバイスマップの作成
-    // printf("-- devmap -- \n");
+  int count = MAX_S98DEV;
 
-    // 初期化
-    for(i = 0; i < MAX_S98DEV; i++)
-        ctx->dev_map[i] = -1;
-
-    for(i = 0; i < MAX_S98DEV; i++)
-    {
-        int idx = ptr->index;
-
-        // printf("log_id:%d -> device:%d\n", idx, i);
-
-        // ptr->index = device_id
-        ctx->dev_map[idx] = i;
-
-        // 次が無ければ終了
-        if (!ptr->right)
-            break;
-
-        ptr = ptr->right;
-    }
-
-     ptr = ctx->prio_top;
+  ptr = ctx->prio_top;
 
     // デバイスリスト書き込み
-	for(i = 0; i < ctx->dev_count; i++)
-	{
+	for(i = 0; i < count; i++) {
 		memset(hdr, 0, 0x10);
+    if (!ptr) {
+      fwrite(hdr, 0x10, 1, ctx->file);
+      continue;
+    }
 
-        int idx = -1;
-
-        if (ptr)
-        {
-            idx = ptr->index;
-
-            WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
-            WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
-        }
-
+    int idx = -1;
+    idx = ptr->index;
+    WriteDWORD(hdr + 0x00, ctx->dev_type[idx]);
+    WriteDWORD(hdr + 0x04, ctx->dev_freq[idx]);
 		fwrite(hdr, 0x10, 1, ctx->file);
 
-        if (ptr)
-            ptr = ptr->right;
+    ptr = ptr->next;
 	}
 }
 
@@ -305,6 +264,9 @@ S98CTX *CreateS98(const char *file)
         return NULL;
     }
 
+    // 初期化
+    for(int i = 0; i < MAX_S98DEV; i++) ctx->dev_map[i] = -1;
+
     ctx->mode = S98_WRITEMODE;
     ctx->dev_count = 0;
     ctx->def_denom = 1000;
@@ -324,8 +286,7 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
     struct prio_list *obj = &ctx->prio_map[ctx->dev_count];
 
     // 現在のオブジェクトを初期化
-    obj->left = NULL;
-    obj->right = NULL;
+    obj->next = NULL;
     obj->prio = prio;
     obj->index = id;
 
@@ -333,58 +294,29 @@ void AddSortMapS98(S98CTX *ctx, int id, int prio)
 
     // ポインタの作成
     struct prio_list *ptr = ctx->prio_top;
-    struct prio_list *prev = NULL;
 
     // まだマップなし
-    if (!ptr)
-    {
-        // printf("top\n");
-        ctx->prio_top = obj;
-        return;
+    if (!ptr) {
+      ctx->prio_top = obj;
+      return;
     }
 
-    // 下にたどる
-    while(ptr)
-    {
-        // 優先順位がptrよりも上の場合
-        if (prio > ptr->prio)
-            break;
+    // トップよりも上
+    if (prio > ctx->prio_top->prio) {
+      obj->next = ctx->prio_top;
+      ctx->prio_top = obj;
+      return;
+    } 
 
-        // 次に進める
-        prev = ptr;
-        ptr = ptr->right;
+    while(ptr->next) {
+      // 優先順位がptr->nextよりも上の場合
+      if (prio > ptr->next->prio)
+          break;
+        ptr = ptr->next;
     }
-
-    /* if (ptr)
-        printf("next is %d\n", ptr->index);
-    else
-        printf("this is bottom");
-    */
-
-    // ptrより前に挿入する
-    // obj > ptr
-
-    obj->right = ptr;
-    obj->left = prev;
-
-    if (prev)
-    {
-        // printf("prev is %d\n", prev->index);
-        prev->right = obj;
-    }
-
-    //　これが最後でない場合
-    if (ptr)
-    {
-        ptr->left = obj;
-    }
-
-    // トップを更新する
-    if (!prev)
-    {
-        // printf("tops is %d\n", obj->index);
-        ctx->prio_top = obj;
-    }
+    struct prio_list *next_obj = ptr->next;
+    ptr->next = obj;
+    obj->next = next_obj;
 }
 
 
@@ -402,8 +334,9 @@ int AddMapS98(S98CTX *ctx, int type, int freq, int prio)
     ctx->dev_freq[idx] = freq;
 
     AddSortMapS98(ctx, idx, prio);
-
     ctx->dev_count++;
+
+    RemapS98(ctx);
 
     return idx;
 
@@ -452,6 +385,8 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
         return;
 
     id = ctx->dev_map[id];
+    if (id < 0)
+      return;
 
     // レジスタは表と裏が想定されている
     int cmd = id * 2;
@@ -467,14 +402,12 @@ void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
 // シンク出力
 void WriteSyncS98(S98CTX *ctx)
 {
-    if (!ctx)
-        return;
+    if (!ctx) return;
 
     ctx->sys_time += ctx->sys_step;
 
     // 積算された時間が単位時間よりも上
-    while(ctx->sys_time > ctx->s98_step)
-    {
+    while(ctx->sys_time > ctx->s98_step) {
         ctx->sys_time -= ctx->s98_step;
         fputc(S98_CMD_SYNC, ctx->file);
     }

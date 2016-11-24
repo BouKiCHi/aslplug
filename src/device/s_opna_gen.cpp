@@ -68,20 +68,15 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
 {
     OPNA_FMGEN *sndp = (OPNA_FMGEN *)(p);
 
-    // int chip = (a / 0x10);
+	int ofs = (a & 2 ? 0x100 : 0x0);
     
 	switch(a & 0x1)
 	{
 		case 0x00:
-			sndp->addr = v;
+			sndp->addr = v | ofs;
 		break;
 		case 0x01:
-			//if (nes_logfile)
-			//	fprintf(nes_logfile,"OPNA:%d:%02X:%02X\n",
-			//		chip, sndp->addr, v);
-            
             sndp->opna_inst->SetReg(sndp->addr, v);
-
 		break;
 	}
 }

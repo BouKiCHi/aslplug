@@ -50,20 +50,18 @@ LOGCTX *CreateLOG(const char *file, int mode)
 // ログのクローズ
 void CloseLOG(LOGCTX *ctx)
 {
-    if (!ctx)
-        return;
+  if (!ctx) return;
+  printf("CloseLog\n");
 
-    switch (ctx->mode)
-    {
-        case LOG_MODE_NLG:
-            CloseNLG((NLGCTX *)ctx->log_ctx);
-            break;
-
-        default:
-        case LOG_MODE_S98:
-            CloseS98(ctx->log_ctx);
-            break;
-    }
+  switch (ctx->mode) {
+    case LOG_MODE_NLG:
+      CloseNLG((NLGCTX *)ctx->log_ctx);
+    break;
+    default:
+    case LOG_MODE_S98:
+      CloseS98(ctx->log_ctx);
+    break;
+  }
 }
 
 // S98のIDに変換する
@@ -159,7 +157,7 @@ void WriteLOG_Data(LOGCTX *ctx, int device, int addr, int data)
         return;
 
 #ifdef LOG_DUMP
-    printf("id:%d addr:%03x data:%02x\n", device, addr, data);
+    printf("log id:%d addr:%03x data:%02x\n", device, addr, data);
 #endif
 
     switch (ctx->mode)

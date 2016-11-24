@@ -23,9 +23,7 @@
 // 優先順位マップ
 struct prio_list
 {
-    struct prio_list *left;
-    struct prio_list *right;
-
+    struct prio_list *next;
     int prio;
     int index;
 };
