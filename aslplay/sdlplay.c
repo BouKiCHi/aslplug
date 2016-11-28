@@ -32,7 +32,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2016-10-14"
+#define PRG_VER "2016-11-28"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
@@ -218,13 +218,8 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize) {
 // audio_info : 時間表示
 
 static void audio_info(int sec, int len) {
-  if (!player.debug) {
-    fflush(stdout);
-    return;
-  }
-
   printf("Time: %02d:%02d / %02d:%02d ",
-  sec / 60 , sec % 60 , len / 60 , len % 60 );
+  sec / 60, sec % 60, len / 60, len % 60 );
 
   double cpu_usage = glue2_cpu_usage();
 
@@ -235,7 +230,7 @@ static void audio_info(int sec, int len) {
       pcm.over, pcm.under, pcm.count, pcm.write, pcm.play);
 
   printf("\r");
-  fflush(stdout); 
+  fflush(stdout);
 }
 
 
@@ -252,9 +247,7 @@ static void audio_loop(int freq, int len) {
 
   // len = 5;
 
-  sec =
-  frames =
-  total_frames = 0;
+  sec = frames = total_frames = 0;
 
   if (audio_poll_event() < 0)
   {
