@@ -11,7 +11,7 @@ unsigned char chmask[0x200];
 
 #include "snddrv/snddrv.h"
 #include "render.h"
-#include "gmcdrv.h"
+#include "rcdrv.h"
 
 #include "log.h"
 
@@ -506,7 +506,7 @@ void SimInit() {
     OpenDebugLog();
   SimStop();
 
-  c86x_init();
+  rc_init();
 
   InitRender();
   SetRenderFreq(dllctx.freq);

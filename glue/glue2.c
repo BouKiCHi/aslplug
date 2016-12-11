@@ -59,6 +59,8 @@ struct struct_glue2_main {
   struct glue2_setting setting[MAX_GLUE2_TRACK];
 
   short mixbuf[PCM_BLOCK_SIZE];
+
+  int driver_version;
 } g2;
 
 
@@ -153,6 +155,10 @@ void glue2_write_word(byte *p, word v) {
 // メモリ書き込み(8bit LE)
 void glue2_write_byte(byte *p, byte v) {
     p[0] = v & 0xff;
+}
+
+byte glue2_read_byte(byte *p) {
+    return p[0];
 }
 
 // KSSヘッダを作る
@@ -374,15 +380,20 @@ int glue2_read_mdr_song(const char *file) {
     return (int)size;
 }
 
-int glue2_read_nrtdrv_song(const char *file, const char *driver_file) {
+int glue2_read_nrtdrv_song(const char *file, int drv_type) {
     char drv_path[PATH_MAX];
+
+    const char *driver_file = "NRTDRV.BIN";
+
+    if (drv_type == 1) {
+        driver_file = "MJRDRV.BIN";
+    }
 
     // ドライバファイルパスとサイズの取得
     long drv_size = glue2_getpath(drv_path, file, driver_file);
   
     // ドライバサイズがおかしい
-    if (drv_size < 0)
-    {
+    if (drv_size < 0) {
         printf("Driver not found!:%s\n", driver_file);
         return -1;
     }
@@ -410,6 +421,13 @@ int glue2_read_nrtdrv_song(const char *file, const char *driver_file) {
     glue2_read_file(glue_mem_ptr + (0x1800 - 0xF0), drv_size, drv_path);
     glue2_read_file(glue_mem_ptr + (0x4000 - 0xF0), song_size, file);
 
+    // バージョン取得
+    g2.driver_version = 0;
+    if (drv_type == 0) {
+        g2.driver_version = glue2_read_byte(glue_mem_ptr + (0x1831 - 0xF0));
+        printf("%s Driver Version:%d\n", driver_file, g2.driver_version);
+    }
+
     // ファイルサイズの修正
     glue2_write_word(glue_mem_ptr + 0x06, size);
 
@@ -422,12 +440,12 @@ int glue2_read_nrtdrv_song(const char *file, const char *driver_file) {
 
 // NRDファイルの読み出し
 int glue2_read_nrd_song(const char *file) {
-    return glue2_read_nrtdrv_song(file, "NRTDRV.BIN");
+    return glue2_read_nrtdrv_song(file, 0);
 }
 
 // BINファイルの読み出し
 int glue2_read_bin_song(const char *file) {
-    return glue2_read_nrtdrv_song(file, "MJRDRV.BIN");
+    return glue2_read_nrtdrv_song(file, 1);
 }
 
 

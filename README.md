@@ -1,6 +1,12 @@
 ## ASLPLUG
 aslplay、nlgsim、sccisimのソースコードです。
 
+* [ASLPLAY README.TXT](aslplay/README.TXT)
+* [NLGSIM README.TXT](logplay/readme.txt)
+* [SCCISIM README.TXT](sccisim/README.TXT)
+
+## 情報サイト
+[Programming Terrace Wiki](http://prgterrace.wiki.fc2.com/)
 
 ## gdbメモ
 現在、最新版のgdbに不具合があり、動作しません。

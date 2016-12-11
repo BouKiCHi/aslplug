@@ -9,8 +9,8 @@
 #include <getopt.h>
 #include "SDL.h"
 
-#ifdef USE_C86XDRV
-#include "gmcdrv.h"
+#ifdef USE_RCDRV
+#include "rcdrv.h"
 #endif
 
 #include <signal.h>
@@ -32,7 +32,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2016-11-28"
+#define PRG_VER "2016-12-11"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
@@ -117,7 +117,6 @@ static int audio_sdl_init() {
     return 1;
   }
 
-  memset(&pcm, 0, sizeof(pcm));
   return 0;
 }
 
@@ -327,8 +326,6 @@ static void audio_rt_out(int freq, int len)
   Uint32 old_ticks = SDL_GetTicks();
 
   sec = frames = total_frames = 0;
-
-  if (!player.ctx) return;
 
   do {
     // 情報出力
@@ -574,13 +571,12 @@ int audio_main(int argc, char *argv[]) {
 
   // 初期化
   memset(&player, 0, sizeof(player));
+  memset(&pcm, 0, sizeof(pcm));
 
 #ifdef _WIN32
   freopen("CON", "wt", stdout);
   freopen("CON", "wt", stderr);
 #endif
-
-  audio_sdl_init();
 
   signal(SIGINT, audio_sig_handle);
 
@@ -761,14 +757,18 @@ int audio_main(int argc, char *argv[]) {
   // 実行パスの設定
   glue2_set_exec_path(argv[0]);
 
-  if (audio_init(rate)) {
-      printf("Failed to initialize audio hardware\n");
-      return 1;
+  if (!rt_mode) {
+    audio_sdl_init();
+
+    if (audio_init(rate)) {
+        printf("Failed to initialize audio hardware\n");
+        return 1;
+    }
   }
 
-#ifdef USE_C86XDRV
+#ifdef USE_RCDRV
   // C86初期化
-  c86x_init();
+  rc_init(RCDRV_FLAG_ALL);
 #endif
 
   // glue2初期化
@@ -890,7 +890,6 @@ int audio_main(int argc, char *argv[]) {
     if (subfile) {
       printf("Subfile : %s\n", subfile);
 
-
       gs.songno = songno_sub;
       gs.vol = volume_sub;
 
@@ -930,11 +929,10 @@ err_end:
       log_ctx = NULL;
   }
 
-#ifdef USE_C86XDRV
-  c86x_free();
+#ifdef USE_RCDRV
+  rc_free();
 #endif
-
-  audio_free();
+  if (!rt_mode) audio_free();
 
   glue2_free();
 

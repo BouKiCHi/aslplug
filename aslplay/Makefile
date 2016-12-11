@@ -26,11 +26,12 @@ ZIPBIN = $(NAME)_$(shell date +"%y%m%d")$(OSSFX).zip
 USE_OPL3 = 1
 USE_OPM = 1
 USE_FMGEN = 1
+USE_RCDRV = 1
 
 #
 # Sources
 #
-
+BASEDIR = ..
 SRCDIR = $(BASEDIR)/src
 
 LIBNEZ = libnez.a
@@ -92,7 +93,7 @@ DIRS = $(MAINDIR) $(LOGDIR) $(GLUEDIR)
 LIBDIRS = $(FMTDIR) $(KMZ80DIR) $(KM6502DIR)
 LIBDIRS += $(DEVDIR) $(CPUDIR) $(NESDIR) $(OPLDIR)
 
-
+SRC =
 LIBSRCS = 
 LIBSRCS += $(addprefix $(FMTDIR)/,$(FMTSRCS))
 LIBSRCS += $(addprefix $(KMZ80DIR)/,$(KMZ80SRCS))
@@ -138,14 +139,24 @@ LIBSRCS += $(addprefix $(GENDIR)/,$(GENSRCS))
 
 endif
 
+#### RCDRV
+ifeq ($(USE_RCDRV),1)
 
-SRCS = $(addprefix $(MAINDIR)/,$(MAINSRCS))
+CFLAGS += -DUSE_RCDRV
+RCDIR = rcdrv
+RCSRCS = rcdrv.cpp
+DIRS += $(RCDIR)
+SRCS += $(addprefix $(RCDIR)/,$(RCSRCS))
+
+endif
+
+SRCS += $(addprefix $(MAINDIR)/,$(MAINSRCS))
 SRCS += $(addprefix $(GLUEDIR)/,$(GLUESRCS))
 SRCS += $(addprefix $(LOGDIR)/,$(LOGSRCS))
 
 
 LIBOBJS = $(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(LIBSRCS))))
-OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
+OBJS = $(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
 
 LIBNEZ := $(OBJDIR)/$(LIBNEZ)
 
@@ -224,3 +235,7 @@ zipclean :
 zip :
 	zip $(ZIPBIN) $(TARGET) readme.txt SDL.dll	
 
+strip :
+	strip $(TARGET)
+
+release : strip zip

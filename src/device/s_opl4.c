@@ -8,8 +8,8 @@
 
 #include <stdio.h>
 
-#ifdef USE_C86XDRV
-#include "gmcdrv.h"
+#ifdef USE_RCDRV
+#include "rcdrv.h"
 #endif
 
 typedef struct
@@ -95,9 +95,9 @@ static void sndwrite(void *p, Uint32 a, Uint32 v)
             sndp->kmif.logwrite(
             	sndp->kmif.log_ctx, sndp->kmif.log_id, addr, v);
         
-#ifdef USE_C86XDRV
+#ifdef USE_RCDRV
         if (sndp->kmif.output_device & OUT_EXT)
-            c86x_write(sndp->map_opl3, addr, v);
+            rc_write(sndp->map_opl3, addr, v);
 #endif
     }
     else
@@ -130,10 +130,9 @@ static void sndreset(void *p, Uint32 clock, Uint32 freq)
     sndp->chip_ctx = ymf262_init(NULL, bc, freq);
     ymf262_reset_chip(sndp->chip_ctx);
     
-#ifdef USE_C86XDRV
-    if (sndp->use_gmc)
-    {
-        c86x_reset(sndp->map_opl3);
+#ifdef USE_RCDRV
+    if (sndp->use_gmc) {
+        rc_reset(sndp->map_opl3);
     }
 #endif
 		
@@ -198,8 +197,8 @@ KMIF_SOUND_DEVICE *OPL3SoundAlloc(void)
         return 0;
     }
     
-#ifdef USE_C86XDRV
-    sndp->map_opl3 = c86x_getchip(C86XDRV_OPL3, 0);
+#ifdef USE_RCDRV
+    sndp->map_opl3 = rc_getchip(RCDRV_OPL3, 0);
 #endif
     
 	return &sndp->kmif;

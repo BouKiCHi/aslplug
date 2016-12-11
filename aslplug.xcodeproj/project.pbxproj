@@ -234,7 +234,7 @@
 		B78035901B44AEB900280103 /* readme.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = readme.txt; sourceTree = "<group>"; };
 		B78035911B44AEB900280103 /* sdlplay.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sdlplay.c; sourceTree = "<group>"; };
 		B78035961B44AEE900280103 /* c86ctl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = c86ctl.h; sourceTree = "<group>"; };
-		B78035981B44AEE900280103 /* gmcdrv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gmcdrv.h; sourceTree = "<group>"; };
+		B78035981B44AEE900280103 /* rcdrv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rcdrv.h; sourceTree = "<group>"; };
 		B78035991B44AEE900280103 /* gmcdrv_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gmcdrv_dummy.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -549,7 +549,7 @@
 			isa = PBXGroup;
 			children = (
 				B78035961B44AEE900280103 /* c86ctl.h */,
-				B78035981B44AEE900280103 /* gmcdrv.h */,
+				B78035981B44AEE900280103 /* rcdrv.h */,
 				B78035991B44AEE900280103 /* gmcdrv_dummy.cpp */,
 			);
 			path = gmcdrv;

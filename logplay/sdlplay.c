@@ -33,7 +33,7 @@
 
 #include "render.h"
 
-#include "gmcdrv.h"
+#include "rcdrv.h"
 
 #ifndef PATH_MAX 
 #define PATH_MAX 1024
@@ -733,7 +733,7 @@ int audio_play_file(NLG *np, const char *playfile) {
   np->log_ticks = 0;
 
   // c86ctl初期化
-  c86x_init();
+  rc_init();
 
   // レンダラ初期化
   InitRender();
@@ -885,7 +885,7 @@ int audio_play_file(NLG *np, const char *playfile) {
   if (np->ctx_log) CloseLOG(np->ctx_log);
 
   ReleaseRender();
-  c86x_free();
+  rc_free();
   return 0;
 }
 
