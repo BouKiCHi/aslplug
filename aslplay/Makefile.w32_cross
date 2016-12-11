@@ -37,6 +37,15 @@ TARGET_S = $(NAME)_s$(SFX)
 
 endif
 
+CFLAGS = $(ARCHFLAGS) -g
+LFLAGS = $(ARCHFLAGS) -g
+
+ifndef DEBUG
+CFLAGS += -O3
+else
+CFLAGS += -O0 -DDEBUG
+endif
+
 
 #
 # SDL stuff
@@ -69,5 +78,5 @@ SLIBS += -ldinput8
 # switchs
 #
 all : dynamic
-	$(STRIP) $(TARGET)
+
 
