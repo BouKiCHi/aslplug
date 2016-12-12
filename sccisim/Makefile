@@ -15,6 +15,9 @@ else
 include Makefile.unix
 endif
 
+ZIPBIN = sccisim_$(shell date +"%y%m%d")$(OSSFX).zip
+
+
 #
 # common
 #
@@ -85,22 +88,22 @@ SRCS = $(addprefix $(LOGDIR)/,$(LOGSRCS)) \
 
 SRCS += $(MAINSRCS)
 
-#### GMCDRV
+#### RCDRV
 
-CFLAGS += -DUSE_GMCDRV -DDLLMAKE
+CFLAGS += -DUSE_RCDRV -DDLLMAKE
 
-GMCDIR = gmcdrv
+RCDIR = rcdrv
 
 ifeq ($(WIN32),1)
-GMCSRCS = \
-  gmcdrv.cpp
+RCSRCS = \
+  rcdrv.cpp
 else
-GMCSRCS = \
-  gmcdrv_dummy.cpp
+RCSRCS = \
+  rcdrv_dummy.cpp
 endif
 
-EXTDIRS += $(GMCDIR)
-SRCS += $(addprefix $(GMCDIR)/,$(GMCSRCS)) 
+EXTDIRS += $(RCDIR)
+SRCS += $(addprefix $(RCDIR)/,$(RCSRCS)) 
 
 ####  OPL3
 
@@ -214,7 +217,7 @@ $(OBJDIR) :
 # target
 #
 
-$(TARGET) : $(OBJDIR) $(LIBARC) $(OBJS) $(DLLDEF)
+$(TARGET) : $(OBJDIR) $(LIBARC) $(OBJS) 
 	$(CXX) -static -shared $(OBJS) $(LIBARC) -o $@ -lwinmm -ldsound -ldxguid
 
 # $(TEST) : $(TARGET) $(DTESTOBJS)
@@ -222,6 +225,14 @@ $(TARGET) : $(OBJDIR) $(LIBARC) $(OBJS) $(DLLDEF)
 
 clean :
 	rm -rf $(OBJDIR)
+	rm -f $(ZIPBIN)
 	rm -f $(TARGET)
-	rm -f $(DLLDEF)
 #	rm -f $(TEST)
+
+strip : $(TARGET)
+	strip $(TARGET)
+
+zip : strip
+	zip $(ZIPBIN) $(TARGET) README.TXT	
+
+release : zip

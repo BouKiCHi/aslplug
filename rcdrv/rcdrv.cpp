@@ -18,7 +18,7 @@ static HMODULE g_mod = 0;
 static HMODULE g_scci = 0;
 static IRealChipBase *g_chipbase = 0;
 
-SCCIFUNC getSoundInterfaceManager = NULL;
+SCCIFUNC funcGetSoundInterfaceManager = NULL;
 
 struct C86XDRV {
 	SoundChip *sndchip;
@@ -82,23 +82,22 @@ static bool LoadSCCI() {
 	g_scci = ::LoadLibrary("scci");
 	if (g_scci == NULL) return false;
 
-	getSoundInterfaceManager = (SCCIFUNC)(::GetProcAddress(g_scci,"getSoundInterfaceManager"));
+	funcGetSoundInterfaceManager = (SCCIFUNC)(::GetProcAddress(g_scci,"getSoundInterfaceManager"));
 
-	if(getSoundInterfaceManager == NULL) {
+	if(funcGetSoundInterfaceManager == NULL) {
 		printf("Failed to get the address of getSoundInterfaceManager\n");
 		::FreeLibrary(g_scci);
 		g_scci = NULL;
 		return false;
 	}
 
-	SoundInterfaceManager *pManager = getSoundInterfaceManager();
 	return g_scci ? true : false;
 }
 
 static void FreeSCCI() {
 	if (!g_scci) return;
 
-	getSoundInterfaceManager = NULL;
+	funcGetSoundInterfaceManager = NULL;
 
 	::FreeLibrary(g_scci);
 	g_scci = 0;
@@ -134,8 +133,8 @@ static int rc_check_devname(IGimic *gimic, IRealChip *realchip,
 }
 
 static void rc_add_scci() {
-	if (!getSoundInterfaceManager) return;
-	SoundInterfaceManager *pManager = getSoundInterfaceManager();
+	if (!funcGetSoundInterfaceManager) return;
+	SoundInterfaceManager *pManager = funcGetSoundInterfaceManager();
 	if (pManager == NULL) return;
 
 	pManager->initializeInstance();

@@ -179,10 +179,6 @@ static : $(TARGET_S)
 
 lib : $(LIBNEZ)
 
-release : $(TARGET) $(TARGET_S)
-	$(STRIP) $(TARGET)
-	$(STRIP) $(TARGET_S)
-
 #
 # Rules
 #
@@ -225,17 +221,17 @@ $(TARGET_S) : $(OBJDIR) $(LIBNEZ) $(OBJS)
 	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(SLIBS)
 
 clean :
+	rm -f $(ZIPBIN)
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
-	rm -f $(TARGET_S)
 	
 zipclean :
 	rm -f $(ZIPBIN)
 
-zip :
+zip : strip
 	zip $(ZIPBIN) $(TARGET) readme.txt SDL.dll	
 
-strip :
+strip : $(TARGET)
 	strip $(TARGET)
 
-release : strip zip
+release :  zip

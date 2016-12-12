@@ -506,7 +506,7 @@ void SimInit() {
     OpenDebugLog();
   SimStop();
 
-  rc_init();
+  // rc_init(RCDRV_FLAG_C86X);
 
   InitRender();
   SetRenderFreq(dllctx.freq);
@@ -826,6 +826,7 @@ public:
 };
 
 SimChipManager *scman = NULL;
+SoundInterfaceManager *simInstance = NULL;
 
 ///////////////////////////////////////////////
 //
@@ -1017,6 +1018,8 @@ public:
 
 extern "C" DLLDECL SoundInterfaceManager *__cdecl getSoundInterfaceManager()
 {
+  if (simInstance) return simInstance;
+
   OpenConsole();
   OutputLog("-- %s --", DLL_VERSTR);
   OutputLog("getSoundInterfaceManager");
@@ -1026,7 +1029,7 @@ extern "C" DLLDECL SoundInterfaceManager *__cdecl getSoundInterfaceManager()
 
   scman = new SimChipManager();
 
-  SoundInterfaceManager *sim = new SIMBody();
-  sim->initializeInstance();
-  return sim;
+  simInstance  = new SIMBody();
+  simInstance->initializeInstance();
+  return simInstance;
 }

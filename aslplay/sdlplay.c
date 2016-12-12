@@ -1,7 +1,6 @@
 
 //
-// sdlplay.c
-// for nezplay
+// sdlplay.c 
 //
 
 #include <stdio.h>
@@ -32,7 +31,7 @@ struct {
 
 #define NSF_FNMAX 1024
 
-#define PRG_VER "2016-12-11"
+#define PRG_VER "2016-12-12"
 #define PRG_NAME "ASLPLAY"
 
 #define PCM_BLOCK 512
