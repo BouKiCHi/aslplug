@@ -26,7 +26,7 @@ unsigned char chmask[0x200];
 #define PCM_SAMPLE_MAX (PCM_BLOCK * PCM_BUFSIZE)
 
 #define DLL_VER 0x100
-#define DLL_VERSTR "SCCISIM.DLL 161124"
+#define DLL_VERSTR "SCCISIM.DLL 170208"
 
 #define SIM_MAXCHIP 8
 
@@ -78,6 +78,8 @@ static struct {
 } dllctx;
 
 const char *chipnames[] = {
+    "NONE",
+    "YM2608",
     "YM2151",
     "YM2610",
     "YM2203",
