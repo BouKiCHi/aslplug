@@ -219,10 +219,10 @@ $(OBJDIR) :
 
 
 $(TARGET) : $(OBJDIR) $(LIBNEZ) $(OBJS)
-	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(LIBS)
+	$(CXX) -o $@ $(LFLAGS) $(OBJS) $(LIBNEZ) $(LIBS)
 
 $(TARGET_S) : $(OBJDIR) $(LIBNEZ) $(OBJS)
-	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(SLIBS)
+	$(CXX) -o $@ $(LFLAGS) $(OBJS) $(LIBNEZ)  $(SLIBS)
 
 clean :
 	rm -f $(ZIPBIN)

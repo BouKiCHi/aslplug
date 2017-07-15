@@ -12,14 +12,13 @@ NAME = logplay
 
 USE_FMGEN = 1
 USE_OPL3 = 1
-USE_GMCDRV = 1
+USE_RCDRV = 1
 
 LIB = libnb.a
-
-
-ifdef WIN32
+SDL_DLL = 
 
 # win32
+ifdef WIN32
 
 SFX = .exe
 PFX = 
@@ -30,14 +29,18 @@ OSSFX = _w32
 
 SDL_CFLAGS := $(shell $(SDLCONF) --cflags | sed -e "s/-Dmain=SDL_main//g")
 
-SDL_LIBS := -mconsole
-SDL_LIBS += $(shell $(SDLCONF) --libs | sed -e "s|-mwindows||g" | \
- sed -e  "s|-lSDLmain||g" | sed -e  "s|-lmingw32||g")
-SDL_LIBS += -static-libgcc
+SDL_CONFIG = sdl-config
+SDL_DIR = /mingw32/lib
 
-else
+SDL_LIBS := -mconsole 
+SDL_LIBS += -L$(SDL_DIR) -lSDLmain 
+SDL_LIBS += ../resource/dll/SDL.dll
+SDL_DLL = ../resource/dll/SDL.dll
+SDL_LIBS += -static
+
 
 # unix
+else
 
 SFX =
 PFX =
@@ -187,25 +190,17 @@ LIBDIRS += $(MAMEDIR)
 
 endif
 
-#
-# gmcdrv
-#
+#### RCDRV
+ifeq ($(USE_RCDRV),1)
 
-ifeq ($(USE_GMCDRV), 1)
-CFLAGS += -DUSE_GMCDRV
-GMCDIR = gmcdrv
-
-ifeq ($(WIN32),1)
-GMCSRCS = gmcdrv.cpp
-else
-GMCSRCS = gmcdrv_dummy.cpp
-endif
-
-
-LIBSRCS += $(addprefix $(GMCDIR)/,$(GMCSRCS))
-EXTDIRS += $(GMCDIR)
+CFLAGS += -DUSE_RCDRV
+RCDIR = rcdrv
+RCSRCS = rcdrv.cpp
+EXTDIRS += $(RCDIR)
+LIBSRCS += $(addprefix $(RCDIR)/,$(RCSRCS))
 
 endif
+
 
 #
 # nlgsim source
@@ -286,6 +281,7 @@ $(TARGET) : $(OBJDIR) $(LIB) $(OBJS)
 clean :
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
+	rm -f $(ZIPBIN)
 
 zipclean :
 	rm -f $(ZIPBIN) $(ZIPSRC)
@@ -297,5 +293,8 @@ zipsrc:
 	zip $(ZIPSRC) render.* sdlplay.c
 	zip $(ZIPSRC) readme.txt
 
-zip :
-	zip $(ZIPBIN) $(TARGET) readme.txt SDL.dll
+zip : release
+	rm -f $(ZIPBIN)
+	zip $(ZIPBIN) $(TARGET) readme.txt
+	zip -j $(ZIPBIN) $(SDL_DLL)
+

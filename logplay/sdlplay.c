@@ -732,7 +732,7 @@ int audio_play_file(NLG *np, const char *playfile) {
   np->log_ticks = 0;
 
   // c86ctl初期化
-  rc_init();
+  rc_init(RCDRV_FLAG_ALL);
 
   // レンダラ初期化
   InitRender();
