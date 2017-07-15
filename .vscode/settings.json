@@ -1,0 +1,28 @@
+{
+  "files.associations": {
+    "inftrees.h": "c",
+    "memory_wr.h": "c",
+    "fade.h": "c",
+    "kmevent.h": "c",
+    "audio.h": "c",
+    "inflate.h": "c",
+    "kmsnddev.h": "c",
+    "sccisim.cpp": "c",
+    "hspdll.h": "c",
+    "deflate.h": "c",
+    "nlg.h": "c",
+    "in_xxx.h": "c",
+    "glue2.h": "c",
+    "log.h": "c",
+    "render.h": "c",
+    "snddrv.h": "c",
+    "opna.h": "c",
+    "zconf.h": "c",
+    "zconf.in.h": "c",
+    "opm.h": "c",
+    "ymf262.cpp": "c",
+    "kmtypes.h": "c",
+    "nestypes.h": "c",
+    "s98x.h": "c"
+  }
+}

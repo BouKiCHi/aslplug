@@ -52,11 +52,21 @@ endif
 #
 
 SDL_CONFIG = sdl-config
-SDL_DIR = /lib
+SDL_DIR = /mingw32/lib
 
 SDL_LIBS := -mconsole 
-SDL_LIBS += -L$(SDL_DIR) -lSDLmain $(SDL_DIR)/libSDL.dll.a
+SDL_LIBS += -L$(SDL_DIR) -lSDLmain 
+
+ifdef STATIC_SDL
+SDL_LIBS += $(SDL_DIR)/libSDL.dll.a
+SDL_DLL =
 SDL_LIBS += -static
+else
+SDL_LIBS += ../resource/dll/SDL.dll
+SDL_DLL = ../resource/dll/SDL.dll
+SDL_LIBS += -static
+endif
+
 
 #
 # static link for w32 is currently not supported.

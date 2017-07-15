@@ -80,7 +80,7 @@ kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
 
 MAINDIR   = aslplay
 
-
+COMMONDIR = common
 LOGDIR = log
 GLUEDIR = glue
 
@@ -88,7 +88,10 @@ MAINSRCS = sdlplay.c
 GLUESRCS = glue2.c
 LOGSRCS = nlg.c s98x.c log.c
 
-DIRS = $(MAINDIR) $(LOGDIR) $(GLUEDIR)
+COMSRCS = audio.c memory_wr.c
+
+
+DIRS = $(MAINDIR) $(LOGDIR) $(GLUEDIR) $(COMMONDIR) 
 
 LIBDIRS = $(FMTDIR) $(KMZ80DIR) $(KM6502DIR)
 LIBDIRS += $(DEVDIR) $(CPUDIR) $(NESDIR) $(OPLDIR)
@@ -101,6 +104,7 @@ LIBSRCS += $(addprefix $(DEVDIR)/,$(DEVSRCS))
 LIBSRCS += $(addprefix $(NESDIR)/,$(NESSRCS))
 LIBSRCS += $(addprefix $(OPLDIR)/,$(OPLSRCS))
 LIBSRCS += $(addprefix $(LOGDIR)/,$(LOGSRCS))
+LIBSRCS += $(addprefix $(COMMONDIR)/,$(COMSRCS))
 
 
 ####  OPL3
@@ -229,7 +233,9 @@ zipclean :
 	rm -f $(ZIPBIN)
 
 zip : strip
-	zip $(ZIPBIN) $(TARGET) readme.txt SDL.dll	
+	rm -f $(ZIPBIN)
+	zip $(ZIPBIN) $(TARGET) readme.txt
+	zip -j $(ZIPBIN) $(SDL_DLL)
 
 strip : $(TARGET)
 	strip $(TARGET)

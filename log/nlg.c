@@ -12,47 +12,10 @@
 
 #include "nlg.h"
 
+#include "memory_wr.h"
+
 #define NLG_VER (110)
 #define NLG_BASECLK (4000000)
-
-typedef unsigned char  byte;
-typedef unsigned short word;
-typedef unsigned long  dword;
-
-
-// 変数書き出し(WORD)
-void WriteWORD(byte *p, word val)
-{
-    p[0] = (val & 0xff);
-    p[1] = ((val>>8) & 0xff);
-}
-
-// 変数書き出し(DWORD)
-void WriteDWORD(byte *p, dword val)
-{
-    p[0] = (val & 0xff);
-    p[1] = ((val>>8) & 0xff);
-    p[2] = ((val>>16) & 0xff);
-    p[3] = ((val>>24) & 0xff);
-}
-
-// 変数読み出し(WORD)
-word ReadWORD(byte *p)
-{
-	return
-		((word)p[0]) |
-		((word)p[1])<<8;
-}
-
-// 変数読み出し(DWORD)
-dword ReadDWORD(byte *p)
-{
-	return
-		((dword)p[0]) |
-		((dword)p[1])<<8 |
-		((dword)p[2])<<16 |
-		((dword)p[3])<<24;
-}
 
 // NLGファイルを開く
 NLGCTX *OpenNLG(const char *file)

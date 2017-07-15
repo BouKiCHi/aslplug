@@ -5,6 +5,8 @@ aslplay、nlgsim、sccisimのソースコードです。
 * [NLGSIM README.TXT](logplay/readme.txt)
 * [SCCISIM README.TXT](sccisim/README.TXT)
 
+* [開発情報](docs/DEV.TXT)
+
 ## 情報サイト
 [Programming Terrace Wiki](http://prgterrace.wiki.fc2.com/)
 

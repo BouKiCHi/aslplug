@@ -11,23 +11,10 @@
 #include <stdlib.h>
 
 #include "s98x.h"
-
-typedef unsigned char  byte;
-typedef unsigned short word;
-typedef unsigned long  dword;
+#include "memory_wr.h"
 
 static void WriteHeaderS98(S98CTX *ctx);
 static void WriteTagS98(S98CTX *ctx);
-
-// 変数読み出し(DWORD)
-static dword ReadDWORD(byte *p)
-{
-	return
-		((dword)p[0]) |
-		((dword)p[1])<<8 |
-		((dword)p[2])<<16 |
-		((dword)p[3])<<24;
-}
 
 // ファイルを開く
 S98CTX *OpenS98(const char *file)
@@ -139,14 +126,6 @@ void CloseS98(S98CTX *ctx) {
 
 /////////////////////////////////// S98書き込みルーチン
 //
-// 変数書き出し(DWORD)
-static void WriteDWORD(byte *p, dword val)
-{
-    p[0] = (val & 0xff);
-    p[1] = ((val>>8) & 0xff);
-    p[2] = ((val>>16) & 0xff);
-    p[3] = ((val>>24) & 0xff);
-}
 
 static void RemapS98(S98CTX *ctx) {
   // ポインタ

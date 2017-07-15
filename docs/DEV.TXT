@@ -1,0 +1,14 @@
+■開発情報
+
+msys2のmingw32環境を使用する
+http://www.msys2.org/
+
+
+SDL-1.2.15を使用する
+http://libsdl.org/download-1.2.php
+
+
+tarで展開後、インストールを行う
+./configure
+make install
+
