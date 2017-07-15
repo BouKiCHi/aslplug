@@ -64,8 +64,8 @@ OPLSRCS = \
  s_deltat.c s_opl.c s_opltbl.c
 
 MAINSRCS = \
- sccisim.cpp render.c io_dummy.c
- 
+ sccisim.cpp 
+
 LOGSRCS = \
  nlg.c s98x.c log.c
 
@@ -75,11 +75,10 @@ DRVSRCS = \
 DRVW32SRCS = \
  snddrvwo.c snddrvds.c
 
-LIBSRCS = \
-       $(addprefix $(FMTDIR)/,$(FMTSRCS)) \
-       $(addprefix $(DEVDIR)/,$(DEVSRCS)) \
-       $(addprefix $(NESDIR)/,$(NESSRCS)) \
-       $(addprefix $(OPLDIR)/,$(OPLSRCS)) \
+LIBSRCS = $(addprefix $(FMTDIR)/,$(FMTSRCS))
+LIBSRCS += $(addprefix $(DEVDIR)/,$(DEVSRCS))
+LIBSRCS += $(addprefix $(NESDIR)/,$(NESSRCS))
+LIBSRCS += $(addprefix $(OPLDIR)/,$(OPLSRCS))
 
 
 SRCS = $(addprefix $(LOGDIR)/,$(LOGSRCS)) \
@@ -87,6 +86,13 @@ SRCS = $(addprefix $(LOGDIR)/,$(LOGSRCS)) \
        $(addprefix $(DRVW32DIR)/,$(DRVW32SRCS))
 
 SRCS += $(MAINSRCS)
+
+#### common
+COMDIR = common
+COMSRCS = memory_wr.c io_dummy.c render.c
+
+EXTDIRS += $(COMDIR)
+SRCS += $(addprefix $(COMDIR)/,$(COMSRCS)) 
 
 #### RCDRV
 

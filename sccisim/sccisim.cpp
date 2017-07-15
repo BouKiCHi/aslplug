@@ -32,9 +32,13 @@ unsigned char chmask[0x200];
 
 // コンテキスト
 static struct {
+  int render_on;
+  int render_stop;
+
   int freq;
   int songno;
   int pos;
+
   int load;
 
   int debuglog;
@@ -230,7 +234,8 @@ static void RenderWriteProc(void *lpargs, void *lpbuf, unsigned len) {
 static void RenderTermProc(void *lpargs) {}
 
 DWORD WINAPI RenderThread(void *lpargs) {
-  while (1) {
+  dllctx.render_on = 1;
+  while (dllctx.render_on) {
     // OutputLog("RenderThread pcm_count:%d",dllctx.pcm_count);
     int samples = PCM_SAMPLE_MAX - dllctx.pcm_count;
     if (samples == 0) {
@@ -256,6 +261,7 @@ DWORD WINAPI RenderThread(void *lpargs) {
     PushRenderBody(samples);
     dllctx.pcm_render_samples = 0;
   }
+  dllctx.render_stop = 1;
 }
 
 void SimOpenPcm() {
@@ -551,6 +557,11 @@ void CloseSoundLog() {
 
 void SimFree() {
   OutputLog("SimFree");
+  dllctx.render_on = 0;
+  while(dllctx.render_stop == 0) {
+    Sleep(1);
+  }
+
   if (dllctx.thread != NULL)
     CloseHandle(dllctx.thread);
   if (dllctx.mutex != NULL)
@@ -1024,6 +1035,7 @@ extern "C" DLLDECL SoundInterfaceManager *__cdecl getSoundInterfaceManager()
 
   OpenConsole();
   OutputLog("-- %s --", DLL_VERSTR);
+  OutputLog("Built at %s", __DATE__);
   OutputLog("getSoundInterfaceManager");
 
   SimInit();

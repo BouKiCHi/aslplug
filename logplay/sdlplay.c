@@ -634,9 +634,9 @@ static void audio_rt_out(NLG *np, int freq) {
     pcm.output_count += render_len;
     total_frames += render_len;
 
-    }while(render_len > 0 && !pcm.stop);
+  }while(render_len > 0 && !pcm.stop);
 
-    printf("\n");
+  printf("\n");
 }
 
 #ifdef USE_FMGEN

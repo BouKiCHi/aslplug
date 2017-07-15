@@ -24,6 +24,10 @@
     "kmtypes.h": "c",
     "nestypes.h": "c",
     "s98x.h": "c",
-    "version.h": "c"
+    "version.h": "c",
+    "rcdrv.cpp": "c",
+    "rcdrv_dummy.cpp": "c",
+    "scci.h": "c",
+    "sccisim.h": "c"
   }
 }

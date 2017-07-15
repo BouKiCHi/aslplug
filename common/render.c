@@ -173,8 +173,10 @@ void SetFilterRender(int filter)
 void InitRender(void)
 {
 	int i;
-	for(i = 0; i < DEV_MAX; i++)
+	for(i = 0; i < DEV_MAX; i++) {
 		dev[i].kmif = NULL;
+		dev[i].vol = 1;
+	}
     
     dev_count = 0;
     
@@ -325,9 +327,7 @@ void VolumeRender(int id, int volume)
 // レンダラの削除
 void DeleteRender(int id)
 {
-    if (!dev[id].kmif)
-        return;
-    
+    if (!dev[id].kmif) return;    
     dev[id].kmif->release(dev[id].kmif->ctx);
     dev[id].kmif = NULL;
 }
@@ -345,10 +345,7 @@ void SetIrqRender(int id, void (*func)(int))
 void ReleaseRender(void)
 {
 	int i;
-	for(i = 0; i < DEV_MAX; i++) {
-        DeleteRender(i);
-	}
-	
+	for(i = 0; i < DEV_MAX; i++) DeleteRender(i);	
 	dev_count = 0;
 }
 

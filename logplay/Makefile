@@ -104,10 +104,6 @@ LIBDIRS = $(FMTDIR) $(DEVDIR) $(YMDIR) $(OPLDIR)
 LOGDIR = log
 EXTDIRS += $(LOGDIR)
 
-COMDIR = common
-EXTDIRS += $(COMDIR)
-
-
 FMTSRCS = \
  audiosys.c \
  handler.c \
@@ -134,12 +130,13 @@ LOGSRCS = \
  log.c
 
 NBSRCS = \
- io_dummy.c \
- sdlplay.c \
- render.c
+ sdlplay.c 
+
+COMDIR = common
+EXTDIRS += $(COMDIR)
 
 COMSRCS = \
- memory_wr.c
+ memory_wr.c io_dummy.c render.c
 
 #
 # Sources

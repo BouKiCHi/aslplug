@@ -1,7 +1,4 @@
-/*
- RC Driver
- 2016-12-11 ver 0.2
-*/
+// RC Driver
 
 #include <stdio.h>
 #include <windows.h>
@@ -17,6 +14,7 @@
 static HMODULE g_mod = 0;
 static HMODULE g_scci = 0;
 static IRealChipBase *g_chipbase = 0;
+static SoundInterfaceManager *pManager = NULL;
 
 SCCIFUNC funcGetSoundInterfaceManager = NULL;
 
@@ -91,11 +89,16 @@ static bool LoadSCCI() {
 		return false;
 	}
 
+	pManager = funcGetSoundInterfaceManager();
+	if (pManager == NULL) return false;
+
 	return g_scci ? true : false;
 }
 
 static void FreeSCCI() {
-	if (!g_scci) return;
+	if (!g_scci || pManager == NULL) return;
+
+	pManager->releaseInstance();
 
 	funcGetSoundInterfaceManager = NULL;
 
@@ -133,9 +136,7 @@ static int rc_check_devname(IGimic *gimic, IRealChip *realchip,
 }
 
 static void rc_add_scci() {
-	if (!funcGetSoundInterfaceManager) return;
-	SoundInterfaceManager *pManager = funcGetSoundInterfaceManager();
-	if (pManager == NULL) return;
+	if (!pManager) return;
 
 	pManager->initializeInstance();
 	pManager->reset();
