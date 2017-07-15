@@ -42,8 +42,7 @@
 // マルチスレッド対策でシンクロさせる
 #define USE_SYNC
 
-#define PROG "NLGSIM"
-#define VERSION "1.5(2015-10-18)"
+#include "version.h"
 
 #if 0
 typedef unsigned char byte;

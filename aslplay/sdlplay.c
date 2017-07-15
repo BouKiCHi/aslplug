@@ -34,10 +34,9 @@ struct {
     int debug;
 } player;
 
-#define NSF_FNMAX 1024
+#include "version.h"
 
-#define PRG_VER "2017-07-xx"
-#define PRG_NAME "ASLPLAY"
+#define NSF_FNMAX 1024
 
 #define USE_SYNC
 

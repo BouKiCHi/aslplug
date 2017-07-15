@@ -1,5 +1,5 @@
 #
-# Makefile for NLGSIM
+# Makefile for LOGPLAY
 #
 
 # DEBUG = 1
@@ -8,7 +8,7 @@ ifeq ($(OS),Windows_NT)
 WIN32=1
 endif
 
-NAME = nlgsim
+NAME = logplay
 
 USE_FMGEN = 1
 USE_OPL3 = 1
@@ -101,6 +101,10 @@ LIBDIRS = $(FMTDIR) $(DEVDIR) $(YMDIR) $(OPLDIR)
 LOGDIR = log
 EXTDIRS += $(LOGDIR)
 
+COMDIR = common
+EXTDIRS += $(COMDIR)
+
+
 FMTSRCS = \
  audiosys.c \
  handler.c \
@@ -131,17 +135,19 @@ NBSRCS = \
  sdlplay.c \
  render.c
 
+COMSRCS = \
+ memory_wr.c
 
 #
 # Sources
 #
 
-LIBSRCS = \
- $(addprefix $(FMTDIR)/,$(FMTSRCS)) \
- $(addprefix $(DEVDIR)/,$(DEVSRCS)) \
- $(addprefix $(YMDIR)/,$(YMSRCS)) \
- $(addprefix $(OPLDIR)/,$(OPLSRCS)) \
- $(addprefix $(LOGDIR)/,$(LOGSRCS))
+LIBSRCS = $(addprefix $(FMTDIR)/,$(FMTSRCS))
+LIBSRCS += $(addprefix $(DEVDIR)/,$(DEVSRCS))
+LIBSRCS += $(addprefix $(YMDIR)/,$(YMSRCS))
+LIBSRCS += $(addprefix $(OPLDIR)/,$(OPLSRCS))
+LIBSRCS += $(addprefix $(LOGDIR)/,$(LOGSRCS))
+LIBSRCS += $(addprefix $(COMDIR)/,$(COMSRCS))
 
 #
 # fmgen

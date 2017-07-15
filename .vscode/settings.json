@@ -23,6 +23,7 @@
     "ymf262.cpp": "c",
     "kmtypes.h": "c",
     "nestypes.h": "c",
-    "s98x.h": "c"
+    "s98x.h": "c",
+    "version.h": "c"
   }
 }
