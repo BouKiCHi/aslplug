@@ -458,9 +458,9 @@ int audio_main(int argc, char *argv[]) {
       }
   }
 
+    audio_set_callback_cpu_usage(glue2_cpu_usage);
     audio_set_verbose(player.verbose);
     audio_set_debug(player.debug);
-
 
   // サンプリング周波数の下限
   if (rate < 8000) rate = 8000;

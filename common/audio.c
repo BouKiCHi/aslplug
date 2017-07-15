@@ -133,8 +133,10 @@ void audio_info() {
   printf("Time: %02d:%02d / %02d:%02d ",
   pcm.seconds / 60, pcm.seconds % 60, pcm.length / 60, pcm.length % 60 );
 
-  // double cpu_usage = glue2_cpu_usage();
-  // if (cpu_usage >= 0) printf("CPU: %.3lf%% ", cpu_usage);
+  if (pcm.cpu_usage_cb) {
+    double cpu_usage = pcm.cpu_usage_cb(); 
+    if (cpu_usage >= 0) printf("CPU: %.3lf%% ", cpu_usage);
+  }
 
   if (pcm.verbose) printf(
       "o:%5d u:%5d c:%5d w:%6d p:%6d ",
@@ -277,4 +279,8 @@ void audio_write_wav_header(FILE *fp) {
   fwrite(hdr, 44, 1, fp);
 
   fseek(fp, 0, SEEK_END);
+}
+
+void audio_set_callback_cpu_usage(AUDIO_CPU_USAGE_CALLBACK cb) {
+  pcm.cpu_usage_cb = cb;
 }

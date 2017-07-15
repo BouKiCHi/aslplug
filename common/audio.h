@@ -11,7 +11,7 @@
 #define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS) // すべてのブロック
 #define PCM_WAIT_SIZE (PCM_BUFFER_LEN - (PCM_BLOCK_SIZE)) // このサイズで空きを待つ
 
-
+typedef double (*AUDIO_CPU_USAGE_CALLBACK)(void); 
 
 // PCM構造体
 struct pcm_struct {
@@ -46,6 +46,8 @@ struct pcm_struct {
 
   int verbose;
   int debug;
+
+  AUDIO_CPU_USAGE_CALLBACK cpu_usage_cb;
 };
 
 int audio_init(void);
@@ -87,5 +89,7 @@ short *audio_get_current_buffer(void);
 void audio_next_buffer(void);
 
 void audio_write_wav_header(FILE *fp);
+
+void audio_set_callback_cpu_usage(AUDIO_CPU_USAGE_CALLBACK cb);
 
 #endif
