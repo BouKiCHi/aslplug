@@ -2,11 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "C++ Launch",
+      "name": "ASLPLAY Debug",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceRoot}\\aslplay\\aslplay_dbg.exe",
-      "args": ["Music/SAMPLE01.NRD"],
       "targetArchitecture": "x86",
       "stopAtEntry": false,
       "miDebuggerPath":"C:\\msys64\\mingw32\\bin\\gdb.exe",
@@ -17,11 +16,12 @@
         "MIMode": "gdb"
       },
       "osx": {
-        "MIMode": "lldb"
+        "MIMode": "lldb",
+        "args": ["Music/SAMPLE01.NRD"]
       },
       "windows": {
         "MIMode": "gdb",
-        "args": ["${config.song.directory}\\NRD\\SAMPLE01.NRD","--rt"]
+        "args": ["${env:USERPROFILE}\\Music\\KINROU\\KINROUS.BGM"]
       }
     }
   ]

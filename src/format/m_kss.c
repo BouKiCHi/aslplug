@@ -1415,13 +1415,13 @@ static void KSSSEQAdjVolume(void *p,int device, double v) {
     KSSSEQ *THIS_ = pNezPlay->kssseq;
     switch(device) {
         case ADJ_VOL_FM1:
-            THIS_->sndp[SND_OPM]->adjust_volume(THIS_->sndp[SND_OPM]->ctx,v);
+            if (THIS_->sndp[SND_OPM]) THIS_->sndp[SND_OPM]->adjust_volume(THIS_->sndp[SND_OPM]->ctx,v);
             break;
         case ADJ_VOL_FM2:
-            THIS_->sndp[SND_OPM2]->adjust_volume(THIS_->sndp[SND_OPM2]->ctx,v);
+            if (THIS_->sndp[SND_OPM2]) THIS_->sndp[SND_OPM2]->adjust_volume(THIS_->sndp[SND_OPM2]->ctx,v);
             break;
         case ADJ_VOL_PSG:
-            THIS_->sndp[SND_PSG]->adjust_volume(THIS_->sndp[SND_PSG]->ctx,v);
+            if (THIS_->sndp[SND_PSG]) THIS_->sndp[SND_PSG]->adjust_volume(THIS_->sndp[SND_PSG]->ctx,v);
             break;
     }
 }

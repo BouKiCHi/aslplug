@@ -577,6 +577,107 @@ int glue2_read_mgs_song(const char *file)
     return (int)size;
 }
 
+/*****************
+ BGM 
+ ******************/
+
+// from libkss
+static unsigned char kinrou_init[0x100] = {
+    0xCD, 0x20, 0x60,       /* CALL	6020H */
+    0x3E, 0x3F,             /* LD	A,3FH */
+    0x32, 0x10, 0x60,       /* LD	(6010H),A	; OPLL SLOT */
+    0x32, 0x11, 0x60,       /* LD	(6011H),A	; SCC SLOT */
+    0x21, 0x07, 0x80,       /* LD HL,A007H ; DATA ADDRESS */
+    0xED, 0x5B, 0x01, 0x80, /* LD	DE,(A001H) ; COMPILE ADDRESS */
+    /* INIT FLAG WORK */
+    0x3E, 0x00,             /* LD	A,0 ; LOOP NUMBER */
+    0xCD, 0x26, 0x60,       /* CALL	6026H */
+    0xAF, 0xCD, 0x38, 0x60, /* CALL	6038H	*/
+
+    0x3E, 0x7F, /* LD  A,0FFH */
+    0xD3, 0x40, /* OUT (040H),A */
+    0xAF,       /* XOR A */
+    0xD3, 0x41, /* OUT (041H),A ; PLAY FLAG  */
+    0xD3, 0x42, /* OUT (042H),A ; LOOP COUNT */
+
+    0xC9 /* RET */
+};
+
+static unsigned char kinrou_play[0x100] = {
+    0xCD, 0x29, 0x60, /* CALL PLAY */
+    0xCD, 0x32, 0x60, /* CALL PLAYCHK */
+    0xE6, 0x01,       /* AND 01H */
+    0xAF,             /* XOR A */
+    0xD3, 0x41,       /* OUT (041H),A ; STOP FLAG */
+    0x2B,             /* DEC HL */
+    0x7D,             /* LD A,L */
+    0xD3, 0x42,       /* OUT (042H),A ; LOOP COUNT */
+    0xC9              /* RET */
+};
+
+
+// BGMを結合する
+int glue2_read_bgm_song(const char *file)
+{
+    char *drv_name = "KINROU5.DRV";
+    char drv_path[PATH_MAX];
+
+    // ドライバファイルパスとサイズの取得
+    long drv_size = glue2_getpath(drv_path, file, drv_name);
+  
+    // ドライバサイズがおかしい
+    if (drv_size < 0) {
+        printf("Driver not found!:%s\n", drv_name);
+        return -1;
+    }
+
+    // 曲ファイルのサイズを取得
+    long song_size = glue2_get_filesize(file);
+
+    // サイズがおかしい
+    if (song_size < 0 || drv_size < 0) return -1;
+
+    // ロードアドレス 0x6000
+    // ドライバの先頭 0x6000
+    // 曲データの先頭 0x8000
+    long header_size = 0x10;
+    long load_address = 0x6000;
+    int songdata_address = 0x8000;
+
+    long size = header_size + (songdata_address - load_address) + song_size;
+    int init_address = 0x7E00;
+    int play_address = 0x7F00;
+
+    // メモリ確保
+    glue_mem_ptr = malloc(size);
+    memset(glue_mem_ptr, 0, size);
+
+    // ヘッダ作成
+    glue2_make_kss_header(
+      glue_mem_ptr,
+      load_address, // ロードアドレス
+      (int)size, // データサイズ
+      init_address, // 初期化アドレス
+      play_address, // 再生アドレス
+      0x00, // 開始バンク
+      0x00, // 終了バンク
+      0x01, // EXT 拡張モード OPLL
+      0x00 // EXT2
+    );
+
+    // ファイル読み込み
+    // KINROU5は0x07だけスキップする
+    glue2_read_file_pos(glue_mem_ptr + header_size, drv_size, drv_path, 0x07);
+    glue2_read_file(glue_mem_ptr + header_size + (songdata_address - load_address), song_size, file);
+
+    // ルーチンのコピー
+    memcpy(glue_mem_ptr + header_size + (init_address - load_address), kinrou_init, sizeof(kinrou_init));
+    memcpy(glue_mem_ptr + header_size + (play_address - load_address), kinrou_play, sizeof(kinrou_play));
+
+    return (int)size;
+}
+
+
 
 //////////////////
 // ファイルの読み込み
@@ -602,6 +703,10 @@ long glue2_load_file_body(const char *file) {
         // BINファイルを読み出す
         if (strcasecmp(ext, ".bin") == 0) {
             size = glue2_read_bin_song(file);
+        } else
+        // BGMファイルを読み出す
+        if (strcasecmp(ext, ".bgm") == 0) {
+            size = glue2_read_bgm_song(file);
         } else
         // MGSファイルを読み出す
         if (strcasecmp(ext, ".mgs") == 0) {
