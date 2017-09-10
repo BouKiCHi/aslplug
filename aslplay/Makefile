@@ -29,6 +29,12 @@ USE_FMGEN = 1
 USE_RCDRV = 1
 
 #
+# resource
+#
+RELEASE_FILES = readme.txt changelog
+
+
+#
 # Sources
 #
 BASEDIR = ..
@@ -234,7 +240,7 @@ zipclean :
 
 zip : strip
 	rm -f $(ZIPBIN)
-	zip $(ZIPBIN) $(TARGET) readme.txt
+	zip $(ZIPBIN) $(TARGET) $(RELEASE_FILES) 
 	zip -j $(ZIPBIN) $(SDL_DLL)
 
 strip : $(TARGET)

@@ -139,7 +139,7 @@ COMSRCS = \
  memory_wr.c io_dummy.c render.c
 
 #
-# Sources
+# Library 
 #
 
 LIBSRCS = $(addprefix $(FMTDIR)/,$(FMTSRCS))
@@ -187,7 +187,9 @@ LIBDIRS += $(MAMEDIR)
 
 endif
 
-#### RCDRV
+#
+# RCDRV
+#
 ifeq ($(USE_RCDRV),1)
 
 CFLAGS += -DUSE_RCDRV
@@ -222,13 +224,18 @@ CFLAGS += -I.
 OBJS = $(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
 
 #
+# Release Files
+#
+RELEASE_FILES = readme.txt history.txt
+
+#
 # Rules
 #
 all : $(TARGET)
 
 lib : $(LIB)
 
-release : $(TARGET)
+strip : $(TARGET)
 	$(STRIP) $(TARGET)
 
 
@@ -278,7 +285,6 @@ $(TARGET) : $(OBJDIR) $(LIB) $(OBJS)
 clean :
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
-	rm -f $(ZIPBIN)
 
 zipclean :
 	rm -f $(ZIPBIN) $(ZIPSRC)
@@ -288,10 +294,10 @@ zipsrc:
 	zip -r $(ZIPSRC) $(SRCDIR)
 	zip -r $(ZIPSRC) $(LOGDIR)
 	zip $(ZIPSRC) render.* sdlplay.c
-	zip $(ZIPSRC) readme.txt
+	zip $(ZIPSRC) $(RELEASE_FILES)
 
-zip : release
+zip : strip
 	rm -f $(ZIPBIN)
-	zip $(ZIPBIN) $(TARGET) readme.txt
+	zip $(ZIPBIN) $(TARGET) $(RELEASE_FILES)
 	zip -j $(ZIPBIN) $(SDL_DLL)
 

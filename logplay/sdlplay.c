@@ -294,12 +294,10 @@ void audio_step_log(NLG *np) {
   }
 }
 
-// ログ入力＆レジスタ出力
+// NLGログ入力＆レジスタ出力
 int audio_decode_log(NLG *np, int samples)
 {
-  int id;
-  int addr, data;
-  int cmd;
+  int id, addr, data, cmd;
 
   double calc_ticks = samples * np->clock_per_sample;
 
@@ -314,9 +312,9 @@ int audio_decode_log(NLG *np, int samples)
     addr = 0;
     data = 0;
     id = -1;
-
-    switch (cmd) {
-      case CMD_PSG:
+    if (cmd < 0x80) {
+      switch(cmd & 0x3f) {
+        case CMD_PSG:
         id = NLG_PSG;
       break;
       case CMD_OPM:
@@ -325,22 +323,24 @@ int audio_decode_log(NLG *np, int samples)
       case CMD_OPM2:
         id = NLG_FM2;
         break;
-      case CMD_IRQ:
+      }
+    } else {
+      switch (cmd) {
+        case CMD_IRQ:
           np->log_ticks += GetTickNLG(np->ctx);
           np->log_count_us += GetTickUsNLG(np->ctx);
-          break;
-      case CMD_CTC0:
-      {
+        break;
+        case CMD_CTC0: {
           int ctc = ReadNLG(np->ctx);
           SetCTC0_NLG(np->ctx, ctc);
-      }
-      break;
-      case CMD_CTC3:
-      {
+        }
+        break;
+        case CMD_CTC3: {
           int ctc = ReadNLG(np->ctx);
           SetCTC3_NLG(np->ctx, ctc);
+        }
+        break;
       }
-      break;
     }
 
     if (id >= 0) {
@@ -351,14 +351,13 @@ int audio_decode_log(NLG *np, int samples)
       }
       // 進める
       audio_step_log(np);
+      
+      addr = ReadNLG(np->ctx);
+      data = ReadNLG(np->ctx);
 
-      addr = ReadNLG(np->ctx); // addr
-      data = ReadNLG(np->ctx); // data
-
+      if (cmd >= 0x40) addr += 0x100;
       WriteDevice(np->map[id], addr, data);
-
-      if (np->ctx_log)
-        WriteLOG_Data(np->ctx_log, np->logmap[id] , addr, data);
+      if (np->ctx_log) WriteLOG_Data(np->ctx_log, np->logmap[id] , addr, data);
     }
   }
   return 0;
@@ -640,9 +639,9 @@ static void audio_rt_out(NLG *np, int freq) {
 }
 
 #ifdef USE_FMGEN
-#define HELP_MODE "0 = OPM / 1 = OPLL / 2 = OPM(FMGEN)"
+#define HELP_MODE "0 = OPM / 1 = OPLL / 2 = OPM(FMGEN) / 3 = OPL3 / 4 = OPNA"
 #else
-#define HELP_MODE "0 = OPM / 1 = OPLL"
+#define HELP_MODE "0 = OPM / 1 = OPLL / 3 = OPL3 / 4 = OPNA"
 #endif
 
 
@@ -815,8 +814,7 @@ int audio_play_file(NLG *np, const char *playfile) {
       int log_type;
 
       // OPLLモードであれば、BC=3.57MHzにする
-      if (np->devsel == MODE_OPLL)
-          bc = RENDER_BC_3M57;
+      if (np->devsel == MODE_OPLL) bc = RENDER_BC_3M57;
 
       rs.baseclock = bc;
 
@@ -832,16 +830,26 @@ int audio_play_file(NLG *np, const char *playfile) {
 
       // FMGENを使うかどうか
       log_type = LOG_TYPE_OPM;
-      if (np->devsel == MODE_OPM_FMGEN)
+      rs.type = RENDER_TYPE_OPM;
+      
+      switch(np->devsel) {
+        case MODE_OPM_FMGEN:
           rs.type = RENDER_TYPE_OPM_FMGEN;
-      else
-          rs.type = RENDER_TYPE_OPM;
-
-      // OPLLモード
-      if (np->devsel == MODE_OPLL) {
+        break;
+        case MODE_OPLL:
           rs.type = RENDER_TYPE_OPLL;
           log_type = LOG_TYPE_OPLL;
-      }
+        break;
+        case MODE_OPL3:
+          rs.type = RENDER_TYPE_OPL3;
+          log_type = LOG_TYPE_OPL3;
+          rs.baseclock = bc = RENDER_BC_14M3;
+        break;
+        case MODE_OPNA:
+          rs.type = RENDER_TYPE_OPNA;
+          log_type = LOG_TYPE_OPNA;
+          rs.baseclock = bc = RENDER_BC_7M98;
+        }
 
       // ログ出力のマップに追加
       if (np->ctx_log) {

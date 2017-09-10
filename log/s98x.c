@@ -360,18 +360,15 @@ void WriteStringS98(S98CTX *ctx, int type, const char *str)
 // データ書き込み
 void WriteDataS98(S98CTX *ctx, int id, int addr, int data)
 {
-    if (id < 0 || !ctx)
-        return;
+    if (id < 0 || !ctx) return;
 
     id = ctx->dev_map[id];
-    if (id < 0)
-      return;
+    if (id < 0) return;
 
     // レジスタは表と裏が想定されている
     int cmd = id * 2;
 
-    if (addr > 0xff)
-        cmd += 1;
+    if (addr >= 0x100) cmd += 1;
 
     fputc(cmd, ctx->file);
     fputc(addr & 0xff, ctx->file);

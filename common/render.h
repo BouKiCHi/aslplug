@@ -4,6 +4,8 @@
 #define MODE_OPM 0
 #define MODE_OPLL 1
 #define MODE_OPM_FMGEN 2
+#define MODE_OPL3 3
+#define MODE_OPNA 4
 
 // BaseClock for OPM/OPLL/PSG
 #define RENDER_BC_4M 4000000

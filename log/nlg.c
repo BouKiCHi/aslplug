@@ -229,6 +229,10 @@ void WriteNLG_Data(NLGCTX *ctx, int cmd, int addr, int data)
     if (!ctx || !ctx->file)
         return;
 
+    if (addr >= 0x100) {
+        cmd |= 0x40;
+        addr &= 0xff;
+    } 
     fputc(cmd, ctx->file);
     fputc(addr, ctx->file);
     fputc(data, ctx->file);
