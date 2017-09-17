@@ -95,7 +95,8 @@ void WriteLOG_SetTitle(LOGCTX *ctx, int type, const char *str);
 void WriteLOG_CTC(LOGCTX *ctx, int type, int value);
 
 // 時間出力
-void WriteLOG_Timing(LOGCTX *ctx, int us);
+// 返り値 : 実際の設定値(us)
+int WriteLOG_Timing(LOGCTX *ctx, int us);
 
 // シンク出力
 void WriteLOG_SYNC(LOGCTX *ctx);

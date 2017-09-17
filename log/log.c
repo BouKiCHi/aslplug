@@ -222,16 +222,18 @@ void WriteLOG_CTC(LOGCTX *ctx, int type, int value)
 }
 
 // ログティック設定(マイクロ秒単位)
-void WriteLOG_Timing(LOGCTX *ctx, int us)
+int WriteLOG_Timing(LOGCTX *ctx, int us)
 {
-    if (!ctx)
-        return;
+    if (!ctx) return us;
 
     switch (ctx->mode)
     {
         case LOG_MODE_NLG:
+            // CTC3 = 64(us)
+            // 1tick = CTC3 * CTC1
             WriteNLG_CTC(ctx->log_ctx, CMD_CTC0, (int)(us / 128));
             WriteNLG_CTC(ctx->log_ctx, CMD_CTC3, 2);
+            us = (int)(us / 128) * 128;
             break;
         case LOG_MODE_S98:
             SetTimingS98(ctx->log_ctx, us);
@@ -239,7 +241,7 @@ void WriteLOG_Timing(LOGCTX *ctx, int us)
         default:
             break;
     }
-
+    return us;
 }
 
 // シンク出力

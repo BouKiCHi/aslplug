@@ -43,6 +43,7 @@ int audio_sdl_open(int freq) {
   }
 
   SDL_PauseAudio(0);
+  pcm.sdl_open = 1;
   return 0;
 }
 
@@ -78,7 +79,7 @@ void audio_reset_frame(void) {
 void audio_free(void) {
     PRNDBG("audio_free\n");
 
-    SDL_CloseAudio();
+      if (pcm.sdl_open) SDL_CloseAudio();
     SDL_Quit();
 }
 
@@ -130,9 +131,9 @@ static void audio_callback(void *param, Uint8 *data, int len) {
 
 // audio_info : 時間表示
 void audio_info() {
-  printf("Time: %02d:%02d / %02d:%02d ",
-  pcm.seconds / 60, pcm.seconds % 60, pcm.length / 60, pcm.length % 60 );
-
+  if (pcm.length > 0) printf("Time: %02d:%02d / %02d:%02d ", pcm.seconds / 60, pcm.seconds % 60, pcm.length / 60, pcm.length % 60);
+  else printf("Time: %02d:%02d ", pcm.seconds / 60, pcm.seconds % 60);
+  
   if (pcm.cpu_usage_cb) {
     double cpu_usage = pcm.cpu_usage_cb(); 
     if (cpu_usage >= 0) printf("CPU: %.3lf%% ", cpu_usage);
@@ -236,8 +237,9 @@ int audio_get_frequency(void) {
   return pcm.freq;
 }
 
-
+// 非0で継続
 int audio_is_continue(void) {
+  if (pcm.length == 0) return !(pcm.stop);
   return (pcm.seconds < pcm.length && !pcm.stop);
 }
 

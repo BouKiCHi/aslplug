@@ -25,66 +25,27 @@
 #include <getopt.h>
 #include "SDL.h"
 
-#include <signal.h>
-
 #include "nlg.h"
 #include "s98x.h"
 #include "log.h"
 
 #include "render.h"
-
 #include "rcdrv.h"
+#include "audio.h"
 
-#ifndef PATH_MAX 
+
+#ifndef PATH_MAX
 #define PATH_MAX 1024
 #endif
 
-// マルチスレッド対策でシンクロさせる
-#define USE_SYNC
-
 #include "version.h"
-
-#if 0
-typedef unsigned char byte;
-typedef unsigned short word;
-typedef unsigned long dword;
-#endif
-
-int debug = 0;
-
-#define PCM_BLOCK 2048
-#define PCM_NUM_BLOCKS 8
-
-#define PCM_CH  2
-#define PCM_BYTE_PER_SAMPLE 2
-
-#define PCM_BLOCK_FRAME (PCM_BLOCK)
-#define PCM_BLOCK_SHORT (PCM_BLOCK * PCM_CH)
-#define PCM_BLOCK_BYTES (PCM_BLOCK_SHORT * PCM_BYTE_PER_SAMPLE)
-
-#define PCM_BUFFER_FRAME (PCM_BLOCK_FRAME * PCM_NUM_BLOCKS)
-#define PCM_BUFFER_SHORT (PCM_BLOCK_SHORT * PCM_NUM_BLOCKS)
 
 Uint8 chmask[0x200];
 
 struct {
-  int baseclk;
-  int freq;
-
-  int on;
-  int write;
-  int play;
-  int stop;
-
-  int output_count;
-  int sec;
-
-  int pos;
-  int count;
-  SDL_mutex *mutex;
-
-  short buffer[PCM_BUFFER_SHORT];
-} pcm;
+  int debug;
+  int song_length;
+} player;
 
 #define MAX_MAP 8
 
@@ -133,156 +94,17 @@ enum {
 };
 
 
-// audio_callback
-// 変数の読み書きがあるもの(count)はマルチスレッドの際に問題が生じるので注意
-static void audio_callback(void *param, Uint8 *dest, int len_in_bytes) {
-  int i;
-
-  short *buf = (short *)dest;
-
-  if (!pcm.on) {
-    memset(dest, 0, len_in_bytes);
-    return;
-  }
-  int count;
-  int out_count;
-  
-  if (SDL_LockMutex(pcm.mutex) == 0) {
-    count = pcm.count;
-    out_count = pcm.output_count;
-    SDL_UnlockMutex(pcm.mutex); 
-  }
-
-  for (i = 0; i < len_in_bytes / 2;) {
-    if (count > 0) {
-      buf[i++] = pcm.buffer[pcm.play++];
-      buf[i++] = pcm.buffer[pcm.play++];
-      count -= 2;
-    } else {
-      buf[i++] = 0;
-      buf[i++] = 0;
-    }
-    out_count++;
-    if (pcm.play >= PCM_BUFFER_SHORT) pcm.play = 0;
-  }
-
-
-  if (SDL_LockMutex(pcm.mutex) == 0) {
-    pcm.output_count = out_count;
-    pcm.count = count;
-    SDL_UnlockMutex(pcm.mutex); 
+// 時間表記を秒数に変換する
+int get_length(const char *str) {
+  if (strchr(str, ':') == NULL)
+    return atoi(optarg);
+  else {
+    int min = 0, sec = 0;
+    sscanf(str,"%d:%d", &min, &sec);
+    return (min * 60) + sec;
   }
 }
 
-
-// SDL初期化
-static int audio_init(int freq)
-{
-  SDL_AudioSpec af;
-
-  memset(&pcm, 0 ,sizeof(pcm));
-
-  if (SDL_Init(SDL_INIT_AUDIO)) {
-    printf("Failed to Initialize!!\n");
-    return 1;
-  }
-
-  af.freq     = freq;
-  af.format   = AUDIO_S16;
-  af.channels = PCM_CH;
-  af.samples  = PCM_BLOCK; // PCM_BLOCK
-  af.callback = audio_callback;
-  af.userdata = NULL;
-
-  if (SDL_OpenAudio(&af, NULL) < 0) {
-    printf("Audio Error!!\n");
-    return 1;
-  }
-
-  pcm.mutex = SDL_CreateMutex();
-  if (!pcm.mutex) {
-    printf("Couldn't create mutex!\n");
-    return 0;
-  }
-
-  return 0;
-}
-
-// SDL開放
-static void audio_free(void) {
-  if (!pcm.mutex) SDL_DestroyMutex(pcm.mutex);
-  SDL_CloseAudio();
-  SDL_Quit();
-}
-
-////////////////////
-// wav関連
-typedef unsigned char byte;
-typedef unsigned short word;
-typedef unsigned long dword;
-
-void write_dword(byte *p, dword v) {
-    p[0] = v & 0xff;
-    p[1] = (v>>8) & 0xff;
-    p[2] = (v>>16) & 0xff;
-    p[3] = (v>>24) & 0xff;
-}
-
-void write_word(byte *p, word v) {
-    p[0] = v & 0xff;
-    p[1] = (v>>8) & 0xff;
-}
-
-#define WAV_CH 2
-#define WAV_BPS 2
-
-
-// audio_write_wav_header : ヘッダを出力する
-// freq : 再生周波数
-// pcm_bytesize : データの長さ
-static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize) {
-  unsigned char hdr[0x80];
-
-  if (!fp) return;
-
-  memcpy(hdr,"RIFF", 4);
-  write_dword(hdr + 4, pcm_bytesize + 44);
-  memcpy(hdr + 8,"WAVEfmt ", 8);
-  write_dword(hdr + 16, 16); // chunk length
-  write_word(hdr + 20, 01); // pcm id
-  write_word(hdr + 22, WAV_CH); // ch
-  write_dword(hdr + 24, freq); // freq
-  write_dword(hdr + 28, freq * WAV_CH * WAV_BPS); // bytes per sec
-  write_word(hdr + 32, WAV_CH * WAV_BPS); // bytes per frame
-  write_word(hdr + 34, WAV_BPS * 8 ); // bits
-
-  memcpy(hdr + 36, "data",4);
-  write_dword(hdr + 40, pcm_bytesize); // pcm size
-
-  fseek(fp, 0, SEEK_SET);
-  fwrite(hdr, 44, 1, fp);
-
-  fseek(fp, 0, SEEK_END);
-}
-
-// イベント監視
-static int audio_poll_event(void) {
-  SDL_Event evt;
-
-  while(SDL_PollEvent(&evt)) {
-    switch(evt.type) {
-      case SDL_QUIT:
-        return -1;
-      break;
-    }
-  }
-  return 0;
-}
-
-// ハンドラ
-static void audio_sig_handle(int sig) {
-  pcm.stop = 1;
-}
 
 // 同期を出力
 void audio_step_log(NLG *np) {
@@ -295,19 +117,15 @@ void audio_step_log(NLG *np) {
 }
 
 // NLGログ入力＆レジスタ出力
-int audio_decode_log(NLG *np, int samples)
-{
+int audio_decode_log(NLG *np, int samples) {
   int id, addr, data, cmd;
-
   double calc_ticks = samples * np->clock_per_sample;
-
 
   if (!np) return -1;
 
   while(np->log_ticks < calc_ticks) {
     cmd = ReadNLG(np->ctx);
-    if (cmd == EOF)
-        return -1;
+    if (cmd == EOF) return -1;
 
     addr = 0;
     data = 0;
@@ -346,12 +164,11 @@ int audio_decode_log(NLG *np, int samples)
     if (id >= 0) {
       // 初期タイミング値をセットする
       if (np->ctx_log && np->log_time_us == 0) {
-        np->log_time_us = GetTickUsNLG(np->ctx);
-        WriteLOG_Timing(np->ctx_log, np->log_time_us);
+        np->log_time_us = WriteLOG_Timing(np->ctx_log, GetTickUsNLG(np->ctx));
       }
       // 進める
       audio_step_log(np);
-      
+
       addr = ReadNLG(np->ctx);
       data = ReadNLG(np->ctx);
 
@@ -364,13 +181,10 @@ int audio_decode_log(NLG *np, int samples)
 }
 
 // ログ入力＆レジスタ出力(S98)
-int audio_decode_log_s98(NLG *np, int samples)
-{
+int audio_decode_log_s98(NLG *np, int samples) {
   int log_id;
   int id = 0;
-  int addr;
-  int data;
-  int cmd;
+  int addr, data, cmd;
   int tmp = 0;
 
   double calc_ticks = samples * np->clock_per_sample;
@@ -379,12 +193,9 @@ int audio_decode_log_s98(NLG *np, int samples)
 
   while(np->log_ticks < calc_ticks) {
     cmd = ReadS98(np->ctx_s98);
+    if (cmd == EOF) return -1;
 
-    if (cmd == EOF)
-        return -1;
-
-    addr = 0;
-    data = 0;
+    addr = data = 0;
 
     switch (cmd) {
       case S98_CMD_SYNC:
@@ -405,8 +216,7 @@ int audio_decode_log_s98(NLG *np, int samples)
       default:
         // 初期タイミング値をセットする
         if (np->ctx_log && np->log_time_us == 0) {
-          np->log_time_us = GetTickUsS98(np->ctx_s98);
-          WriteLOG_Timing(np->ctx_log, np->log_time_us);
+          np->log_time_us = WriteLOG_Timing(np->ctx_log, GetTickUsS98(np->ctx_s98));
         }
 
         // タイミングだけ進める
@@ -424,25 +234,18 @@ int audio_decode_log_s98(NLG *np, int samples)
         }
 
         // デバイス存在
-        if (id >= 0)
-        {
-          if (cmd & 1)
-              addr += 0x100;
-
+        if (id >= 0) {
+          if (cmd & 1) addr += 0x100;
           WriteDevice(id, addr, data);
-
-          if (np->ctx_log && log_id >= 0)
-            WriteLOG_Data(np->ctx_log, log_id, addr, data);
+          if (np->ctx_log && log_id >= 0) WriteLOG_Data(np->ctx_log, log_id, addr, data);
         }
-
         break;
     }
   }
   return 0;
 }
 
-
-// ログモード
+// ログをPCM化する
 int audio_render_log(NLG *np, short *dest, int samples) {
   int len = 0;
   int pos = 0;
@@ -451,11 +254,9 @@ int audio_render_log(NLG *np, short *dest, int samples) {
     // サンプル生成のためのクロック数が足りない場合、ログを進める
     while(np->log_ticks < np->clock_per_sample) {
         if (np->ctx) {
-            if (audio_decode_log(np, 1) < 0)
-                return pos;
+            if (audio_decode_log(np, 1) < 0) return pos;
         } else {
-            if (audio_decode_log_s98(np, 1) < 0)
-                return pos;
+            if (audio_decode_log_s98(np, 1) < 0) return pos;
         }
     }
 
@@ -467,175 +268,101 @@ int audio_render_log(NLG *np, short *dest, int samples) {
     DoRender(dest + (pos * PCM_CH), len);
     pos += len;
     samples -= len;
-    //
     np->log_ticks -= (np->clock_per_sample * len);
   }
 
   return pos;
 }
 
-
-// 再生時間表示
-static void audio_info(void) {
-  // 一秒ごとに更新する
-  if (pcm.output_count < pcm.freq) return;
-
-  while(pcm.output_count >= pcm.freq) {
-    pcm.sec++;
-    pcm.output_count -= pcm.freq;
-  }
-
-  printf("\rTime : %02d:%02d", 
-    pcm.sec / 60 , pcm.sec % 60);
-
-  fflush(stdout);  
-}
-
-
 // ループ
 static void audio_loop(NLG *np, int freq) {
-  int len;
-
   printf("Playing...(ctrl-C to stop)\n");
 
-  // バッファを埋める
-  len = audio_render_log(np, pcm.buffer, PCM_BUFFER_FRAME);
+  audio_reset_frame();
 
-  pcm.play = 0;
-  pcm.write = 0;
-  pcm.count = len * PCM_CH;
-  pcm.output_count = 0;
-  pcm.sec = 0;
+    if (audio_check_poll() < 0) return;
 
-  // ログの末端
-  if (!len) return;
+    do {
+      audio_print_info();
+      audio_wait_buffer();
 
-  // 開始
-  SDL_PauseAudio(0);
+      int len = audio_render_log(np, audio_get_current_buffer(), PCM_BLOCK);
+      audio_next_buffer();
+      if (len == 0) break;
+    }while(audio_is_continue());
 
-  while(!pcm.stop) {
-  //　時間情報の表示
-    audio_info();
-
-    // ポーリング
-    if (audio_poll_event() < 0) break;
-
-    // バッファに空きがない
-    if (PCM_BUFFER_SHORT - pcm.count <= PCM_BLOCK_SHORT) {
-        SDL_Delay(1);
-        continue;
-    }
-
-    len = audio_render_log(np, pcm.buffer + pcm.write, PCM_BLOCK_SHORT);
-
-    if (SDL_LockMutex(pcm.mutex) == 0) {
-      pcm.write += (len * PCM_CH);
-      pcm.count += (len * PCM_CH);
-      SDL_UnlockMutex(pcm.mutex); 
-    }
-
-    if (pcm.write >= PCM_BUFFER_SHORT) pcm.write = 0;
-
-    // logが終了した場合に0を返す
-    if (len == 0) break;
-  }
-
-  printf("\n");
-
-  SDL_PauseAudio(1);
+    if (!player.debug) printf("\n");
 }
 
-// audio_loop_file : 音声をデータ化する
+// audio_loop_output_pcmfile : 音声をデータ化する
 // freq : 再生周波数
-static void audio_loop_file(NLG *np, const char *file, int freq) {
+static void audio_loop_output_pcmfile(NLG *np, const char *file, int freq) {
   FILE *fp = NULL;
 
-  int len = 0;
-  int total_frames = 0;
+  audio_reset_frame();
 
-  if (file) fp = fopen(file, "wb");
-
-  if (!np->nullout && fp == NULL) {
-    printf("Can't write a PCM file!\n");
-    return;
+  if (file) {
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+      printf("Can't write a PCM file!\n");
+      return;
+    }
   }
 
-  audio_write_wav_header(fp, freq, 0);
+  audio_write_wav_header(fp);
+  short *buffer = audio_get_current_buffer();
 
   do {
-    audio_info();
+    audio_print_info();
+    int len = audio_render_log(np, buffer, PCM_BLOCK);
+    if (fp) fwrite(buffer, PCM_BLOCK_BYTES, 1, fp);
+    audio_add_frame(PCM_BLOCK);
+    if (len == 0) break;
 
-    len = audio_render_log(np, pcm.buffer, PCM_BLOCK_FRAME);
+  }while(audio_is_continue());
 
-    if (fp) fwrite(pcm.buffer, PCM_BLOCK_BYTES, 1, fp);
-
-
-    if (SDL_LockMutex(pcm.mutex) == 0) {
-      pcm.output_count += PCM_BLOCK_FRAME;
-      total_frames += PCM_BLOCK_FRAME;
-      SDL_UnlockMutex(pcm.mutex); 
-    }
-  }while(len > 0 && !pcm.stop);
-
-  audio_write_wav_header(fp, freq,
-                          total_frames * PCM_CH * PCM_BYTE_PER_SAMPLE);
-
+  audio_write_wav_header(fp);
   if (fp) fclose(fp);
-
-  printf("\n");
+  if (!player.debug) printf("\n");
 }
 
 // audio_rt_out : データをリアルタイム出力する
 // freq : 再生周波数
-static void audio_rt_out(NLG *np, int freq) {
-  int sec;
-  int frames, total_frames;
-  int render_len = 0;
-
+static void audio_rt_out(NLG *np) {
   // 経過秒数に対するサンプル数
   double left_len = 0;
+  Uint32 old_ticks = audio_get_ticks();
+  double freq = (double)audio_get_frequency();
 
-  Uint32 old_ticks = SDL_GetTicks();
-
-  sec = frames = total_frames = 0;
+  audio_reset_frame();
 
   do {
-    audio_info();
+    audio_print_info();
 
-    // 生成可能サンプル数が1バイト未満なら待つ
+    // 生成可能サンプル数が1未満なら待つ
     if (left_len < 1) {
-      // 10ms経過待ち
-      while((SDL_GetTicks() - old_ticks) < 10) {
-          SDL_Delay(1);
-      }
+        // 10ms経過待ち
+        while((audio_get_ticks() - old_ticks) < 10) {
+            audio_delay(1);
+        }
 
-      int new_ticks = SDL_GetTicks();
-
-      int ms = (new_ticks - old_ticks);
-      old_ticks = new_ticks;
-
-      left_len += ((double)freq / 1000) * ms;
+        int new_ticks = audio_get_ticks();
+        int ms = (new_ticks - old_ticks);
+        old_ticks = new_ticks;
+        left_len += (freq / 1000) * ms;
     }
 
     // レンダリングするバイト数を決定する
-    render_len = (int)left_len;
-
-    if (render_len > PCM_BLOCK)
-        render_len = PCM_BLOCK;
-
-    // 音の生成とログを進める
-    render_len = audio_render_log(np, pcm.buffer, render_len);
+    int render_len = (int)left_len;
+    if (render_len > PCM_BLOCK) render_len = PCM_BLOCK;
+    render_len = audio_render_log(np, audio_get_current_buffer(), render_len);
 
     // 進めたサンプル分を引く
     left_len -= render_len;
+    audio_add_frame(render_len);
+  }while(audio_is_continue());
 
-    // 生成カウントを進める
-    pcm.output_count += render_len;
-    total_frames += render_len;
-
-  }while(render_len > 0 && !pcm.stop);
-
-  printf("\n");
+  if (!player.debug) printf("\n");
 }
 
 #ifdef USE_FMGEN
@@ -655,8 +382,11 @@ void usage(void) {
 " -s / --rate <rate>   : Set playback rate\n"
 " -m <device> : Select device for NLG %s\n"
 " --rt  : RealTime output for real device\n"
-" --s98out : Output to S98\n"
-" --nlgout : Output to NLG\n"
+" -l <seconds | mm:ss>  : Set song length\n"
+"\n"
+" -b : Output Log mode\n"
+" --s98log : Output to S98\n"
+" --nlglog : Output to NLG(Default)\n"
 " --null    : No sound mode\n"
 " -o file   : Output to WAV file\n"
 "\n"
@@ -674,9 +404,7 @@ enum {
 // ファイルを再生する
 int audio_play_file(NLG *np, const char *playfile) {
   int baseclk = 4000000;
-
   char log_path[PATH_MAX];
-
   np->log_time_us = np->log_count_us = 0;
 
   printf("File:%s\n", playfile);
@@ -694,9 +422,7 @@ int audio_play_file(NLG *np, const char *playfile) {
     }
   }
 
-  if (np->ctx_log) {
-    printf("CreateLOG:%s\n", log_path);
-  }
+  if (np->ctx_log) printf("CreateLOG:%s\n", log_path);
 
   /* 初期化 */
   char *ext = strrchr(playfile, '.');
@@ -704,9 +430,8 @@ int audio_play_file(NLG *np, const char *playfile) {
     printf("Missing extension!\n");
     return -1;
   }
-  if (strcasecmp(ext, ".s98") == 0) {
-    // s98のデータを開く
 
+  if (strcasecmp(ext, ".s98") == 0) {
     np->ctx_s98 = OpenS98(playfile);
     if (!np->ctx_s98) {
       printf("Failed to open S98 file!\n");
@@ -716,7 +441,6 @@ int audio_play_file(NLG *np, const char *playfile) {
     // クロックは1usとする。
     np->clock_per_sample = (double)S98_US / np->rate;
   } else {
-    // NLGを開く
     np->ctx = OpenNLG(playfile);
 
     if (!np->ctx) {
@@ -753,8 +477,7 @@ int audio_play_file(NLG *np, const char *playfile) {
     // デバイス数を得る
     if (GetDeviceCountS98(np->ctx_s98) > 0) {
       // デバイス数だけ情報を得る
-      for (i = 0; i < GetDeviceCountS98(np->ctx_s98); i++)
-      {
+      for (i = 0; i < GetDeviceCountS98(np->ctx_s98); i++) {
         int type = GetDeviceTypeS98(np->ctx_s98, i);
         int bc = GetDeviceFreqS98(np->ctx_s98, i);
 
@@ -766,10 +489,8 @@ int audio_play_file(NLG *np, const char *playfile) {
           rs.type = RENDER_TYPE_OPLL;
           break;
         case S98_OPM:
-          if (np->devsel == MODE_OPM_FMGEN)
-            rs.type = RENDER_TYPE_OPM_FMGEN;
-          else
-            rs.type = RENDER_TYPE_OPM;
+          if (np->devsel == MODE_OPM_FMGEN) rs.type = RENDER_TYPE_OPM_FMGEN;
+          else rs.type = RENDER_TYPE_OPM;
           break;
         case S98_SSG:
           rs.type = RENDER_TYPE_SSG;
@@ -784,14 +505,10 @@ int audio_play_file(NLG *np, const char *playfile) {
         }
 
         // ログ出力のマップに追加
-        if (np->ctx_log)
-          np->logmap[i] = AddMapLOG(np->ctx_log, type, bc, LOG_PRIO_NORM);
-
+        if (np->ctx_log) np->logmap[i] = AddMapLOG(np->ctx_log, type, bc, LOG_PRIO_NORM);
         rs.baseclock = bc;
         id = AddRender(&rs);
-
-        if (np->volume[i] >= 0)
-          VolumeRender(id, np->volume[i]);
+        if (np->volume[i] >= 0) VolumeRender(id, np->volume[i]);
 
         np->map[i] = id;
       }
@@ -801,8 +518,7 @@ int audio_play_file(NLG *np, const char *playfile) {
       rs.baseclock = RENDER_BC_7M98;
 
       // ログ出力のマップに追加
-      if (np->ctx_log)
-        np->logmap[0] = AddMapLOG(np->ctx_log, rs.type, rs.baseclock, LOG_PRIO_NORM);
+      if (np->ctx_log) np->logmap[0] = AddMapLOG(np->ctx_log, rs.type, rs.baseclock, LOG_PRIO_NORM);
 
       id = AddRender(&rs);
       np->map[0] = id;
@@ -815,23 +531,18 @@ int audio_play_file(NLG *np, const char *playfile) {
 
       // OPLLモードであれば、BC=3.57MHzにする
       if (np->devsel == MODE_OPLL) bc = RENDER_BC_3M57;
-
       rs.baseclock = bc;
-
       rs.type = RENDER_TYPE_SSG;
       log_type = LOG_TYPE_SSG;
 
       // ログ出力のマップに追加
-      if (np->ctx_log)
-          np->logmap[NLG_PSG] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_PSG);
-
+      if (np->ctx_log) np->logmap[NLG_PSG] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_PSG);
       np->map[NLG_PSG] = AddRender(&rs);
-
 
       // FMGENを使うかどうか
       log_type = LOG_TYPE_OPM;
       rs.type = RENDER_TYPE_OPM;
-      
+
       switch(np->devsel) {
         case MODE_OPM_FMGEN:
           rs.type = RENDER_TYPE_OPM_FMGEN;
@@ -853,8 +564,8 @@ int audio_play_file(NLG *np, const char *playfile) {
 
       // ログ出力のマップに追加
       if (np->ctx_log) {
-          np->logmap[NLG_FM1] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_FM);
-          np->logmap[NLG_FM2] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_FM);
+        np->logmap[NLG_FM1] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_FM);
+        np->logmap[NLG_FM2] = AddMapLOG(np->ctx_log, log_type, bc, LOG_PRIO_FM);
       }
 
       np->map[NLG_FM1] = AddRender(&rs);
@@ -862,28 +573,18 @@ int audio_play_file(NLG *np, const char *playfile) {
 
       // 音量設定
       for(i = 0; i < 3; i++) {
-        if (np->volume[i] >= 0)
-            VolumeRender(np->map[i], np->volume[i]);
+        if (np->volume[i] >= 0) VolumeRender(np->map[i], np->volume[i]);
       }
   }
 
   // ログ出力のマップを終了
   if (np->ctx_log) MapEndLOG(np->ctx_log);
-
-  pcm.baseclk = baseclk;
-  pcm.freq = np->rate;
-  pcm.on = 1;
-
-  if (!debug) printf("Freq = %d\n", np->rate);
+  if (!player.debug) printf("Freq = %d\n", np->rate);
 
   // メインループ
-  if (np->rt_mode) // リアルタイムモード
-    audio_rt_out(np, np->rate);
-  else
-    if (np->nullout || np->outfile) // ファイル出力モード
-      audio_loop_file(np, np->outfile, np->rate);
-    else // ログ再生モード
-      audio_loop(np, np->rate);
+  if (np->rt_mode) audio_rt_out(np);
+  else if (np->nullout || np->outfile) audio_loop_output_pcmfile(np, np->outfile, np->rate);
+  else audio_loop(np, np->rate);
 
   /* 終了 */
   CloseNLG(np->ctx);
@@ -910,13 +611,12 @@ int audio_main(int argc, char *argv[]) {
 
   memset(chmask, 1, sizeof(chmask));
 
-  // プログラム情報表示
-  printf(
-      "%s Version %s"
-      "\nBuilt at %s\n",
-      PROG, VERSION, __DATE__);
+  // オーディオ初期化
+  audio_init();
+  audio_set_handle();
 
-  debug = 0;
+  // プログラム情報表示
+  printf( "%s Version %s" "\nBuilt at %s\n", PROG, VERSION, __DATE__);
 
   // 長いオプション
   struct option long_opts[] = {
@@ -931,27 +631,27 @@ int audio_main(int argc, char *argv[]) {
   /* 構造体の初期化 */
   memset(&n, 0, sizeof(NLG));
 
+  player.song_length = 0;
+  player.debug = 0;  
   n.rate = 44100;
 
   int idx = 0;
   int vol = -1;
 
   // ボリューム調整
-  for (idx = 0; idx < MAX_MAP; idx++) {
-    n.volume[idx] = -1;
-  }
+  for (idx = 0; idx < MAX_MAP; idx++) n.volume[idx] = -1;
 
   // オプション処理
-
   int opt_idx = 0;
   while (1) {
-    opt = getopt_long(argc, argv, "s:m:o:v:h", long_opts, &opt_idx);
+    opt = getopt_long(argc, argv, "s:m:o:v:l:hb", long_opts, &opt_idx);
     if (opt == -1) break;
 
     switch (opt) {
       case 1: // rt
         n.rt_mode = 1;
         break;
+
       case 2: // s98log
         n.log_mode = OUTLOG_S98;
         break;
@@ -961,6 +661,15 @@ int audio_main(int argc, char *argv[]) {
       case 4:
         n.nullout = 1;
         break;
+      case 'b':
+        n.nullout = 1;
+        if (n.log_mode == OUTLOG_NONE) n.log_mode = OUTLOG_NLG;
+        break;
+
+      case 'l':
+        player.song_length = get_length(optarg);
+        break;
+
       case 's':
         n.rate = atoi(optarg);
         break;
@@ -991,26 +700,28 @@ int audio_main(int argc, char *argv[]) {
     return 1;
   }
 
-  // 割り込みハンドラの設定
-  signal(SIGINT, audio_sig_handle);
+  audio_set_frequency(n.rate);
+  audio_set_length(player.song_length);
 
   // RTモード
   if (n.rt_mode) printf("RealTime output mode\n");
-
-  // オーディオ初期化
-  if (audio_init(n.rate)) {
-    printf("Failed to initialize audio hardware\n");
-    return 1;
+  else {
+    audio_sdl_init();
+    if (audio_sdl_open(n.rate)) {
+        printf("Failed to initialize audio hardware\n");
+        return 1;
+    }
+    audio_play();
   }
 
+  // ファイルの再生
   for (i = optind; i < argc; i++) {
-    // ファイルの再生
     audio_play_file(&n, argv[i]);
+    if (audio_is_stop()) break;
   }
 
   // オーディオ終了
   audio_free();
-
   return 0;
 }
 

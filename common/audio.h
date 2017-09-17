@@ -47,6 +47,8 @@ struct pcm_struct {
   int verbose;
   int debug;
 
+  int sdl_open;
+
   AUDIO_CPU_USAGE_CALLBACK cpu_usage_cb;
 };
 

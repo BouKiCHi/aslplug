@@ -24,7 +24,6 @@ SFX = .exe
 PFX = 
 LIBS =
 SDLCONF = sdl-config
-OBJDIR = objs_w32
 OSSFX = _w32
 
 SDL_CFLAGS := $(shell $(SDLCONF) --cflags | sed -e "s/-Dmain=SDL_main//g")
@@ -46,12 +45,17 @@ SFX =
 PFX =
 LIBS =
 SDLCONF = sdl-config
-OBJDIR = objs
-OSSFX =
 
 SDL_CFLAGS = $(shell $(SDLCONF) --cflags)
 SDL_LIBS = $(shell $(SDLCONF) --libs)
 
+endif
+
+OBJDIR = objs$(OSSFX)
+
+ifdef DEBUG
+OBJDIR = objs_dbg$(OSSFX)
+NAME := $(NAME)_dbg
 endif
 
 TARGET = $(NAME)$(SFX)
@@ -136,7 +140,7 @@ COMDIR = common
 EXTDIRS += $(COMDIR)
 
 COMSRCS = \
- memory_wr.c io_dummy.c render.c
+ audio.c memory_wr.c io_dummy.c render.c
 
 #
 # Library 
