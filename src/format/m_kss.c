@@ -947,26 +947,17 @@ static void reset(NEZ_PLAY *pNezPlay)
     
 	{
 		// ログ出力
-		if (pNezPlay->log_ctx)
-		{
-				THIS_->log_ctx = pNezPlay->log_ctx;
-				
-				if (THIS_->ext2 & EXT2_OPM)
-				{
-						THIS_->cpf = (THIS_->cpu_cycle / 100);
-						double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
-						double vsync_us = ((double)1*1000*1000) / vsync;
-
-						WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
-				}
-				else
-				{
-						double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
-						double vsync_us = ((double)1*1000*1000) / vsync;
-						// if 60Hz, vsync_us = 16666.666us
-						// 16666 / 64 exceed 256
-						WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
-				}
+		if (pNezPlay->log_ctx) {
+			THIS_->log_ctx = pNezPlay->log_ctx;
+			
+			if (THIS_->ext2 & EXT2_OPM) {
+					THIS_->cpf = (THIS_->cpu_cycle / 100);
+			}
+			double vsync = (double)THIS_->cpu_cycle / (THIS_->cpf);
+			double vsync_us = ((double)1*1000*1000) / vsync;
+			// if 60Hz, vsync_us = 16666.666us
+			// 16666 / 64 exceed 256
+			WriteLOG_Timing(pNezPlay->log_ctx, (int)vsync_us);
 		}
 		
 		/* request execute */

@@ -65,6 +65,8 @@ typedef struct {
     int mode;
     void *log_ctx;
 
+    int tick_us;
+    int step_us;
     int fm_count;
     int device_count;
     char map[LOG_MAXMAP];
@@ -95,8 +97,11 @@ void WriteLOG_SetTitle(LOGCTX *ctx, int type, const char *str);
 void WriteLOG_CTC(LOGCTX *ctx, int type, int value);
 
 // 時間出力
-// 返り値 : 実際の設定値(us)
+// 返り値 : 実際の設定値(単位:us)
 int WriteLOG_Timing(LOGCTX *ctx, int us);
+
+// 秒数を1ティックに変換して出力する(単位:us)
+void WriteLOG_Step(LOGCTX *ctx, int us);
 
 // シンク出力
 void WriteLOG_SYNC(LOGCTX *ctx);
