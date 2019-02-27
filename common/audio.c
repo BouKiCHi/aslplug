@@ -12,7 +12,8 @@ struct pcm_struct pcm;
 
 // オーディオ初期化
 int audio_init(void) {
-  memset(&pcm, 0, sizeof(pcm));
+    memset(&pcm, 0, sizeof(pcm));
+    return 0;
 }
 
 // SDL初期化
@@ -48,11 +49,13 @@ int audio_sdl_open(int freq) {
 }
 
 int audio_play(void) {
-  pcm.on = 1;
+    pcm.on = 1;
+    return 0;
 }
 
 int audio_stop(void) {
-  pcm.on = 0;
+    pcm.on = 0;
+    return 0;
 }
 
 void audio_pause(int pause) {

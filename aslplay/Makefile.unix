@@ -28,6 +28,15 @@ STRIP = strip
 AR  = ar
 CC  = gcc
 CXX = g++
+ARCHFLAGS = 
+
+ifeq ($(OSX),1)
+# ARCHFLAGS = -m32
+# ARCHFLAGS = -m32 -mmacosx-version-min=10.6 -isysroot /Developer/SDKs/MacOSX10.6.sdk
+# CC = gcc-4.2 $(ARCH_FLAGS) 
+# CXX = g++-4.2 $(ARCH_FLAGS)
+endif
+
 
 CFLAGS = $(ARCHFLAGS) -g
 LFLAGS = $(ARCHFLAGS) -g

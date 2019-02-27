@@ -132,7 +132,8 @@ static void RemapS98(S98CTX *ctx) {
   struct prio_list *ptr = ctx->prio_top;
 
   // 変換マップ作成
-  for(int i = 0; i < MAX_S98DEV && ptr; i++) {
+  int i = 0;
+  for(i = 0; i < MAX_S98DEV && ptr; i++) {
       int idx = ptr->index;
       // printf("log_id:%d -> device:%d\n", idx, i);
       // ptr->index = device_id
@@ -244,7 +245,8 @@ S98CTX *CreateS98(const char *file)
     }
 
     // 初期化
-    for(int i = 0; i < MAX_S98DEV; i++) ctx->dev_map[i] = -1;
+    int i = 0;
+    for(i = 0; i < MAX_S98DEV; i++) ctx->dev_map[i] = -1;
 
     ctx->mode = S98_WRITEMODE;
     ctx->dev_count = 0;

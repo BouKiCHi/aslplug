@@ -18,3 +18,10 @@ logplay/objs_dbg_w32/
 sccisim/obj-w32/
 
 .vscode
+aslplay/obj-x86-gcc
+aslplay/aslplay
+
+
+xcode/aslplay.xcodeproj/xcuserdata
+xcode/DerivedData
+xcode/aslplay.xcodeproj/project.xcworkspace/xcuserdata

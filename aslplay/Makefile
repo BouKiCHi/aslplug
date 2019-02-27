@@ -10,8 +10,10 @@ endif
 
 ifeq ($(WIN32),1)
 include Makefile.w32_cross
+USE_RCDRV = 1
 else
 include Makefile.unix
+USE_RCDRV = 0
 endif
 
 include Makefile.inc
@@ -26,7 +28,6 @@ ZIPBIN = $(NAME)_$(shell date +"%y%m%d")$(OSSFX).zip
 USE_OPL3 = 1
 USE_OPM = 1
 USE_FMGEN = 1
-USE_RCDRV = 1
 
 #
 # resource
@@ -42,9 +43,14 @@ SRCDIR = $(BASEDIR)/src
 
 LIBNEZ = libnez.a
 
-LIBS = $(SDL_LIBS)
 SLIBS = $(SDL_SLIBS)
 CFLAGS += $(SDL_CFLAGS)
+
+ifeq ($(STATIC),1)
+LIBS = $(SDL_SLIBS)
+else
+LIBS = $(SDL_LIBS)
+endif
 
 #
 # directory for library
@@ -183,9 +189,7 @@ CFLAGS += -I$(SRCDIR)
 #
 #
 
-dynamic : $(TARGET)
-
-static : $(TARGET_S)
+all : $(TARGET)
 
 lib : $(LIBNEZ)
 

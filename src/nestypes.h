@@ -57,6 +57,9 @@ typedef signed long		Int64;
 #ifndef Uint32
 #define Uint32 unsigned int
 #endif
+#ifndef Uint16
+#define Uint16 unsigned short
+#endif
 #ifndef Uint8
 #define Uint8 unsigned char
 #endif

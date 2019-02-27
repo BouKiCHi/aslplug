@@ -3,6 +3,7 @@
 // sdlplay.c 
 //
 
+#include <SDL.h>
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
@@ -13,7 +14,9 @@
 
 #include "audio.h"
 
+#ifndef USE_SDL
 #define USE_SDL
+#endif
 
 // for stat
 #include <sys/stat.h>
@@ -618,7 +621,8 @@ int audio_main(int argc, char *argv[]) {
 
     if (!player.debug) printf("Freq = %d, SongNo = %d\n", rate, songno);
 
-    for(int i = 0; i < 8; i++) glue2_set_adjust_volume(i,adj_vol[i]);
+    int i = 0;
+    for(i = 0; i < 8; i++) glue2_set_adjust_volume(i,adj_vol[i]);
 
     audio_set_frequency(rate);
     audio_set_length(len);
@@ -630,7 +634,7 @@ int audio_main(int argc, char *argv[]) {
         rt_out();
     } else {
       if (nosound) loop_file(wavfile); // 音なし
-      else loop_audio(rate); // 音出力
+      else loop_audio(); // 音出力
     }
 
     glue2_mem_free();
